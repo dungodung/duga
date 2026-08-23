@@ -1,38 +1,191 @@
-def test_home_lists_all_available_languages(client):
+from datetime import datetime, timezone
+
+from app.extensions import db
+from app.models import Detector, Gap
+
+
+def test_home_lists_seeded_content_languages(client, seed_languages):
     resp = client.get("/")
     assert resp.status_code == 200
-    assert b"Fran\xc3\xa7ais" in resp.data
+    assert "Français".encode() in resp.data
     assert "Српски".encode() in resp.data
-    assert b"English" in resp.data
+    # English is an interface language, not a seeded content language.
+    assert b'href="/en/"' not in resp.data
 
 
-def test_lang_home_renders_for_known_language(client):
+def test_lang_home_renders_for_known_language(client, seed_languages):
     resp = client.get("/fr/")
     assert resp.status_code == 200
     assert "Duga en Français".encode() in resp.data
 
 
-def test_lang_home_404s_for_unknown_language(client):
+def test_lang_home_404s_for_unknown_language(client, seed_languages):
     resp = client.get("/xx/")
     assert resp.status_code == 404
 
 
-def test_lang_home_defaults_interface_language_to_content_language(client):
+def test_lang_home_404s_for_language_not_seeded(client, db, seed_languages):
+    from app.models import Language
+
+    db.session.add(Language(code="de", autonym="Deutsch", seeded=False))
+    db.session.commit()
+    resp = client.get("/de/")
+    assert resp.status_code == 404
+
+
+def test_lang_home_defaults_interface_language_to_content_language(client, seed_languages):
     resp = client.get("/sr/")
     assert resp.status_code == 200
     assert b'lang="sr"' in resp.data
 
 
-def test_uselang_query_param_overrides_content_language_default(client):
+def test_uselang_query_param_overrides_content_language_default(client, seed_languages):
     resp = client.get("/sr/?uselang=fr")
     assert resp.status_code == 200
     assert b'lang="fr"' in resp.data
 
 
-def test_uselang_choice_persists_via_cookie(client):
+def test_uselang_choice_persists_via_cookie(client, seed_languages):
     client.get("/?uselang=fr")
     resp = client.get("/")
     assert b'lang="fr"' in resp.data
+
+
+def test_lang_home_shows_placeholder_before_any_detector_run(client, seed_languages):
+    resp = client.get("/sr/?uselang=en")
+    assert resp.status_code == 200
+    assert b"live yet" in resp.data
+
+
+def test_lang_home_shows_gap_count_and_link_after_a_run(client, db, seed_languages):
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Detector(
+            detector_key="wp_no_article",
+            project_code="wikipedia",
+            gap_type="no_article",
+            maturity="stable",
+            last_run_at=now,
+            last_status="ok",
+        )
+    )
+    db.session.add(
+        Gap(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wikipedia",
+            gap_type="no_article",
+            detector_key="wp_no_article",
+            scope_version_id=1,
+            evidence_json='{"label": "Test Topic"}',
+            action_url="https://www.wikidata.org/wiki/Q1#sitelinks-wikipedia",
+            computed_at=now,
+        )
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/?uselang=en")
+    assert resp.status_code == 200
+    assert b"1 gaps" in resp.data
+    assert b'href="/sr/gaps"' in resp.data
+
+
+def test_lang_home_shows_stale_notice_when_detector_failed(client, db, seed_languages):
+    db.session.add(
+        Detector(
+            detector_key="wp_no_article",
+            project_code="wikipedia",
+            gap_type="no_article",
+            maturity="stable",
+            last_run_at=datetime.now(timezone.utc),
+            last_status="error",
+        )
+    )
+    db.session.commit()
+    resp = client.get("/sr/?uselang=en")
+    assert b"may be stale" in resp.data
+
+
+def test_gaps_page_lists_topic_with_label_and_action(client, db, seed_languages):
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Gap(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wikipedia",
+            gap_type="no_article",
+            detector_key="wp_no_article",
+            scope_version_id=1,
+            evidence_json='{"label": "Marsha P. Johnson"}',
+            action_url="https://www.wikidata.org/wiki/Q1#sitelinks-wikipedia",
+            computed_at=now,
+        )
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps")
+    assert resp.status_code == 200
+    assert b"Marsha P. Johnson" in resp.data
+    assert b"sitelinks-wikipedia" in resp.data
+
+
+def test_gaps_page_falls_back_to_qid_without_a_label(client, db, seed_languages):
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Gap(
+            topic_qid="Q999",
+            language_code="sr",
+            project_code="wikipedia",
+            gap_type="no_article",
+            detector_key="wp_no_article",
+            scope_version_id=1,
+            evidence_json='{"label": null}',
+            action_url="https://www.wikidata.org/wiki/Q999#sitelinks-wikipedia",
+            computed_at=now,
+        )
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps")
+    assert b"Q999" in resp.data
+
+
+def test_gaps_page_empty_state(client, seed_languages):
+    resp = client.get("/fr/gaps?uselang=en")
+    assert resp.status_code == 200
+    assert b"No gaps match" in resp.data
+
+
+def test_gaps_page_404s_for_unseeded_language(client, seed_languages):
+    resp = client.get("/xx/gaps")
+    assert resp.status_code == 404
+
+
+def test_gaps_page_paginates(client, db, seed_languages):
+    now = datetime.now(timezone.utc)
+    for i in range(60):
+        db.session.add(
+            Gap(
+                topic_qid=f"Q{i}",
+                language_code="sr",
+                project_code="wikipedia",
+                gap_type="no_article",
+                detector_key="wp_no_article",
+                scope_version_id=1,
+                evidence_json=f'{{"label": "Topic {i}"}}',
+                action_url=f"https://www.wikidata.org/wiki/Q{i}#sitelinks-wikipedia",
+                computed_at=now,
+            )
+        )
+    db.session.commit()
+
+    page1 = client.get("/sr/gaps?uselang=en")
+    assert page1.status_code == 200
+    assert b"Next page" in page1.data
+
+    page2 = client.get("/sr/gaps?page=2&uselang=en")
+    assert page2.status_code == 200
+    assert b"Previous page" in page2.data
 
 
 def test_about_page_renders(client):

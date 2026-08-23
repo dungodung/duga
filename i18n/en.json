@@ -1,6 +1,8 @@
 {
   "@metadata": {
-    "authors": ["Duga contributors"]
+    "authors": [
+      "Duga contributors"
+    ]
   },
   "duga-tagline": "Queer knowledge, in every language",
   "duga-nav-home": "Home",
@@ -13,11 +15,27 @@
   "duga-lang-home-title": "Duga in $1",
   "duga-lang-home-placeholder": "Gap detection for this language isn't live yet. Check back soon — the first gap lists land in an early milestone.",
   "duga-lang-home-back": "Back to the language list",
+  "duga-lang-home-stale": "Detector data may be stale (last successful run: $1).",
+  "duga-lang-home-gap-count": "$1 gaps found so far.",
+  "duga-lang-home-view-gaps": "View the gap list",
+  "duga-lang-home-no-gaps": "No gaps found for this language yet.",
+  "duga-gaps-title": "Gaps for $1",
+  "duga-gaps-back": "Back to the language overview",
+  "duga-gaps-empty": "No gaps match these filters.",
+  "duga-gaps-what": "$1 — $2",
+  "duga-gaps-project-wikipedia": "Wikipedia",
+  "duga-gaps-type-no_article": "no article yet",
+  "duga-gaps-maturity-stable": "stable",
+  "duga-gaps-maturity-beta": "beta",
+  "duga-gaps-maturity-experimental": "experimental",
+  "duga-gaps-why-in-scope": "In scope because: $1",
+  "duga-gaps-fix-button": "Fix this",
+  "duga-gaps-prev-page": "Previous page",
+  "duga-gaps-next-page": "Next page",
   "duga-about-title": "About Duga",
   "duga-about-name": "\"Duga\" means rainbow across the Slavic languages, and \"to sound the depths\" in Indonesian.",
   "duga-about-body": "Duga is a multilingual hub that shows what queer knowledge is missing from Wikimedia projects in your language, and gives you the words and the tools to add it.",
   "duga-about-license": "Duga is free/open source software, licensed AGPL-3.0.",
-  "duga-footer-status": "Status: early skeleton (milestone M0). No data yet.",
   "duga-404-title": "Page not found",
   "duga-404-body": "That page doesn't exist, or that language isn't set up yet."
 }

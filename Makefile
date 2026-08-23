@@ -1,4 +1,4 @@
-.PHONY: dev dev-db dev-down test migrate run scope-fetch topic-refresh
+.PHONY: dev dev-db dev-down test migrate run scope-fetch topic-refresh wp-no-article
 
 dev:
 	FLASK_ENV=development flask --app wsgi run --debug
@@ -23,3 +23,6 @@ scope-fetch:
 
 topic-refresh:
 	FLASK_ENV=development python3 jobs/topic_refresh.py
+
+wp-no-article:
+	FLASK_ENV=development python3 jobs/wp_no_article.py

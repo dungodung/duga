@@ -6,8 +6,8 @@
 <p>{{ _('duga-home-intro') }}</p>
 <h2>{{ _('duga-home-pick-language') }}</h2>
 <ul class="lang-list">
-  {% for code in languages %}
-  <li><a href="{{ url_for('main.lang_home', lang=code) }}">{{ autonym(code) }}</a></li>
+  {% for language in languages %}
+  <li><a href="{{ url_for('main.lang_home', lang=language.code) }}">{{ language.autonym }}</a></li>
   {% endfor %}
 </ul>
 {% endblock %}

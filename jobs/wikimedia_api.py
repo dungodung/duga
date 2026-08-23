@@ -79,3 +79,48 @@ def run_sparql(endpoint: str, query: str, user_agent: str, timeout: int = 55):
 def qid_from_uri(uri: str) -> str:
     """'http://www.wikidata.org/entity/Q42' -> 'Q42'."""
     return uri.rsplit("/", 1)[-1]
+
+
+MAX_ENTITY_IDS_PER_REQUEST = 50  # the action API's limit for non-bot accounts
+
+
+def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str, timeout: int = 30):
+    """Fetches sitelinks + a best-effort label (with MediaWiki's language
+    fallback chain) for up to 50 QIDs in one call. Returns
+    {qid: {"sitelinks": {"enwiki": {...}, ...}, "label": str | None}}.
+    Callers needing more than 50 ids must chunk themselves.
+    """
+    if len(qids) > MAX_ENTITY_IDS_PER_REQUEST:
+        raise ValueError(f"get_entities_batch takes at most {MAX_ENTITY_IDS_PER_REQUEST} ids at a time")
+
+    resp = requests.get(
+        api_url,
+        params={
+            "action": "wbgetentities",
+            "format": "json",
+            "formatversion": "2",
+            "ids": "|".join(qids),
+            "props": "sitelinks|labels",
+            "languages": language,
+            "languagefallback": "1",
+        },
+        headers={"User-Agent": user_agent},
+        timeout=timeout,
+    )
+    if resp.status_code != 200:
+        raise WikimediaApiError(
+            f"wbgetentities returned HTTP {resp.status_code} for {len(qids)} ids: {resp.text[:500]}"
+        )
+    data = resp.json()
+
+    result = {}
+    for qid, entity in data.get("entities", {}).items():
+        if "missing" in entity:
+            result[qid] = {"sitelinks": {}, "label": None}
+            continue
+        label_entry = entity.get("labels", {}).get(language)
+        result[qid] = {
+            "sitelinks": entity.get("sitelinks", {}),
+            "label": label_entry["value"] if label_entry else None,
+        }
+    return result

@@ -1,7 +1,24 @@
 {% extends "base.html" %}
-{% block title %}{{ _('duga-lang-home-title', autonym(content_lang)) }}{% endblock %}
+{% block title %}{{ _('duga-lang-home-title', language.autonym) }}{% endblock %}
 {% block content %}
-<h1>{{ _('duga-lang-home-title', autonym(content_lang)) }}</h1>
+<h1>{{ _('duga-lang-home-title', language.autonym) }}</h1>
+
+{% if not has_any_detector_run %}
 <p>{{ _('duga-lang-home-placeholder') }}</p>
+{% else %}
+  {% for detector in detectors %}
+    {% if detector.last_status != 'ok' %}
+    <p class="notice notice-stale">{{ _('duga-lang-home-stale', detector.last_run_at.strftime('%Y-%m-%d %H:%M UTC') if detector.last_run_at else '?') }}</p>
+    {% endif %}
+  {% endfor %}
+
+  {% if total_gaps > 0 %}
+  <p>{{ _('duga-lang-home-gap-count', total_gaps) }}</p>
+  <p><a href="{{ url_for('main.gaps', lang=language.code) }}">{{ _('duga-lang-home-view-gaps') }}</a></p>
+  {% else %}
+  <p>{{ _('duga-lang-home-no-gaps') }}</p>
+  {% endif %}
+{% endif %}
+
 <p><a href="{{ url_for('main.home') }}">{{ _('duga-lang-home-back') }}</a></p>
 {% endblock %}

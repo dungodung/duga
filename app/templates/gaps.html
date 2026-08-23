@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duga-gaps-title', language.autonym) }}{% endblock %}
+{% block content %}
+<h1>{{ _('duga-gaps-title', language.autonym) }}</h1>
+<p><a href="{{ url_for('main.lang_home', lang=language.code) }}">{{ _('duga-gaps-back') }}</a></p>
+
+{% if items %}
+<ul class="gap-list">
+  {% for item in items %}
+  <li class="gap-row">
+    <div class="gap-label">{{ item.label }}</div>
+    <div class="gap-meta">
+      {{ _('duga-gaps-what', _('duga-gaps-project-' ~ item.project_code), _('duga-gaps-type-' ~ item.gap_type)) }}
+      · {{ _('duga-gaps-maturity-' ~ item.maturity) }}
+      {% if item.why_in_scope %}
+      · {{ _('duga-gaps-why-in-scope', item.why_in_scope | join(', ')) }}
+      {% endif %}
+    </div>
+    <a class="gap-action" href="{{ item.action_url }}">{{ _('duga-gaps-fix-button') }}</a>
+  </li>
+  {% endfor %}
+</ul>
+
+<nav class="pagination">
+  {% if page > 1 %}
+  <a href="?page={{ page - 1 }}{% if project_filter %}&amp;project={{ project_filter }}{% endif %}{% if type_filter %}&amp;type={{ type_filter }}{% endif %}">{{ _('duga-gaps-prev-page') }}</a>
+  {% endif %}
+  {% if has_next %}
+  <a href="?page={{ page + 1 }}{% if project_filter %}&amp;project={{ project_filter }}{% endif %}{% if type_filter %}&amp;type={{ type_filter }}{% endif %}">{{ _('duga-gaps-next-page') }}</a>
+  {% endif %}
+</nav>
+{% else %}
+<p>{{ _('duga-gaps-empty') }}</p>
+{% endif %}
+{% endblock %}

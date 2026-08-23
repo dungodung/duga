@@ -22,3 +22,21 @@ def db(app):
 @pytest.fixture()
 def client(app):
     return app.test_client()
+
+
+@pytest.fixture()
+def seed_languages(db):
+    """Mirrors the seed data the real M2 migration inserts (sr, fr content
+    languages + the wikipedia project) -- db.create_all() builds schema
+    only, not migration data, so tests that exercise content-language
+    routes need this explicitly."""
+    from app.models import Language, Project
+
+    db.session.add_all(
+        [
+            Language(code="sr", autonym="Српски", seeded=True),
+            Language(code="fr", autonym="Français", seeded=True),
+            Project(code="wikipedia", family="wikipedia"),
+        ]
+    )
+    db.session.commit()

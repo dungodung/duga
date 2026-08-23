@@ -11,12 +11,10 @@ constraints, data model, milestones). `docs/architecture.md`, `docs/i18n.md`,
 `docs/wikiproject-page.md`, `docs/scope-definition.md`, and
 `docs/deployment-toolforge.md` cover the current code.
 
-**Status:** M1 — M0's skeleton plus a database (`scope_version`, `scope_rule`,
-`topic`, `topic_rule`) and the `scope_fetch`/`topic_refresh` jobs. Still no
-OAuth, no detectors, no gap list yet; see the milestone table in `SPEC.md`
-section 14. The on-wiki scope definition page (SPEC.md section 6) needs to
-exist before these jobs have anything real to do — see
-`docs/scope-definition.md`.
+**Status:** M2 — the first end-to-end slice (SPEC.md section 14). A visitor
+can pick a language, see real gaps (`wp_no_article`: missing Wikipedia
+articles), and click through to fix one on Wikidata. Still no OAuth, no
+overrides/suppression UI (M3), no writes to Wikidata (M6).
 
 ## Local development
 
@@ -29,14 +27,15 @@ make migrate
 make dev
 ```
 
-Then open http://localhost:5000/ — try the language picker, `/sr/`, `/fr/`,
-`/about`, and `/health`.
+Then open http://localhost:5000/ — try the language picker, `/sr/`,
+`/sr/gaps`, `/about`, and `/health`.
 
 ```bash
-make test            # pytest
-make run              # gunicorn, the same entrypoint Toolforge uses (Procfile)
-make scope-fetch      # jobs/scope_fetch.py against DUGA_SCOPE_PAGE
-make topic-refresh    # jobs/topic_refresh.py against the active scope_version
+make test              # pytest
+make run                # gunicorn, the same entrypoint Toolforge uses (Procfile)
+make scope-fetch        # jobs/scope_fetch.py against DUGA_SCOPE_PAGE
+make topic-refresh      # jobs/topic_refresh.py against the active scope_version
+make wp-no-article      # jobs/wp_no_article.py -- the wp_no_article detector
 ```
 
 ## Deployment

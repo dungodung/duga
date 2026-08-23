@@ -91,3 +91,50 @@ a {
 .js .lang-switch button {
   display: none;
 }
+
+.notice {
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.notice-stale {
+  background: rgba(200, 120, 30, 0.15);
+  border: 1px solid rgba(200, 120, 30, 0.4);
+}
+
+.gap-list {
+  list-style: none;
+  padding: 0;
+}
+
+.gap-row {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+}
+
+.gap-label {
+  font-weight: 600;
+  flex: 1 1 auto;
+  min-width: 10rem;
+}
+
+.gap-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  flex: 2 1 auto;
+}
+
+.gap-action {
+  white-space: nowrap;
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+}
