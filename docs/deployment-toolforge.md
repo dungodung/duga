@@ -141,8 +141,8 @@ toolforge jobs run wd-no-description --command "python3 jobs/wd_no_description.p
 ```
 
 Suppressing a topic or overriding a specific gap (SPEC.md S4, guardrail 5)
-is a one-off job the same way scope activation is -- there's no admin UI
-until M4:
+is a one-off job the same way scope activation is -- there's still no
+self-service admin UI for either:
 
 ```
 toolforge jobs run suppress --command "python3 scripts/suppress_topic.py Q42 --reason '...' --by <your-wiki-username>" \
@@ -153,7 +153,23 @@ toolforge jobs delete suppress
 toolforge jobs delete override
 ```
 
-## M4 (later)
+## M4: OAuth login
 
-Adds the Wikimedia OAuth consumer (see the note in SPEC.md section 9) and
-its client id/secret/redirect URI as `toolforge envvars create` values.
+Register the OAuth consumer first -- see `docs/oauth-setup.md`; this is the
+one step that needs a human with a Wikimedia account and can't be automated.
+Once you have a client id/secret:
+
+```
+toolforge envvars create DUGA_OAUTH_CLIENT_ID "..."
+toolforge envvars create DUGA_OAUTH_CLIENT_SECRET "..."   # this echoes back too, same caveat as SECRET_KEY
+toolforge envvars create DUGA_OAUTH_REDIRECT_URI "https://duga.toolforge.org/oauth/callback"
+toolforge build start https://github.com/<your-username>/duga --ref main
+toolforge jobs run migrate --command "flask --app wsgi db upgrade" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs delete migrate
+toolforge webservice buildservice restart
+```
+
+Verify: `https://duga.toolforge.org/login` redirects to
+`meta.wikimedia.org`; logging in for the first time lands on `/account`
+with the attribution toggle visible before anywhere else.

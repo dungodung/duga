@@ -1,4 +1,4 @@
-# Duga architecture (M0 + M1 + M2 + M3)
+# Duga architecture (M0 + M1 + M2 + M3 + M4)
 
 Full rationale, data model, and roadmap live in `SPEC.md` at the repo root —
 this doc is a short pointer into the current code, not a duplicate.
@@ -50,10 +50,44 @@ request-path SPARQL) -- that only happens in `jobs/`:
   time in every code path") and guardrail 5.
 - `GET /about` — name/licence blurb
 - `GET /health` — JSON `{"status": "ok"}` for monitoring
+- `GET /login`, `GET /oauth/callback`, `POST /logout` — Wikimedia OAuth 2.0
+  (see below and `docs/oauth-setup.md`)
+- `GET /account`, `POST /account/attribution` — a contributor's own account
+  page and the public-attribution opt-out toggle
 
 `app/i18n.py`'s `resolve_interface_lang()` runs in a `before_request` hook
 and is exposed to every template via a context processor (`_()`, `autonym()`,
-`available_languages`, `interface_lang`).
+`available_languages`, `interface_lang`); `contributor` (the logged-in
+`Contributor` row, or `None`) is injected the same way, from
+`app/blueprints/auth/routes.py:current_contributor()`.
+
+## Login (M4)
+
+SPEC.md section 9: "No Duga-local passwords, ever." `app/blueprints/auth/`
+implements the Wikimedia OAuth 2.0 Authorization Code flow:
+
+- `oauth_client.py` — the three HTTP calls (authorize URL, token exchange,
+  profile fetch) against `meta.wikimedia.org/w/rest.php/oauth2/*`. Access/
+  refresh tokens are used once, at login, and never persisted.
+- `routes.py` — `/login` builds a random `state`, stores it in the session,
+  and redirects; `/oauth/callback` validates that `state` (CSRF protection)
+  before exchanging anything, then upserts a `Contributor` row keyed by the
+  profile's `username`. A brand-new contributor is routed through
+  `/account` first, not straight to `?next=`, so the public-attribution
+  opt-out (defaults on, per section 9) is seen prominently at first login
+  rather than left buried in a settings page nobody visits.
+- Every contributor-affecting write goes through `app/audit.py:log()` into
+  `audit_log` (guardrail 11) -- but only the writes that actually change
+  something: a new contributor row, or an attribution preference that
+  actually flipped. A routine returning login updates `last_seen_at` without
+  an audit row; auditing every visit would make that table noise, not a
+  record of decisions.
+- If `DUGA_OAUTH_CLIENT_ID` is unset, `/login` renders a plain "not
+  configured" page (503) instead of building a broken authorize URL --
+  deploying before the OAuth consumer is registered is safe.
+
+No write path to Wikimedia itself exists yet (that's M6, gated by SPEC.md
+S1's property allowlist) -- M4 is login and attribution only.
 
 ## Jobs (M1 + M2 + M3)
 
@@ -99,9 +133,10 @@ request (SPEC.md section 4 -- "the web app only reads"):
   7 ("human decisions live separately so recomputation never destroys
   them"), guardrail 5.
 
-None of the three scripts above are web endpoints: there's no auth'd admin
-UI until M4, so each is a plain CLI an operator runs by hand on Toolforge,
-same pattern throughout.
+None of the three scripts above are web endpoints -- there's still no admin
+UI for suppression/overrides (that's a self-service `POST /gap/override`
+endpoint, not yet built even with M4's login now in place), so each stays a
+plain CLI an operator runs by hand on Toolforge.
 
 All jobs are idempotent (SPEC.md guardrail 8): re-running `scope_fetch` for
 an already-stored revision is a no-op; `topic_refresh` and the three
@@ -123,7 +158,7 @@ about the person. Flag this interpretation if it should be revisited.
 ## What's deliberately not here yet
 
 Per the milestone table (SPEC.md section 14): no self-service override/
-suppression UI -- that's the real, auth'd `POST /gap/override` endpoint,
-which needs M4's OAuth first; for now `scripts/suppress_topic.py` and
-`scripts/set_gap_override.py` are the only way to exercise S4 and guardrail
-5, and no writes to Wikidata exist before M6.
+suppression UI (`scripts/suppress_topic.py`/`scripts/set_gap_override.py`
+remain the only way to exercise S4 and guardrail 5), no vocabulary/
+add-a-term flow (M5), and no writes to Wikidata (M6, gated by S1's property
+allowlist).

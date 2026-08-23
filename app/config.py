@@ -49,6 +49,13 @@ class BaseConfig:
     DUGA_WIKIDATA_API = os.environ.get("DUGA_WIKIDATA_API", "https://www.wikidata.org/w/api.php")
     DUGA_WDQS_ENDPOINT = os.environ.get("DUGA_WDQS_ENDPOINT", "https://query.wikidata.org/sparql")
 
+    # Wikimedia OAuth 2.0 (SPEC.md section 9). See docs/oauth-setup.md for
+    # how to register a consumer. Empty by default -- /login shows a plain
+    # "not configured" page rather than crashing when these aren't set yet.
+    DUGA_OAUTH_CLIENT_ID = os.environ.get("DUGA_OAUTH_CLIENT_ID", "")
+    DUGA_OAUTH_CLIENT_SECRET = os.environ.get("DUGA_OAUTH_CLIENT_SECRET", "")
+    DUGA_OAUTH_REDIRECT_URI = os.environ.get("DUGA_OAUTH_REDIRECT_URI", "")
+
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True

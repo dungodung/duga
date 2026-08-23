@@ -8,15 +8,21 @@ add it.
 
 See `SPEC.md` for the full project specification (purpose, hard safety
 constraints, data model, milestones). `docs/architecture.md`, `docs/i18n.md`,
-`docs/wikiproject-page.md`, `docs/scope-definition.md`, and
-`docs/deployment-toolforge.md` cover the current code.
+`docs/wikiproject-page.md`, `docs/scope-definition.md`, `docs/oauth-setup.md`,
+and `docs/deployment-toolforge.md` cover the current code.
 
-**Status:** M3 — all three v0.1 detectors (`wp_no_article`, `wd_no_label`,
-`wd_no_description`), gap overrides, and topic suppression. A visitor can
-pick a language, see real gaps, and click through to fix one on Wikidata;
-an operator can suppress a topic or override a specific gap via
-`scripts/suppress_topic.py`/`scripts/set_gap_override.py` (no self-service
-UI for either until M4 brings OAuth). Still no writes to Wikidata (M6).
+**Status:** M4 — Wikimedia OAuth login, contributor rows, the public-
+attribution opt-out, and audit logging. A visitor can pick a language, see
+real gaps, click through to fix one on Wikidata, and log in with their
+Wikimedia account; an operator can suppress a topic or override a specific
+gap via `scripts/suppress_topic.py`/`scripts/set_gap_override.py` (still no
+self-service UI for either). Still no writes to Wikidata (M6, gated by
+SPEC.md S1).
+
+**Login needs a registered OAuth consumer to actually work** — see
+`docs/oauth-setup.md` for the one manual step (`DUGA_OAUTH_CLIENT_ID`/
+`_SECRET`); without it, `/login` shows a plain "not configured" page rather
+than breaking.
 
 ## Local development
 
@@ -30,7 +36,8 @@ make dev
 ```
 
 Then open http://localhost:5000/ — try the language picker, `/sr/`,
-`/sr/gaps`, `/about`, and `/health`.
+`/sr/gaps`, `/about`, `/health`, and (once `DUGA_OAUTH_CLIENT_ID` is set --
+see `docs/oauth-setup.md`) `/login`.
 
 ```bash
 make test               # pytest

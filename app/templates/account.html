@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duga-account-title') }}{% endblock %}
+{% block content %}
+<h1>{{ _('duga-account-title') }}</h1>
+<p>{{ _('duga-account-username', contributor.wiki_username) }}</p>
+
+<h2>{{ _('duga-account-attribution-title') }}</h2>
+<p>{{ _('duga-account-attribution-explain') }}</p>
+<form method="post" action="{{ url_for('auth.update_attribution') }}">
+  <label>
+    <input type="checkbox" name="display_public" {% if contributor.display_public %}checked{% endif %}>
+    {{ _('duga-account-attribution-checkbox') }}
+  </label>
+  <button type="submit">{{ _('duga-account-attribution-save') }}</button>
+</form>
+
+{% if continue_url and continue_url != url_for('auth.account') %}
+<p><a href="{{ continue_url }}">{{ _('duga-account-continue') }}</a></p>
+{% endif %}
+{% endblock %}

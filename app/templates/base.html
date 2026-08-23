@@ -14,6 +14,14 @@
   <nav>
     <a href="{{ url_for('main.home') }}">{{ _('duga-nav-home') }}</a>
     <a href="{{ url_for('main.about') }}">{{ _('duga-nav-about') }}</a>
+    {% if contributor %}
+    <a href="{{ url_for('auth.account') }}">{{ contributor.wiki_username }}</a>
+    <form class="logout-form" method="post" action="{{ url_for('auth.logout') }}">
+      <button type="submit" class="link-button">{{ _('duga-nav-logout') }}</button>
+    </form>
+    {% else %}
+    <a href="{{ url_for('auth.login', next=request.path) }}">{{ _('duga-nav-login') }}</a>
+    {% endif %}
   </nav>
 </header>
 <main>

@@ -14,9 +14,11 @@ def create_app(config_name: str = "production") -> Flask:
 
     from . import models  # noqa: F401 registers models with SQLAlchemy metadata
 
+    from .blueprints.auth.routes import auth_bp, current_contributor
     from .blueprints.main.routes import main_bp
 
     app.register_blueprint(main_bp)
+    app.register_blueprint(auth_bp)
 
     @app.before_request
     def set_interface_lang():
@@ -43,6 +45,10 @@ def create_app(config_name: str = "production") -> Flask:
             "available_languages": i18n.available_languages(),
             "autonym": i18n.autonym,
         }
+
+    @app.context_processor
+    def inject_contributor():
+        return {"contributor": current_contributor()}
 
     @app.errorhandler(404)
     def not_found(_error):
