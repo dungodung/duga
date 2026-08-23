@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+# tests/ has no __init__.py, so pytest's default import mode only puts
+# tests/ itself on sys.path, not the repo root -- "app" is unimportable.
+# `python -m pytest` masked this locally (that form always prepends cwd);
+# the plain `pytest` console script CI uses does not.
+pythonpath = ["."]
