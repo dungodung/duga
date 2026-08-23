@@ -86,8 +86,12 @@ toolforge jobs run activate-scope --command "python3 scripts/activate_scope_vers
   --image tool-duga/tool-duga:latest --wait
 toolforge jobs run topic-refresh --command "python3 jobs/topic_refresh.py" \
   --image tool-duga/tool-duga:latest --wait
-toolforge jobs delete scope-fetch activate-scope topic-refresh
+toolforge jobs delete scope-fetch
+toolforge jobs delete activate-scope
+toolforge jobs delete topic-refresh
 ```
+
+(`jobs delete` takes exactly one job name per call, not a list.)
 
 Once that's worked once by hand, schedule the two recurring jobs (`--wait`
 replaced with `--schedule`; a cron-like expression, evaluated in UTC):
