@@ -38,7 +38,7 @@ def test_uselang_choice_persists_via_cookie(client):
 def test_about_page_renders(client):
     resp = client.get("/about")
     assert resp.status_code == 200
-    assert b"GPL-3.0-or-later" in resp.data
+    assert b"AGPL-3.0" in resp.data
 
 
 def test_unknown_route_renders_translated_404(client):

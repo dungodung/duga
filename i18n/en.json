@@ -16,7 +16,7 @@
   "duga-about-title": "About Duga",
   "duga-about-name": "\"Duga\" means rainbow across the Slavic languages, and \"to sound the depths\" in Indonesian.",
   "duga-about-body": "Duga is a multilingual hub that shows what queer knowledge is missing from Wikimedia projects in your language, and gives you the words and the tools to add it.",
-  "duga-about-license": "Duga is free/open source software, licensed GPL-3.0-or-later.",
+  "duga-about-license": "Duga is free/open source software, licensed AGPL-3.0.",
   "duga-footer-status": "Status: early skeleton (milestone M0). No data yet.",
   "duga-404-title": "Page not found",
   "duga-404-body": "That page doesn't exist, or that language isn't set up yet."
