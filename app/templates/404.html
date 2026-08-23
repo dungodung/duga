@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duga-404-title') }}{% endblock %}
+{% block content %}
+<h1>{{ _('duga-404-title') }}</h1>
+<p>{{ _('duga-404-body') }}</p>
+<p><a href="{{ url_for('main.home') }}">{{ _('duga-lang-home-back') }}</a></p>
+{% endblock %}

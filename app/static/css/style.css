@@ -1,0 +1,93 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1b1330;
+  --bg: #ffffff;
+  --muted: #5a5568;
+  --link: #7a3ea1;
+  --border: #ddd6e6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #f2eefb;
+    --bg: #14101f;
+    --muted: #b6adc9;
+    --link: #c99bf0;
+    --border: #322a44;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.site-header, .site-footer, main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.site-header .brand {
+  font-weight: bold;
+  font-size: 1.25rem;
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.site-header nav a {
+  margin-right: 1rem;
+  color: var(--link);
+}
+
+.tagline {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.lang-list {
+  padding-left: 1.25rem;
+}
+
+.lang-list li {
+  margin-bottom: 0.4rem;
+}
+
+a {
+  color: var(--link);
+}
+
+.site-footer {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lang-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Once enhance.js runs, the select auto-submits on change, so the explicit
+   submit button is only needed with JavaScript disabled. */
+.js .lang-switch button {
+  display: none;
+}

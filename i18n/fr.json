@@ -1,0 +1,21 @@
+{
+  "@metadata": {},
+  "duga-tagline": "Le savoir queer, dans toutes les langues",
+  "duga-nav-home": "Accueil",
+  "duga-nav-about": "À propos",
+  "duga-home-title": "Duga",
+  "duga-home-intro": "Duga montre quelles connaissances queer manquent aux projets Wikimédia dans votre langue, et vous donne les mots et les outils pour les ajouter.",
+  "duga-home-pick-language": "Choisissez une langue pour voir son aperçu :",
+  "duga-home-interface-language": "Langue de l'interface",
+  "duga-home-interface-language-submit": "Changer",
+  "duga-lang-home-title": "Duga en $1",
+  "duga-lang-home-placeholder": "La détection des lacunes pour cette langue n'est pas encore active. Revenez bientôt : les premières listes de lacunes arriveront lors d'une prochaine étape.",
+  "duga-lang-home-back": "Retour à la liste des langues",
+  "duga-about-title": "À propos de Duga",
+  "duga-about-name": "« Duga » signifie « arc-en-ciel » dans les langues slaves, et « sonder les profondeurs » en indonésien.",
+  "duga-about-body": "Duga est un centre multilingue qui montre quelles connaissances queer manquent aux projets Wikimédia dans votre langue, et vous donne les mots et les outils pour les ajouter.",
+  "duga-about-license": "Duga est un logiciel libre, sous licence AGPL-3.0.",
+  "duga-footer-status": "État : squelette initial (étape M0). Pas encore de données.",
+  "duga-404-title": "Page introuvable",
+  "duga-404-body": "Cette page n'existe pas, ou cette langue n'est pas encore configurée."
+}

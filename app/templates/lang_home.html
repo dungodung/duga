@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duga-lang-home-title', autonym(content_lang)) }}{% endblock %}
+{% block content %}
+<h1>{{ _('duga-lang-home-title', autonym(content_lang)) }}</h1>
+<p>{{ _('duga-lang-home-placeholder') }}</p>
+<p><a href="{{ url_for('main.home') }}">{{ _('duga-lang-home-back') }}</a></p>
+{% endblock %}

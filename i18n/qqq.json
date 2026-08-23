@@ -1,0 +1,21 @@
+{
+  "@metadata": {},
+  "duga-tagline": "The project tagline, shown under the name on the home page. Keep it short. In your language, feel free to choose a natural local term rather than transliterating \"queer\" if there's a better-established one -- see the /about page for the terminology policy.",
+  "duga-nav-home": "Link label in the site navigation, goes back to the home page.",
+  "duga-nav-about": "Link label in the site navigation, goes to the About page.",
+  "duga-home-title": "The project name, shown as the main heading on the home page. This is a proper noun (\"Duga\") -- most languages should leave it untranslated, like a brand name.",
+  "duga-home-intro": "One-paragraph explanation of what Duga is, shown on the home page below the title.",
+  "duga-home-pick-language": "Label above the list of languages a visitor can choose to browse.",
+  "duga-home-interface-language": "Label for the interface-language switcher: a dropdown of languages used to translate the site's own UI, independent of which language's content a visitor is browsing.",
+  "duga-home-interface-language-submit": "Button label to submit the interface-language switcher form.",
+  "duga-lang-home-title": "Page heading for a single language's overview. $1 is the autonym of that language (e.g. \"Français\").",
+  "duga-lang-home-placeholder": "Placeholder shown on a language overview page before gap detection exists yet (milestone M0/M1). Will be replaced with real content in a later milestone.",
+  "duga-lang-home-back": "Link back to the home page's language list.",
+  "duga-about-title": "Page heading for the About page.",
+  "duga-about-name": "Explains the meaning of the project name \"Duga\" on the About page. Keep \"Duga\" itself untranslated.",
+  "duga-about-body": "One-paragraph restatement of the project's purpose, shown on the About page.",
+  "duga-about-license": "States the software license on the About page.",
+  "duga-footer-status": "Shown in the page footer while the project has no real data yet. Will be removed once detectors ship.",
+  "duga-404-title": "Heading shown on the not-found error page.",
+  "duga-404-body": "Body text on the not-found error page, explaining a link may point to a language that isn't set up yet."
+}

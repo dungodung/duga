@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="{{ interface_lang }}" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.className = document.documentElement.className.replace("no-js", "js");</script>
+<title>{% block title %}Duga{% endblock %}</title>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="{{ url_for('main.home') }}">Duga</a>
+  <nav>
+    <a href="{{ url_for('main.home') }}">{{ _('duga-nav-home') }}</a>
+    <a href="{{ url_for('main.about') }}">{{ _('duga-nav-about') }}</a>
+  </nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer class="site-footer">
+  <p>{{ _('duga-footer-status') }}</p>
+  <form class="lang-switch" method="get" action="{{ request.path }}">
+    <label for="uselang">{{ _('duga-home-interface-language') }}</label>
+    <select name="uselang" id="uselang">
+      {% for code in available_languages %}
+      <option value="{{ code }}"{% if code == interface_lang %} selected{% endif %}>{{ autonym(code) }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">{{ _('duga-home-interface-language-submit') }}</button>
+  </form>
+</footer>
+<script src="{{ url_for('static', filename='js/enhance.js') }}"></script>
+</body>
+</html>
