@@ -29,12 +29,15 @@ GitHub repo — it does not require GitLab:
 
 ```
 become duga
-toolforge env set SECRET_KEY "..."       # any random string; only used for Flask's session signing
+toolforge envvars create SECRET_KEY "$(openssl rand -hex 32)"   # avoid printing the value; the command echoes it back
 
 toolforge build start https://github.com/<your-username>/duga --ref main
-toolforge build show   # wait for "ok (Succeeded)"
+toolforge build show   # wait for "Status: ok"
 toolforge webservice buildservice start --mount=none
 ```
+
+(Verified against the actual CLI: it's `toolforge envvars create NAME VALUE`,
+not `toolforge env set` -- some older docs/muscle memory say otherwise.)
 
 Redeploy after a code change: push `main`, then re-run `toolforge build
 start` + `toolforge webservice buildservice restart`.
@@ -47,12 +50,61 @@ start` + `toolforge webservice buildservice restart`.
 - `https://duga.toolforge.org/health` returns `{"status": "ok"}`.
 - `https://duga.toolforge.org/about` loads.
 
-## What changes at M1+
+## M1: database and jobs
 
-- M1 adds ToolsDB (provisioning: `become duga && sql duga`) and the
-  `scope_fetch`/`topic_refresh` jobs (`toolforge jobs schedule ...`). DB
-  credentials should prefer Toolforge's auto-provisioned `TOOL_TOOLSDB_USER`/
-  `TOOL_TOOLSDB_PASSWORD` envvars over anything manually copied, so they stay
-  in sync with whatever Toolforge itself rotates.
-- M4 adds the Wikimedia OAuth consumer (see the note in SPEC.md section 9)
-  and its client id/secret/redirect URI as `toolforge env set` values.
+ToolsDB is auto-provisioned per-tool the moment the tool exists -- no manual
+`sql duga` step needed. `TOOL_TOOLSDB_USER`/`TOOL_TOOLSDB_PASSWORD` are
+injected automatically into `toolforge jobs run` containers and into the
+buildservice webservice pod (confirmed live); `app/config.py` prefers them
+over `DB_USER`/`DB_PASSWORD` so nothing needs to be copied by hand. They are
+**not** exported into an interactive `become duga` bastion shell, only into
+job/webservice pods -- run anything that needs the DB as a job, not
+directly on the bastion.
+
+Apply migrations after each build that changes the schema, as a one-off job
+against the tool's own freshly-built image:
+
+```
+toolforge build start https://github.com/<your-username>/duga --ref main
+toolforge build show   # wait for "Status: ok"
+toolforge jobs run migrate --command "flask --app wsgi db upgrade" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs logs migrate   # confirm it applied cleanly, then:
+toolforge jobs delete migrate
+```
+
+Fetch the on-wiki scope definition (see `docs/scope-definition.md` for what
+needs to exist on Wikidata first) and populate topics:
+
+```
+toolforge jobs run scope-fetch --command "python3 jobs/scope_fetch.py" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs run activate-scope --command "python3 scripts/activate_scope_version.py --list" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs logs activate-scope   # note the id to activate, then:
+toolforge jobs run activate-scope --command "python3 scripts/activate_scope_version.py <id> --by <your-wiki-username>" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs run topic-refresh --command "python3 jobs/topic_refresh.py" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs delete scope-fetch activate-scope topic-refresh
+```
+
+Once that's worked once by hand, schedule the two recurring jobs (`--wait`
+replaced with `--schedule`; a cron-like expression, evaluated in UTC):
+
+```
+toolforge jobs run scope-fetch --command "python3 jobs/scope_fetch.py" \
+  --image tool-duga/tool-duga:latest --schedule "0 3 * * *" --emails onfailure
+toolforge jobs run topic-refresh --command "python3 jobs/topic_refresh.py" \
+  --image tool-duga/tool-duga:latest --schedule "30 3 * * *" --emails onfailure
+```
+
+`topic_refresh` only acts on the *active* scope_version (SPEC.md section 6),
+so scheduling it doesn't risk silently adopting an unreviewed scope change --
+activation stays a deliberate, separate step
+(`scripts/activate_scope_version.py`) until M4 adds an admin UI for it.
+
+## M4 (later)
+
+Adds the Wikimedia OAuth consumer (see the note in SPEC.md section 9) and
+its client id/secret/redirect URI as `toolforge envvars create` values.

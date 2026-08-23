@@ -1,0 +1,20 @@
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: duga
+      MYSQL_USER: duga
+      MYSQL_PASSWORD: duga
+    ports:
+      - "3306:3306"
+    volumes:
+      - duga-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-uduga", "-pduga"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  duga-db-data:

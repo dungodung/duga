@@ -2,11 +2,17 @@ from flask import Flask, g, render_template, request
 
 from . import i18n
 from .config import CONFIG_BY_NAME
+from .extensions import db, migrate
 
 
 def create_app(config_name: str = "production") -> Flask:
     app = Flask(__name__)
     app.config.from_object(CONFIG_BY_NAME.get(config_name, CONFIG_BY_NAME["production"]))
+
+    db.init_app(app)
+    migrate.init_app(app, db, directory="migrations")
+
+    from . import models  # noqa: F401 registers models with SQLAlchemy metadata
 
     from .blueprints.main.routes import main_bp
 

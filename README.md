@@ -8,11 +8,15 @@ add it.
 
 See `SPEC.md` for the full project specification (purpose, hard safety
 constraints, data model, milestones). `docs/architecture.md`,
-`docs/i18n.md`, and `docs/deployment-toolforge.md` cover the current code.
+`docs/i18n.md`, `docs/scope-definition.md`, and `docs/deployment-toolforge.md`
+cover the current code.
 
-**Status:** M0 — skeleton, health check, i18n scaffolding, hello world in
-three languages (English, Serbian, French). No database, no jobs, no OAuth
-yet; see the milestone table in `SPEC.md` section 14.
+**Status:** M1 — M0's skeleton plus a database (`scope_version`, `scope_rule`,
+`topic`, `topic_rule`) and the `scope_fetch`/`topic_refresh` jobs. Still no
+OAuth, no detectors, no gap list yet; see the milestone table in `SPEC.md`
+section 14. The on-wiki scope definition page (SPEC.md section 6) needs to
+exist before these jobs have anything real to do — see
+`docs/scope-definition.md`.
 
 ## Local development
 
@@ -20,6 +24,8 @@ yet; see the milestone table in `SPEC.md` section 14.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env
+make dev-db      # starts a local MariaDB via docker compose
+make migrate
 make dev
 ```
 
@@ -27,8 +33,10 @@ Then open http://localhost:5000/ — try the language picker, `/sr/`, `/fr/`,
 `/about`, and `/health`.
 
 ```bash
-make test   # pytest
-make run    # gunicorn, the same entrypoint Toolforge uses (Procfile)
+make test            # pytest
+make run              # gunicorn, the same entrypoint Toolforge uses (Procfile)
+make scope-fetch      # jobs/scope_fetch.py against DUGA_SCOPE_PAGE
+make topic-refresh    # jobs/topic_refresh.py against the active scope_version
 ```
 
 ## Deployment
