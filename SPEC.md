@@ -15,7 +15,7 @@
 - **Target milestone:** working, seedable v0.1 by the Queering Wiki conference,
   Montréal, 23–25 October 2026
 - **Intended custodian:** Wikimedia LGBT+ User Group (handover planned, not immediate)
-- **Licence:** free/open source (AGPL-3.0 recommended); data CC0 where it mirrors
+- **Licence:** free/open source (GPL-3.0-or-later); data CC0 where it mirrors
   Wikidata, CC BY-SA for prose contributions
 
 ---

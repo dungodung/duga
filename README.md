@@ -38,5 +38,5 @@ runbook.
 
 ## Licence
 
-AGPL-3.0 (see `LICENSE`). Data is CC0 where it mirrors Wikidata, CC BY-SA for
+GPL-3.0-or-later (see `LICENSE`). Data is CC0 where it mirrors Wikidata, CC BY-SA for
 prose contributions — see `SPEC.md`.
