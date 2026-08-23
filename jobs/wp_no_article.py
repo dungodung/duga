@@ -59,14 +59,17 @@ def _chunks(items, size):
         yield items[i : i + size]
 
 
-def compute_gaps_for_language(app, language, qids):
+def compute_gaps_for_language(app, language_code, qids):
     """Returns {qid: label_or_None} for topics with no Wikipedia article in
-    `language`. Raises WikimediaApiError on any batch failure."""
-    dbname = wikipedia_dbname(language.code)
+    `language_code`. Raises WikimediaApiError on any batch failure. Takes a
+    plain code, not a Language ORM object -- this runs with the DB session
+    closed (see run()), so an ORM instance could raise DetachedInstanceError
+    the moment something tried to lazily touch it."""
+    dbname = wikipedia_dbname(language_code)
     missing = {}
     for chunk in _chunks(qids, MAX_ENTITY_IDS_PER_REQUEST):
         entities = get_entities_batch(
-            app.config["DUGA_WIKIDATA_API"], chunk, language.code, app.config["DUGA_USER_AGENT"]
+            app.config["DUGA_WIKIDATA_API"], chunk, language_code, app.config["DUGA_USER_AGENT"]
         )
         for qid, info in entities.items():
             if dbname not in info["sitelinks"]:
@@ -97,18 +100,29 @@ def run(app=None):
         if active_version is None:
             print(f"{DETECTOR_KEY}: no active scope_version -- nothing to do", file=sys.stderr)
             sys.exit(1)
+        active_version_id = active_version.id
 
         languages = Language.query.filter_by(seeded=True).all()
         if not languages:
             print(f"{DETECTOR_KEY}: no seeded languages -- nothing to do", file=sys.stderr)
             sys.exit(1)
+        language_codes = [language.code for language in languages]
 
         qids = [row[0] for row in Topic.query.filter_by(suppressed=False).with_entities(Topic.qid).all()]
 
+        # Release the DB connection before the slow part. This loop makes
+        # hundreds of outbound Wikimedia API calls and can run for minutes;
+        # holding a connection checked out on an open transaction that whole
+        # time is what produced "MySQL server has gone away" against
+        # ToolsDB in production -- pool_pre_ping/pool_recycle only get a
+        # chance to act at checkout, and nothing gets checked back in while
+        # a transaction stays open across the loop.
+        db.session.close()
+
         results = {}  # language_code -> {qid: label_or_None}
         try:
-            for language in languages:
-                results[language.code] = compute_gaps_for_language(app, language, qids)
+            for language_code in language_codes:
+                results[language_code] = compute_gaps_for_language(app, language_code, qids)
         except WikimediaApiError as exc:
             print(f"{DETECTOR_KEY} FAILED: {exc}", file=sys.stderr)
             _upsert_detector_row("error")
@@ -131,7 +145,7 @@ def run(app=None):
                         project_code=PROJECT_CODE,
                         gap_type=GAP_TYPE,
                         detector_key=DETECTOR_KEY,
-                        scope_version_id=active_version.id,
+                        scope_version_id=active_version_id,
                         evidence_json=json.dumps({"label": label}),
                         action_url=f"https://www.wikidata.org/wiki/{qid}#sitelinks-wikipedia",
                         computed_at=now,

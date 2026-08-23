@@ -96,12 +96,24 @@ def run(app=None):
             )
             sys.exit(1)
 
+        active_version_id = active_version.id
+        rules = list(active_version.rules)  # force the lazy load before closing the session below
+
+        # Release the DB connection before the slow part: each rule can be a
+        # multi-second WDQS query, and holding a connection checked out on
+        # an open transaction across all of them is what produced "MySQL
+        # server has gone away" against ToolsDB for wp_no_article's similar
+        # loop in practice -- pool_pre_ping/pool_recycle only get a chance
+        # to act at checkout, and nothing gets checked back in while a
+        # transaction stays open across the loop.
+        db.session.close()
+
         now = datetime.now(timezone.utc)
         # qid -> {"entity_class": ..., "is_living": ..., "rule_keys": {...}}
         topics = {}
         failures = []
 
-        for rule in active_version.rules:
+        for rule in rules:
             try:
                 is_living_by_qid = resolve_rule(rule, app)
             except (ScopeRuleRefused, WikimediaApiError) as exc:
@@ -127,18 +139,18 @@ def run(app=None):
             topic.is_living = info["is_living"]
             topic.last_seen = now
 
-        TopicRule.query.filter_by(scope_version_id=active_version.id).delete()
+        TopicRule.query.filter_by(scope_version_id=active_version_id).delete()
         for qid, info in topics.items():
             for rule_key in info["rule_keys"]:
                 db.session.add(
-                    TopicRule(topic_qid=qid, rule_key=rule_key, scope_version_id=active_version.id)
+                    TopicRule(topic_qid=qid, rule_key=rule_key, scope_version_id=active_version_id)
                 )
 
         db.session.commit()
         print(
-            f"topic_refresh: scope_version {active_version.id}: "
-            f"{len(topics)} topics from {len(active_version.rules) - len(failures)}/"
-            f"{len(active_version.rules)} rules"
+            f"topic_refresh: scope_version {active_version_id}: "
+            f"{len(topics)} topics from {len(rules) - len(failures)}/"
+            f"{len(rules)} rules"
             + (f" ({len(failures)} rule(s) skipped: {failures})" if failures else "")
         )
         if failures:

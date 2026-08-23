@@ -23,7 +23,15 @@ class BaseConfig:
     SESSION_COOKIE_SAMESITE = "Lax"
 
     SQLALCHEMY_DATABASE_URI = _db_uri()
-    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    # pool_pre_ping alone wasn't enough in practice: jobs that spend minutes
+    # making outbound Wikimedia API calls between DB touches (e.g.
+    # wp_no_article, looping over ~450 wbgetentities requests before writing
+    # gap rows) hit "MySQL server has gone away" against ToolsDB even with
+    # it on -- a proxied backend can reset a connection in a way pre_ping's
+    # lightweight check doesn't always catch. pool_recycle forces the pool
+    # to discard and reopen any connection older than this, proactively,
+    # rather than only reacting to a dead one.
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 120}
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Mandatory descriptive User-Agent for outbound Wikimedia API/WDQS calls
