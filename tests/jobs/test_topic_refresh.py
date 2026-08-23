@@ -12,7 +12,7 @@ WDQS_URL = "https://query.wikidata.org/sparql"
 
 def make_active_scope_version(*rules):
     version = ScopeVersion(
-        source_page="Wikidata:WikiProject LGBT/Duga scope",
+        source_page="Wikidata:WikiProject LGBT/Duga/scope",
         revision_id=1,
         raw_json="{}",
         fetched_at=datetime.now(timezone.utc),

@@ -5,9 +5,15 @@ what conditions) is governed on-wiki, not in this repo (SPEC.md section 6).
 `scope_fetch` reads it; it never writes it. This doc is what to paste onto
 Wikidata to get M1 running for real, and how the fetcher parses it.
 
+This is the **subpage** — the general-audience overview page it hangs off
+of is `Wikidata:WikiProject LGBT/Duga`; see `docs/wikiproject-page.md` for
+that one. Create the overview page first (or at least at the same time),
+since this page's own wikitext links back to it.
+
 ## 1. Create the page
 
-Recommended title: **`Wikidata:WikiProject LGBT/Duga scope`**
+Title: **`Wikidata:WikiProject LGBT/Duga/scope`** (a subpage of the overview
+page above, per the normal structure for a WikiProject subproject).
 
 Paste the wikitext below. The important part is the exact pair of HTML
 comments (`<!-- DUGA-SCOPE-START -->` / `<!-- DUGA-SCOPE-END -->`) around the
@@ -17,12 +23,13 @@ wrapper is just for readability on-wiki; the fetcher strips it if present and
 still works without it.
 
 ```wikitext
-This page defines what '''[[m:Special:MyLanguage/Duga|Duga]]''' (a queer-knowledge-gap
-tool for Wikimedia projects, see the [https://github.com/dungodung/duga project repository])
-treats as in scope. Duga reads this page on a schedule; it never edits it.
-Changes here take effect only after an operator explicitly activates the new
-revision (Duga never auto-activates a scope change), so there is no rush and
-no risk in iterating.
+This page defines what '''[[Wikidata:WikiProject LGBT/Duga|Duga]]''' (a
+queer-knowledge-gap tool for Wikimedia projects, see the
+[https://github.com/dungodung/duga project repository]) treats as in scope.
+Duga reads this page on a schedule; it never edits it. Changes here take
+effect only after an operator explicitly activates the new revision (Duga
+never auto-activates a scope change), so there is no rush and no risk in
+iterating.
 
 Each rule below becomes a WDQS query. <code>requires_reference: true</code>
 is mandatory for any rule that matches a person via an identity statement
@@ -83,12 +90,13 @@ themselves; nothing about their content is final.
 
 ## 2. Get informal WikiProject LGBT buy-in
 
-Post a short note on `Wikidata talk:WikiProject LGBT` linking the new page,
-per SPEC.md section 17 ("at least informal buy-in... before building the
-engine around it"). You don't need consensus before M1's plumbing works —
-you need it before the *rules themselves* are treated as settled. Feel free
-to run `scope_fetch`/`topic_refresh` against a draft to sanity-check the
-pipeline while that conversation is ongoing.
+Post a short note on `Wikidata talk:WikiProject LGBT` linking the new
+overview page (`Wikidata:WikiProject LGBT/Duga`), per SPEC.md section 17
+("at least informal buy-in... before building the engine around it"). You
+don't need consensus before M1's plumbing works — you need it before the
+*rules themselves* are treated as settled. Feel free to run
+`scope_fetch`/`topic_refresh` against a draft to sanity-check the pipeline
+while that conversation is ongoing.
 
 ## 3. Fetch and activate it
 

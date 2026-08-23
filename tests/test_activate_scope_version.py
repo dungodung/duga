@@ -7,7 +7,7 @@ from scripts import activate_scope_version as activate_cli
 
 def make_version(revision_id, active=False):
     version = ScopeVersion(
-        source_page="Wikidata:WikiProject LGBT/Duga scope",
+        source_page="Wikidata:WikiProject LGBT/Duga/scope",
         revision_id=revision_id,
         raw_json="{}",
         fetched_at=datetime.now(timezone.utc),

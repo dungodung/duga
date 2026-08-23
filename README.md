@@ -7,9 +7,9 @@ Wikimedia projects in your language, and gives you the words and the tools to
 add it.
 
 See `SPEC.md` for the full project specification (purpose, hard safety
-constraints, data model, milestones). `docs/architecture.md`,
-`docs/i18n.md`, `docs/scope-definition.md`, and `docs/deployment-toolforge.md`
-cover the current code.
+constraints, data model, milestones). `docs/architecture.md`, `docs/i18n.md`,
+`docs/wikiproject-page.md`, `docs/scope-definition.md`, and
+`docs/deployment-toolforge.md` cover the current code.
 
 **Status:** M1 — M0's skeleton plus a database (`scope_version`, `scope_rule`,
 `topic`, `topic_rule`) and the `scope_fetch`/`topic_refresh` jobs. Still no

@@ -36,7 +36,7 @@ class BaseConfig:
     # docs/scope-definition.md -- SPEC.md section 6 requires this to live on
     # Wikidata under the WikiProject LGBT namespace, not in this repo.
     DUGA_SCOPE_PAGE = os.environ.get(
-        "DUGA_SCOPE_PAGE", "Wikidata:WikiProject LGBT/Duga scope"
+        "DUGA_SCOPE_PAGE", "Wikidata:WikiProject LGBT/Duga/scope"
     )
     DUGA_WIKIDATA_API = os.environ.get("DUGA_WIKIDATA_API", "https://www.wikidata.org/w/api.php")
     DUGA_WDQS_ENDPOINT = os.environ.get("DUGA_WDQS_ENDPOINT", "https://query.wikidata.org/sparql")
