@@ -128,3 +128,63 @@ def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str,
             "label": label_entry["value"] if label_entry else None,
         }
     return result
+
+
+def get_raw_labels_and_descriptions(api_url: str, qids: list, language: str, user_agent: str, timeout: int = 30):
+    """Like get_entities_batch, but deliberately WITHOUT MediaWiki's
+    language fallback chain: a label/description here is present only if a
+    genuine value exists exactly in `language`. wd_no_label/wd_no_description
+    need this raw presence to decide whether something is actually missing
+    -- a fallback-filled value would mask a real gap. English is requested
+    alongside for display purposes only; because there's no fallback
+    involved, the two never cross-contaminate (each key is populated only
+    from that exact language's own value), so this needs just one request
+    instead of a raw check plus a separate fallback lookup.
+    Returns {qid: {"label_language": str|None, "label_en": str|None,
+                    "description_language": str|None, "description_en": str|None}}.
+    """
+    if len(qids) > MAX_ENTITY_IDS_PER_REQUEST:
+        raise ValueError(
+            f"get_raw_labels_and_descriptions takes at most {MAX_ENTITY_IDS_PER_REQUEST} ids at a time"
+        )
+
+    languages = language if language == "en" else f"{language}|en"
+
+    resp = requests.get(
+        api_url,
+        params={
+            "action": "wbgetentities",
+            "format": "json",
+            "formatversion": "2",
+            "ids": "|".join(qids),
+            "props": "labels|descriptions",
+            "languages": languages,
+        },
+        headers={"User-Agent": user_agent},
+        timeout=timeout,
+    )
+    if resp.status_code != 200:
+        raise WikimediaApiError(
+            f"wbgetentities returned HTTP {resp.status_code} for {len(qids)} ids: {resp.text[:500]}"
+        )
+    data = resp.json()
+
+    result = {}
+    for qid, entity in data.get("entities", {}).items():
+        if "missing" in entity:
+            result[qid] = {
+                "label_language": None,
+                "label_en": None,
+                "description_language": None,
+                "description_en": None,
+            }
+            continue
+        labels = entity.get("labels", {})
+        descriptions = entity.get("descriptions", {})
+        result[qid] = {
+            "label_language": labels.get(language, {}).get("value"),
+            "label_en": labels.get("en", {}).get("value"),
+            "description_language": descriptions.get(language, {}).get("value"),
+            "description_en": descriptions.get("en", {}).get("value"),
+        }
+    return result

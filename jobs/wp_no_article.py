@@ -4,12 +4,9 @@ gap_type, evidence, action, status) record shape (SPEC.md section 1, 11).
 v0.1 detector, maturity 'stable'.
 
 Run via: python3 jobs/wp_no_article.py
-Idempotent (SPEC.md guardrail 8): fully replaces this detector's gap rows
-for each seeded language on every successful run. A failed run leaves
-existing gap rows untouched and marks detector.last_status so the UI can
-show staleness rather than silently serving old data as current
-(guardrail 9) -- results are collected in memory first and only written in
-one transaction if every language's data fetched cleanly.
+Idempotent (SPEC.md guardrail 8) and fails loudly (guardrail 9) -- see
+jobs/detector_common.py's run_presence_detector for the shared mechanics
+every "is X missing" detector uses.
 
 Note on SPEC.md S7 ("is_living topics are excluded from experimental
 detectors by default and from any bulk/batch surface"): this detector is a
@@ -25,21 +22,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import json  # noqa: E402
-from datetime import datetime, timezone  # noqa: E402
-
 from app import create_app  # noqa: E402
-from app.extensions import db  # noqa: E402
-from app.models import Detector, Gap, Language, ScopeVersion, Topic  # noqa: E402
-from jobs.wikimedia_api import (  # noqa: E402
-    MAX_ENTITY_IDS_PER_REQUEST,
-    WikimediaApiError,
-    get_entities_batch,
-)
+from jobs.detector_common import chunks, run_presence_detector  # noqa: E402
+from jobs.wikimedia_api import MAX_ENTITY_IDS_PER_REQUEST, get_entities_batch  # noqa: E402
 
 DETECTOR_KEY = "wp_no_article"
 PROJECT_CODE = "wikipedia"
 GAP_TYPE = "no_article"
+DESCRIPTION = "Missing Wikipedia article in a tracked language for an in-scope topic."
 
 # Wikipedia site-key exceptions where it isn't simply f"{code}wiki" --
 # extend as new seeded languages hit one (SPEC.md section 13: Wikimedia
@@ -54,109 +44,40 @@ def wikipedia_dbname(language_code: str) -> str:
     return WIKIPEDIA_DBNAME_OVERRIDES.get(language_code, f"{language_code}wiki")
 
 
-def _chunks(items, size):
-    for i in range(0, len(items), size):
-        yield items[i : i + size]
+def action_url(qid: str) -> str:
+    return f"https://www.wikidata.org/wiki/{qid}#sitelinks-wikipedia"
 
 
 def compute_gaps_for_language(app, language_code, qids):
-    """Returns {qid: label_or_None} for topics with no Wikipedia article in
-    `language_code`. Raises WikimediaApiError on any batch failure. Takes a
-    plain code, not a Language ORM object -- this runs with the DB session
-    closed (see run()), so an ORM instance could raise DetachedInstanceError
-    the moment something tried to lazily touch it."""
+    """Returns {qid: {"label": str|None}} for topics with no Wikipedia
+    article in `language_code`. Raises WikimediaApiError on any batch
+    failure. Takes a plain code, not a Language ORM object -- this runs
+    with the DB session closed, so an ORM instance could raise
+    DetachedInstanceError the moment something tried to lazily touch it."""
     dbname = wikipedia_dbname(language_code)
     missing = {}
-    for chunk in _chunks(qids, MAX_ENTITY_IDS_PER_REQUEST):
+    for chunk in chunks(qids, MAX_ENTITY_IDS_PER_REQUEST):
         entities = get_entities_batch(
             app.config["DUGA_WIKIDATA_API"], chunk, language_code, app.config["DUGA_USER_AGENT"]
         )
         for qid, info in entities.items():
             if dbname not in info["sitelinks"]:
-                missing[qid] = info["label"]
+                missing[qid] = {"label": info["label"]}
     return missing
-
-
-def _upsert_detector_row(status):
-    detector = Detector.query.filter_by(detector_key=DETECTOR_KEY).first()
-    if detector is None:
-        detector = Detector(
-            detector_key=DETECTOR_KEY,
-            project_code=PROJECT_CODE,
-            gap_type=GAP_TYPE,
-            maturity="stable",
-            enabled=True,
-            description="Missing Wikipedia article in a tracked language for an in-scope topic.",
-        )
-        db.session.add(detector)
-    detector.last_run_at = datetime.now(timezone.utc)
-    detector.last_status = status
 
 
 def run(app=None):
     app = app or create_app(os.environ.get("FLASK_ENV", "production"))
-    with app.app_context():
-        active_version = ScopeVersion.query.filter_by(active=True).first()
-        if active_version is None:
-            print(f"{DETECTOR_KEY}: no active scope_version -- nothing to do", file=sys.stderr)
-            sys.exit(1)
-        active_version_id = active_version.id
-
-        languages = Language.query.filter_by(seeded=True).all()
-        if not languages:
-            print(f"{DETECTOR_KEY}: no seeded languages -- nothing to do", file=sys.stderr)
-            sys.exit(1)
-        language_codes = [language.code for language in languages]
-
-        qids = [row[0] for row in Topic.query.filter_by(suppressed=False).with_entities(Topic.qid).all()]
-
-        # Release the DB connection before the slow part. This loop makes
-        # hundreds of outbound Wikimedia API calls and can run for minutes;
-        # holding a connection checked out on an open transaction that whole
-        # time is what produced "MySQL server has gone away" against
-        # ToolsDB in production -- pool_pre_ping/pool_recycle only get a
-        # chance to act at checkout, and nothing gets checked back in while
-        # a transaction stays open across the loop.
-        db.session.close()
-
-        results = {}  # language_code -> {qid: label_or_None}
-        try:
-            for language_code in language_codes:
-                results[language_code] = compute_gaps_for_language(app, language_code, qids)
-        except WikimediaApiError as exc:
-            print(f"{DETECTOR_KEY} FAILED: {exc}", file=sys.stderr)
-            _upsert_detector_row("error")
-            db.session.commit()
-            sys.exit(1)
-
-        now = datetime.now(timezone.utc)
-        for language_code, missing in results.items():
-            Gap.query.filter_by(
-                detector_key=DETECTOR_KEY,
-                language_code=language_code,
-                project_code=PROJECT_CODE,
-                gap_type=GAP_TYPE,
-            ).delete()
-            for qid, label in missing.items():
-                db.session.add(
-                    Gap(
-                        topic_qid=qid,
-                        language_code=language_code,
-                        project_code=PROJECT_CODE,
-                        gap_type=GAP_TYPE,
-                        detector_key=DETECTOR_KEY,
-                        scope_version_id=active_version_id,
-                        evidence_json=json.dumps({"label": label}),
-                        action_url=f"https://www.wikidata.org/wiki/{qid}#sitelinks-wikipedia",
-                        computed_at=now,
-                    )
-                )
-
-        _upsert_detector_row("ok")
-        db.session.commit()
-
-        total = sum(len(m) for m in results.values())
-        print(f"{DETECTOR_KEY}: {total} gaps across {len(languages)} language(s), {len(qids)} topics checked")
+    run_presence_detector(
+        app,
+        detector_key=DETECTOR_KEY,
+        project_code=PROJECT_CODE,
+        gap_type=GAP_TYPE,
+        maturity="stable",
+        description=DESCRIPTION,
+        action_url_fn=action_url,
+        compute_fn=compute_gaps_for_language,
+    )
 
 
 if __name__ == "__main__":

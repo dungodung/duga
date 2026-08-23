@@ -1,4 +1,4 @@
-# Duga architecture (M0 + M1 + M2)
+# Duga architecture (M0 + M1 + M2 + M3)
 
 Full rationale, data model, and roadmap live in `SPEC.md` at the repo root —
 this doc is a short pointer into the current code, not a duplicate.
@@ -43,7 +43,11 @@ request-path SPARQL) -- that only happens in `jobs/`:
 - `GET /<lang>/` — per-language overview: gap count, detector staleness, or
   a placeholder if nothing has run yet. 404s for an unseeded language.
 - `GET /<lang>/gaps` — the gap list for that language, filterable by
-  `?project=`/`?type=`, paginated (`GAPS_PAGE_SIZE` = 50)
+  `?project=`/`?type=`, paginated (`GAPS_PAGE_SIZE` = 50). Every gap query
+  goes through `_visible_gaps_query()`, which excludes a gap if its topic is
+  suppressed or if a `gap_override` row exists for that exact
+  (topic, language, project, gap_type) -- SPEC.md S4 ("filtered at query
+  time in every code path") and guardrail 5.
 - `GET /about` — name/licence blurb
 - `GET /health` — JSON `{"status": "ok"}` for monitoring
 
@@ -51,7 +55,7 @@ request-path SPARQL) -- that only happens in `jobs/`:
 and is exposed to every template via a context processor (`_()`, `autonym()`,
 `available_languages`, `interface_lang`).
 
-## Jobs (M1 + M2)
+## Jobs (M1 + M2 + M3)
 
 Standalone scripts, run via Toolforge's jobs framework, never via a web
 request (SPEC.md section 4 -- "the web app only reads"):
@@ -64,27 +68,48 @@ request (SPEC.md section 4 -- "the web app only reads"):
   run any rule that claims `requires_reference=True` without a
   `prov:wasDerivedFrom` pattern in its SPARQL (SPEC.md section 3, S2) --
   this is enforced in code, not trusted from the on-wiki flag.
-- `jobs/wp_no_article.py` — the first detector (v0.1 table, maturity
-  `stable`): for every non-suppressed topic and every seeded language,
-  checks (via batched `wbgetentities`, 50 QIDs/call) whether a Wikipedia
-  article exists; writes `gap` rows for the ones that don't, plus a
-  self-registered `detector` row recording `last_run_at`/`last_status`.
-  Collects results fully in memory before writing anything, so a failed run
-  never leaves `gap` half-updated -- it only ever fully-replaces-or-leaves
-  untouched.
+- `jobs/wp_no_article.py`, `jobs/wd_no_label.py`, `jobs/wd_no_description.py`
+  — the three v0.1 detectors (maturity `stable`), all sharing
+  `jobs/detector_common.py`'s `run_presence_detector()` for the identical
+  half of their control flow (guard clauses, releasing the DB connection
+  before the slow API loop, atomic gap replacement, detector
+  self-registration). Only each one's own `compute_gaps_for_language()`
+  differs:
+  - `wp_no_article` checks Wikipedia sitelink existence via batched
+    `wbgetentities` (`jobs/wikimedia_api.py:get_entities_batch`, which asks
+    for the content language *with* MediaWiki's fallback chain, plus an
+    explicit English fallback, since it's only fetching a display label).
+  - `wd_no_label`/`wd_no_description` check genuine per-language label/
+    description presence via `get_raw_labels_and_descriptions`, which
+    deliberately does *not* use the fallback chain -- a fallback-derived
+    value would mask a real gap -- while still getting an English label for
+    display in the same request.
 - `jobs/wikimedia_api.py` — the only code that talks to the Wikidata action
   API / WDQS. All jobs are read-only against Wikimedia; no write path exists
   before M6.
 - `scripts/activate_scope_version.py` — the operator action that promotes a
-  fetched scope_version to active. A plain CLI, not a web endpoint: there's
-  no auth'd admin UI until M4.
+  fetched scope_version to active.
+- `scripts/suppress_topic.py` — the operator action for SPEC.md S4
+  ("suppression is absolute and immediate... requires no upstream edit and
+  no justification beyond a logged reason"): sets/clears
+  `topic.suppressed`/`suppressed_reason`/`suppressed_by`/`suppressed_at`.
+  Refuses to suppress without `--reason`.
+- `scripts/set_gap_override.py` — the operator action for a human decision
+  on one specific gap (declined / not_applicable / done) -- SPEC.md section
+  7 ("human decisions live separately so recomputation never destroys
+  them"), guardrail 5.
+
+None of the three scripts above are web endpoints: there's no auth'd admin
+UI until M4, so each is a plain CLI an operator runs by hand on Toolforge,
+same pattern throughout.
 
 All jobs are idempotent (SPEC.md guardrail 8): re-running `scope_fetch` for
-an already-stored revision is a no-op; `topic_refresh` and `wp_no_article`
-fully replace their own rows each run (`topic_rule` for the active
-scope_version_id; `gap` per detector_key + language_code), while `topic`
-rows persist (`first_seen` fixed, `last_seen` advances, `suppressed` never
-touched by a job).
+an already-stored revision is a no-op; `topic_refresh` and the three
+detectors fully replace their own rows each run (`topic_rule` for the
+active scope_version_id; `gap` per detector_key + language_code), while
+`topic` rows persist (`first_seen` fixed, `last_seen` advances, `suppressed`
+never touched by a job) and `gap_override` rows are never touched by a
+detector at all.
 
 ## A scope note worth re-checking later
 
@@ -97,7 +122,8 @@ about the person. Flag this interpretation if it should be revisited.
 
 ## What's deliberately not here yet
 
-Per the milestone table (SPEC.md section 14): no `gap_override` (M3), no
-suppression UI (M3), no OAuth (M4), no writes to Wikidata (M6). M2 is the
-first slice a visitor can actually use end to end: pick a language, see
-real gaps, click through to fix one.
+Per the milestone table (SPEC.md section 14): no self-service override/
+suppression UI -- that's the real, auth'd `POST /gap/override` endpoint,
+which needs M4's OAuth first; for now `scripts/suppress_topic.py` and
+`scripts/set_gap_override.py` are the only way to exercise S4 and guardrail
+5, and no writes to Wikidata exist before M6.

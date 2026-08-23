@@ -108,6 +108,51 @@ so scheduling it doesn't risk silently adopting an unreviewed scope change --
 activation stays a deliberate, separate step
 (`scripts/activate_scope_version.py`) until M4 adds an admin UI for it.
 
+## M2 + M3: detectors, overrides, suppression
+
+The three v0.1 detectors run the same way as `topic_refresh` above -- each
+can spend several minutes making hundreds of Wikimedia API calls, so run
+them one at a time the first time and watch `toolforge jobs logs`:
+
+```
+toolforge jobs run wp-no-article --command "python3 jobs/wp_no_article.py" \
+  --image tool-duga/tool-duga:latest --wait 900
+toolforge jobs run wd-no-label --command "python3 jobs/wd_no_label.py" \
+  --image tool-duga/tool-duga:latest --wait 900
+toolforge jobs run wd-no-description --command "python3 jobs/wd_no_description.py" \
+  --image tool-duga/tool-duga:latest --wait 900
+```
+
+(`--wait` defaults to a 600s client-side timeout; pass a larger value like
+`--wait 900` for these rather than the bare flag, or the CLI gives up
+watching before a slow run finishes -- the job itself still completes
+server-side either way.)
+
+Then schedule all three, staggered so they don't compete for API rate
+budget, and after `topic_refresh` has had time to finish first:
+
+```
+toolforge jobs run wp-no-article --command "python3 jobs/wp_no_article.py" \
+  --image tool-duga/tool-duga:latest --schedule "0 4 * * *" --emails onfailure
+toolforge jobs run wd-no-label --command "python3 jobs/wd_no_label.py" \
+  --image tool-duga/tool-duga:latest --schedule "20 4 * * *" --emails onfailure
+toolforge jobs run wd-no-description --command "python3 jobs/wd_no_description.py" \
+  --image tool-duga/tool-duga:latest --schedule "40 4 * * *" --emails onfailure
+```
+
+Suppressing a topic or overriding a specific gap (SPEC.md S4, guardrail 5)
+is a one-off job the same way scope activation is -- there's no admin UI
+until M4:
+
+```
+toolforge jobs run suppress --command "python3 scripts/suppress_topic.py Q42 --reason '...' --by <your-wiki-username>" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs run override --command "python3 scripts/set_gap_override.py Q42 sr wikipedia no_article --status done --by <your-wiki-username>" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs delete suppress
+toolforge jobs delete override
+```
+
 ## M4 (later)
 
 Adds the Wikimedia OAuth consumer (see the note in SPEC.md section 9) and

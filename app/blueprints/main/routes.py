@@ -1,9 +1,10 @@
 import json
 
 from flask import Blueprint, abort, jsonify, render_template, request
+from sqlalchemy import and_, exists
 
 from ...extensions import db
-from ...models import Detector, Gap, Language, ScopeRule, TopicRule
+from ...models import Detector, Gap, GapOverride, Language, ScopeRule, Topic, TopicRule
 
 main_bp = Blueprint("main", __name__)
 
@@ -15,6 +16,25 @@ def _seeded_language_or_404(lang):
     if language is None:
         abort(404)
     return language
+
+
+def _visible_gaps_query(lang):
+    """The base query every gap-list-facing view must use. SPEC.md S4: a
+    suppressed topic is filtered out "at query time in every code path" --
+    not just by the next detector run -- and guardrail 5: a human
+    gap_override decision must actually hide the gap it overrides, since
+    detectors never touch that table themselves. Both are enforced here,
+    once, so no view can accidentally skip either."""
+    suppressed_topic = exists().where(and_(Topic.qid == Gap.topic_qid, Topic.suppressed.is_(True)))
+    overridden_gap = exists().where(
+        and_(
+            GapOverride.topic_qid == Gap.topic_qid,
+            GapOverride.language_code == Gap.language_code,
+            GapOverride.project_code == Gap.project_code,
+            GapOverride.gap_type == Gap.gap_type,
+        )
+    )
+    return Gap.query.filter(Gap.language_code == lang, ~suppressed_topic, ~overridden_gap)
 
 
 @main_bp.get("/")
@@ -29,8 +49,8 @@ def lang_home(lang):
 
     detectors = Detector.query.all()
     gap_counts = (
-        db.session.query(Gap.project_code, Gap.gap_type, db.func.count(Gap.id))
-        .filter(Gap.language_code == lang)
+        _visible_gaps_query(lang)
+        .with_entities(Gap.project_code, Gap.gap_type, db.func.count(Gap.id))
         .group_by(Gap.project_code, Gap.gap_type)
         .all()
     )
@@ -49,15 +69,15 @@ def lang_home(lang):
 def gaps(lang):
     language = _seeded_language_or_404(lang)
 
-    query = Gap.query.filter_by(language_code=lang)
+    query = _visible_gaps_query(lang)
 
     project_filter = request.args.get("project")
     if project_filter:
-        query = query.filter_by(project_code=project_filter)
+        query = query.filter(Gap.project_code == project_filter)
 
     type_filter = request.args.get("type")
     if type_filter:
-        query = query.filter_by(gap_type=type_filter)
+        query = query.filter(Gap.gap_type == type_filter)
 
     page = max(request.args.get("page", 1, type=int) or 1, 1)
     total = query.count()

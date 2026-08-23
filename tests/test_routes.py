@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from app.extensions import db
-from app.models import Detector, Gap
+from app.models import Detector, Gap, GapOverride, Topic
 
 
 def test_home_lists_seeded_content_languages(client, seed_languages):
@@ -148,6 +148,129 @@ def test_gaps_page_falls_back_to_qid_without_a_label(client, db, seed_languages)
 
     resp = client.get("/sr/gaps")
     assert b"Q999" in resp.data
+
+
+def test_gaps_page_hides_gaps_for_a_suppressed_topic(client, db, seed_languages):
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Topic(
+            qid="Q1",
+            entity_class="human",
+            is_human=True,
+            is_living=True,
+            first_seen=now,
+            last_seen=now,
+            suppressed=True,
+            suppressed_reason="operator decision",
+            suppressed_by="dungodung",
+            suppressed_at=now,
+        )
+    )
+    db.session.add(
+        Gap(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wikipedia",
+            gap_type="no_article",
+            detector_key="wp_no_article",
+            scope_version_id=1,
+            evidence_json='{"label": "Suppressed Person"}',
+            action_url="https://www.wikidata.org/wiki/Q1#sitelinks-wikipedia",
+            computed_at=now,
+        )
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps")
+    assert b"Suppressed Person" not in resp.data
+
+
+def test_lang_home_gap_count_excludes_suppressed_topics(client, db, seed_languages):
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Topic(
+            qid="Q1", entity_class="human", is_human=True, is_living=True,
+            first_seen=now, last_seen=now, suppressed=True,
+        )
+    )
+    db.session.add(
+        Gap(
+            topic_qid="Q1", language_code="sr", project_code="wikipedia", gap_type="no_article",
+            detector_key="wp_no_article", scope_version_id=1, evidence_json="{}",
+            action_url="https://www.wikidata.org/wiki/Q1#sitelinks-wikipedia", computed_at=now,
+        )
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/?uselang=en")
+    assert b"gaps found so far" not in resp.data
+
+
+def test_gaps_page_hides_a_gap_with_any_override_status(client, db, seed_languages):
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Gap(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wikipedia",
+            gap_type="no_article",
+            detector_key="wp_no_article",
+            scope_version_id=1,
+            evidence_json='{"label": "Overridden Person"}',
+            action_url="https://www.wikidata.org/wiki/Q1#sitelinks-wikipedia",
+            computed_at=now,
+        )
+    )
+    db.session.add(
+        GapOverride(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wikipedia",
+            gap_type="no_article",
+            status="not_applicable",
+            reason="test",
+            set_by="dungodung",
+            set_at=now,
+        )
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps")
+    assert b"Overridden Person" not in resp.data
+
+
+def test_gaps_page_override_is_specific_to_its_own_gap_type(client, db, seed_languages):
+    """An override on (Q1, sr, wikipedia, no_article) must not hide an
+    unrelated gap for the same topic under a different gap_type."""
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Gap(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wikidata",
+            gap_type="no_label",
+            detector_key="wd_no_label",
+            scope_version_id=1,
+            evidence_json='{"label": "Still Visible"}',
+            action_url="https://www.wikidata.org/wiki/Q1#labels",
+            computed_at=now,
+        )
+    )
+    db.session.add(
+        GapOverride(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wikipedia",
+            gap_type="no_article",
+            status="done",
+            set_by="dungodung",
+            set_at=now,
+        )
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps")
+    assert b"Still Visible" in resp.data
 
 
 def test_gaps_page_empty_state(client, seed_languages):
