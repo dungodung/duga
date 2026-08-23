@@ -86,12 +86,15 @@ MAX_ENTITY_IDS_PER_REQUEST = 50  # the action API's limit for non-bot accounts
 
 def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str, timeout: int = 30):
     """Fetches sitelinks + a best-effort label (with MediaWiki's language
-    fallback chain) for up to 50 QIDs in one call. Returns
+    fallback chain, then an explicit English fallback if that chain still
+    came up empty) for up to 50 QIDs in one call. Returns
     {qid: {"sitelinks": {"enwiki": {...}, ...}, "label": str | None}}.
     Callers needing more than 50 ids must chunk themselves.
     """
     if len(qids) > MAX_ENTITY_IDS_PER_REQUEST:
         raise ValueError(f"get_entities_batch takes at most {MAX_ENTITY_IDS_PER_REQUEST} ids at a time")
+
+    languages = language if language == "en" else f"{language}|en"
 
     resp = requests.get(
         api_url,
@@ -101,7 +104,7 @@ def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str,
             "formatversion": "2",
             "ids": "|".join(qids),
             "props": "sitelinks|labels",
-            "languages": language,
+            "languages": languages,
             "languagefallback": "1",
         },
         headers={"User-Agent": user_agent},
@@ -118,7 +121,8 @@ def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str,
         if "missing" in entity:
             result[qid] = {"sitelinks": {}, "label": None}
             continue
-        label_entry = entity.get("labels", {}).get(language)
+        labels = entity.get("labels", {})
+        label_entry = labels.get(language) or labels.get("en")
         result[qid] = {
             "sitelinks": entity.get("sitelinks", {}),
             "label": label_entry["value"] if label_entry else None,
