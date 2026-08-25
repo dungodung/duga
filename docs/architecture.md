@@ -1,4 +1,4 @@
-# Duga architecture (M0 + M1 + M2 + M3 + M4)
+# Duga architecture (M0 + M1 + M2 + M3 + M4 + M5)
 
 Full rationale, data model, and roadmap live in `SPEC.md` at the repo root —
 this doc is a short pointer into the current code, not a duplicate.
@@ -54,6 +54,12 @@ request-path SPARQL) -- that only happens in `jobs/`:
   (see below and `docs/oauth-setup.md`)
 - `GET /account`, `POST /account/attribution` — a contributor's own account
   page and the public-attribution opt-out toggle
+- `GET /<lang>/vocabulary`, `POST /<lang>/vocabulary/add` — the vocabulary
+  list for a language, with the add-a-term form inline (see below)
+- `GET /<lang>/vocabulary/<id>`, `POST /term/<id>/evidence`,
+  `POST /term/<id>/assert` — a term's detail page, plus adding a citation
+  and agreeing/disagreeing with it
+- `GET /concept/<id>` — one concept's terms across every language
 
 `app/i18n.py`'s `resolve_interface_lang()` runs in a `before_request` hook
 and is exposed to every template via a context processor (`_()`, `autonym()`,
@@ -88,6 +94,42 @@ implements the Wikimedia OAuth 2.0 Authorization Code flow:
 
 No write path to Wikimedia itself exists yet (that's M6, gated by SPEC.md
 S1's property allowlist) -- M4 is login and attribution only.
+
+## Vocabulary (M5)
+
+The conference-seeding flow (SPEC.md section 12: "must be completable on a
+phone in under 60 seconds"). `app/blueprints/vocabulary/`:
+
+- The add-a-term form lives inline on `/<lang>/vocabulary` (no separate page
+  to navigate to first) -- one text field for the concept name (a native
+  `<datalist>` suggests existing concepts, zero JS, degrades to a plain text
+  field), one for the word, a register dropdown, an optional note. Submitting
+  finds-or-creates the `Concept` by case-insensitive `local_label` match,
+  then creates the `Term` -- or, if that exact (concept, language,
+  written_form) already exists, flashes a message and links to it instead
+  of creating a duplicate (the `UniqueConstraint` backs this up either way).
+- `app/vocab_grading.py:recompute_evidence_grade()` -- SPEC.md section 8:
+  documented > organisational > community > single_report, recomputed
+  (never trusted from a typed value) whenever `term_evidence` or
+  `term_assertion` rows change, and stored on `term.evidence_grade` so list
+  views don't need a join+count per row. `community` requires
+  `DUGA_COMMUNITY_ASSERTION_THRESHOLD` (default 3) distinct *agreeing*
+  assertions; disagreeing ones don't count toward it, and a single
+  `documented`/`organisational` citation outranks any number of assertions.
+- `app/attribution.py:public_name()` -- SPEC.md S5: every place a
+  `created_by`/`added_by` username would otherwise be printed goes through
+  this first. A username with no matching `Contributor` row, or one that
+  opted out, renders as anonymous -- "show less" (guardrail 12) is the
+  default for anything not confirmed public, not the exception.
+- All lifecycle values are `local` for now -- `proposed`/`upstream` exist in
+  the schema (SPEC.md section 10) but nothing moves a term through them
+  until M7.
+- Suppression follows the same pattern as `gap`'s `_visible_gaps_query()`:
+  `_visible_terms_query()` excludes a term if either it or its concept is
+  suppressed (SPEC.md S4 explicitly covers "topic or term"). Unlike `topic`,
+  `concept`/`term` have only a bare `suppressed` boolean in the schema (no
+  reason/by/at columns) -- `scripts/suppress_vocabulary.py` logs the reason
+  and actor to `audit_log` instead, which exists as of M4.
 
 ## Jobs (M1 + M2 + M3)
 
@@ -132,11 +174,15 @@ request (SPEC.md section 4 -- "the web app only reads"):
   on one specific gap (declined / not_applicable / done) -- SPEC.md section
   7 ("human decisions live separately so recomputation never destroys
   them"), guardrail 5.
+- `scripts/suppress_vocabulary.py` — the same suppression mechanism as
+  `suppress_topic.py`, for a `concept` or `term` instead (see the
+  Vocabulary section above for why it logs to `audit_log` rather than
+  dedicated columns).
 
-None of the three scripts above are web endpoints -- there's still no admin
-UI for suppression/overrides (that's a self-service `POST /gap/override`
-endpoint, not yet built even with M4's login now in place), so each stays a
-plain CLI an operator runs by hand on Toolforge.
+None of these scripts are web endpoints -- there's still no admin UI for
+suppression/overrides (that's a self-service `POST /gap/override` endpoint,
+not yet built even with M4's login now in place), so each stays a plain CLI
+an operator runs by hand on Toolforge.
 
 All jobs are idempotent (SPEC.md guardrail 8): re-running `scope_fetch` for
 an already-stored revision is a no-op; `topic_refresh` and the three
@@ -158,7 +204,7 @@ about the person. Flag this interpretation if it should be revisited.
 ## What's deliberately not here yet
 
 Per the milestone table (SPEC.md section 14): no self-service override/
-suppression UI (`scripts/suppress_topic.py`/`scripts/set_gap_override.py`
-remain the only way to exercise S4 and guardrail 5), no vocabulary/
-add-a-term flow (M5), and no writes to Wikidata (M6, gated by S1's property
-allowlist).
+suppression UI (the three `scripts/suppress_*.py`/`set_gap_override.py`
+scripts remain the only way to exercise S4 and guardrail 5), no promotion
+path moving a term from `local` to `proposed`/`upstream` (M7), and no writes
+to Wikidata (M6, gated by S1's property allowlist).

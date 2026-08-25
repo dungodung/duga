@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{{ term.written_form }}{% endblock %}
+{% block content %}
+<h1>{{ term.written_form }}</h1>
+<p>
+  {{ _('duga-vocab-register-' ~ term.register) }}
+  · <strong>{{ _('duga-vocab-grade-' ~ term.evidence_grade) }}</strong>
+  {% if term.concept.local_label %}
+  · <a href="{{ url_for('vocab.concept_detail', concept_id=term.concept.id) }}">{{ _('duga-vocab-concept-link', term.concept.local_label) }}</a>
+  {% endif %}
+</p>
+<p class="term-meta">{{ _('duga-vocab-lifecycle-' ~ term.lifecycle) }}</p>
+{% if term.usage_note %}
+<p>{{ term.usage_note }}</p>
+{% endif %}
+<p class="term-meta">
+  {% if created_by_public %}
+  {{ _('duga-vocab-added-by', created_by_public) }}
+  {% else %}
+  {{ _('duga-vocab-added-by-anonymous') }}
+  {% endif %}
+</p>
+
+<h2>{{ _('duga-vocab-evidence-title') }}</h2>
+{% if evidence %}
+<ul class="evidence-list">
+  {% for item in evidence %}
+  <li>
+    {{ _('duga-vocab-evidence-kind-' ~ item.row.kind) }}: {{ item.row.citation }}
+    {% if item.row.url %}(<a href="{{ item.row.url }}">{{ _('duga-vocab-evidence-link') }}</a>){% endif %}
+    {% if item.row.kind == 'organisation' and item.row.org_name %}
+    — {{ item.row.org_name }}{% if item.row.year %} ({{ item.row.year }}){% endif %}
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>{{ _('duga-vocab-evidence-empty') }}</p>
+{% endif %}
+
+<p>{{ _('duga-vocab-community-count', agree_count) }}</p>
+
+{% if contributor %}
+<h2>{{ _('duga-vocab-evidence-add-title') }}</h2>
+<form method="post" action="{{ url_for('vocab.add_evidence', term_id=term.id) }}">
+  <p>
+    <label for="kind">{{ _('duga-vocab-evidence-kind-label') }}</label><br>
+    <select id="kind" name="kind">
+      {% for k in evidence_kinds %}
+      <option value="{{ k }}">{{ _('duga-vocab-evidence-kind-' ~ k) }}</option>
+      {% endfor %}
+    </select>
+  </p>
+  <p>
+    <label for="citation">{{ _('duga-vocab-evidence-citation-label') }}</label><br>
+    <textarea id="citation" name="citation" rows="2" required></textarea>
+  </p>
+  <p>
+    <label for="url">{{ _('duga-vocab-evidence-url-label') }}</label><br>
+    <input type="url" id="url" name="url">
+  </p>
+  <p>
+    <label for="org_name">{{ _('duga-vocab-evidence-org-label') }}</label><br>
+    <input type="text" id="org_name" name="org_name">
+  </p>
+  <p>
+    <label for="year">{{ _('duga-vocab-evidence-year-label') }}</label><br>
+    <input type="number" id="year" name="year" min="1000" max="2100">
+  </p>
+  <button type="submit">{{ _('duga-vocab-evidence-submit') }}</button>
+</form>
+
+<h2>{{ _('duga-vocab-assert-title') }}</h2>
+<p>{{ _('duga-vocab-assert-explain') }}</p>
+<form method="post" action="{{ url_for('vocab.assert_term', term_id=term.id) }}">
+  <p>
+    <label><input type="radio" name="agrees" value="agree"{% if my_assertion and my_assertion.agrees %} checked{% endif %}> {{ _('duga-vocab-assert-agree') }}</label>
+    <label><input type="radio" name="agrees" value="disagree"{% if my_assertion and not my_assertion.agrees %} checked{% endif %}> {{ _('duga-vocab-assert-disagree') }}</label>
+  </p>
+  <p>
+    <label for="register_asserted">{{ _('duga-vocab-assert-register-label') }}</label><br>
+    <select id="register_asserted" name="register_asserted">
+      <option value="">{{ _('duga-vocab-assert-register-none') }}</option>
+      {% for r in registers %}
+      <option value="{{ r }}"{% if my_assertion and my_assertion.register_asserted == r %} selected{% endif %}>{{ _('duga-vocab-register-' ~ r) }}</option>
+      {% endfor %}
+    </select>
+  </p>
+  <p>
+    <label for="note">{{ _('duga-vocab-assert-note-label') }}</label><br>
+    <textarea id="note" name="note" rows="2">{% if my_assertion %}{{ my_assertion.note or '' }}{% endif %}</textarea>
+  </p>
+  <button type="submit">{{ _('duga-vocab-assert-submit') }}</button>
+</form>
+{% else %}
+<p><a href="{{ url_for('auth.login', next=request.path) }}">{{ _('duga-vocab-add-login-prompt') }}</a></p>
+{% endif %}
+
+<p><a href="{{ url_for('vocab.list_terms', lang=language_code) }}">{{ _('duga-vocab-back') }}</a></p>
+{% endblock %}

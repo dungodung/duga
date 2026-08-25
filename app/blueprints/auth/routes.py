@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from functools import wraps
 
 from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
 
@@ -15,6 +16,30 @@ def current_contributor():
     if not contributor_id:
         return None
     return db.session.get(Contributor, contributor_id)
+
+
+def login_required(view):
+    """Every write route in SPEC.md section 12's route table is marked
+    "(auth required)" -- this is the one place that requirement is enforced,
+    so every such route just needs this decorator rather than repeating the
+    same redirect-to-login check.
+
+    The forms that POST to these routes only render when already logged in,
+    so a logged-out visitor hitting one at all is an edge case (a stale
+    session, a resubmitted form), not the primary path -- ?next= is only
+    meaningful for GET pages; for a POST it would send a logged-in-again
+    visitor back to a POST-only URL via GET and 405. Home is a fine
+    fallback for that edge case.
+    """
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if current_contributor() is None:
+            target = request.path if request.method == "GET" else url_for("main.home")
+            return redirect(url_for("auth.login", next=target))
+        return view(*args, **kwargs)
+
+    return wrapped
 
 
 def _safe_next(target):
@@ -92,19 +117,17 @@ def logout():
 
 
 @auth_bp.get("/account")
+@login_required
 def account():
     contributor = current_contributor()
-    if contributor is None:
-        return redirect(url_for("auth.login", next=url_for("auth.account")))
     continue_url = _safe_next(request.args.get("next"))
     return render_template("account.html", contributor=contributor, continue_url=continue_url)
 
 
 @auth_bp.post("/account/attribution")
+@login_required
 def update_attribution():
     contributor = current_contributor()
-    if contributor is None:
-        return redirect(url_for("auth.login", next=url_for("auth.account")))
 
     before = contributor.display_public
     contributor.display_public = request.form.get("display_public") == "on"

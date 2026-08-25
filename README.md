@@ -11,13 +11,16 @@ constraints, data model, milestones). `docs/architecture.md`, `docs/i18n.md`,
 `docs/wikiproject-page.md`, `docs/scope-definition.md`, `docs/oauth-setup.md`,
 and `docs/deployment-toolforge.md` cover the current code.
 
-**Status:** M4 — Wikimedia OAuth login, contributor rows, the public-
-attribution opt-out, and audit logging. A visitor can pick a language, see
-real gaps, click through to fix one on Wikidata, and log in with their
-Wikimedia account; an operator can suppress a topic or override a specific
-gap via `scripts/suppress_topic.py`/`scripts/set_gap_override.py` (still no
-self-service UI for either). Still no writes to Wikidata (M6, gated by
-SPEC.md S1).
+**Status:** M5 — the conference-seeding flow: vocabulary read, add-a-term,
+evidence grading, and community assertions. A logged-in visitor can add a
+term for a concept in under a minute from their phone, cite a source for
+it, and confirm/dispute other people's terms; evidence grades
+(documented/organisational/community/single_report) are computed, never
+typed in. An operator can suppress a topic, concept, or term, or override a
+specific gap, via `scripts/suppress_topic.py`/`scripts/suppress_vocabulary.py`/
+`scripts/set_gap_override.py` (still no self-service UI for any of those).
+Still no writes to Wikidata (M6, gated by SPEC.md S1), and nothing promotes
+from `local` to `proposed`/`upstream` yet (M7).
 
 **Login needs a registered OAuth consumer to actually work** — see
 `docs/oauth-setup.md` for the one manual step (`DUGA_OAUTH_CLIENT_ID`/
@@ -36,8 +39,8 @@ make dev
 ```
 
 Then open http://localhost:5000/ — try the language picker, `/sr/`,
-`/sr/gaps`, `/about`, `/health`, and (once `DUGA_OAUTH_CLIENT_ID` is set --
-see `docs/oauth-setup.md`) `/login`.
+`/sr/gaps`, `/sr/vocabulary`, `/about`, `/health`, and (once
+`DUGA_OAUTH_CLIENT_ID` is set -- see `docs/oauth-setup.md`) `/login`.
 
 ```bash
 make test               # pytest
@@ -53,6 +56,8 @@ Operator actions (no auth'd UI yet -- see `docs/architecture.md`):
 
 ```bash
 python3 scripts/suppress_topic.py <QID> --reason "..." --by <your-wiki-username>
+python3 scripts/suppress_vocabulary.py concept <id> --reason "..." --by <your-wiki-username>
+python3 scripts/suppress_vocabulary.py term <id> --reason "..." --by <your-wiki-username>
 python3 scripts/set_gap_override.py <QID> <lang> <project> <gap_type> --status done --by <your-wiki-username>
 ```
 

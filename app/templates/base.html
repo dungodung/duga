@@ -25,6 +25,15 @@
   </nav>
 </header>
 <main>
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+  <ul class="flash-messages">
+    {% for message in messages %}
+    <li class="notice">{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+{% endwith %}
 {% block content %}{% endblock %}
 </main>
 <footer class="site-footer">

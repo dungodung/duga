@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duga-vocab-title', language.autonym) }}{% endblock %}
+{% block content %}
+<h1>{{ _('duga-vocab-title', language.autonym) }}</h1>
+
+{% if contributor %}
+<form method="post" action="{{ url_for('vocab.add_term', lang=language.code) }}" class="vocab-add-form">
+  <h2>{{ _('duga-vocab-add-title') }}</h2>
+  <p>
+    <label for="concept_label">{{ _('duga-vocab-add-concept-label') }}</label><br>
+    <input type="text" id="concept_label" name="concept_label" list="concept-suggestions" required>
+    <datalist id="concept-suggestions">
+      {% for label in concept_labels %}
+      <option value="{{ label }}">
+      {% endfor %}
+    </datalist>
+  </p>
+  <p>
+    <label for="written_form">{{ _('duga-vocab-add-word-label', language.autonym) }}</label><br>
+    <input type="text" id="written_form" name="written_form" required>
+  </p>
+  <p>
+    <label for="register">{{ _('duga-vocab-register-label') }}</label><br>
+    <select id="register" name="register">
+      {% for r in registers %}
+      <option value="{{ r }}"{% if r == 'unknown' %} selected{% endif %}>{{ _('duga-vocab-register-' ~ r) }}</option>
+      {% endfor %}
+    </select>
+  </p>
+  <p>
+    <label for="usage_note">{{ _('duga-vocab-add-note-label') }}</label><br>
+    <textarea id="usage_note" name="usage_note" rows="2"></textarea>
+  </p>
+  <button type="submit">{{ _('duga-vocab-add-submit') }}</button>
+</form>
+{% else %}
+<p><a href="{{ url_for('auth.login', next=request.path) }}">{{ _('duga-vocab-add-login-prompt') }}</a></p>
+{% endif %}
+
+<h2>{{ _('duga-vocab-list-title') }}</h2>
+{% if terms %}
+<ul class="term-list">
+  {% for term in terms %}
+  <li class="term-row">
+    <a href="{{ url_for('vocab.term_detail', lang=language.code, term_id=term.id) }}">{{ term.written_form }}</a>
+    <span class="term-meta">
+      {{ _('duga-vocab-register-' ~ term.register) }}
+      · {{ _('duga-vocab-grade-' ~ term.evidence_grade) }}
+      {% if term.concept.local_label %}
+      · <a href="{{ url_for('vocab.concept_detail', concept_id=term.concept.id) }}">{{ term.concept.local_label }}</a>
+      {% endif %}
+    </span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>{{ _('duga-vocab-list-empty') }}</p>
+{% endif %}
+
+<p><a href="{{ url_for('main.lang_home', lang=language.code) }}">{{ _('duga-gaps-back') }}</a></p>
+{% endblock %}

@@ -157,3 +157,67 @@ a {
 .link-button:hover {
   text-decoration: underline;
 }
+
+.flash-messages {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.flash-messages .notice {
+  background: rgba(122, 62, 161, 0.12);
+  border: 1px solid rgba(122, 62, 161, 0.35);
+  margin-bottom: 0.5rem;
+}
+
+.vocab-add-form,
+.term-detail form {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  max-width: 28rem;
+}
+
+.vocab-add-form label,
+form label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.vocab-add-form input,
+.vocab-add-form select,
+.vocab-add-form textarea,
+form input[type="text"],
+form input[type="url"],
+form input[type="number"],
+form select,
+form textarea {
+  width: 100%;
+  padding: 0.4rem;
+  margin-top: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.term-list {
+  list-style: none;
+  padding: 0;
+}
+
+.term-row {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.term-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.evidence-list {
+  padding-left: 1.25rem;
+}

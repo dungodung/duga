@@ -40,3 +40,23 @@ def seed_languages(db):
         ]
     )
     db.session.commit()
+
+
+@pytest.fixture()
+def logged_in(client, db):
+    """Creates a Contributor and signs `client` in as them directly (no
+    OAuth round-trip) -- for tests that need an authenticated session but
+    aren't testing the login flow itself (see tests/test_auth.py for that).
+    Returns the Contributor row; also available as `contributor.wiki_username`."""
+    from datetime import datetime, timezone
+
+    from app.models import Contributor
+
+    contributor = Contributor(wiki_username="TestContributor", display_public=True, created_at=datetime.now(timezone.utc))
+    db.session.add(contributor)
+    db.session.commit()
+
+    with client.session_transaction() as sess:
+        sess["contributor_id"] = contributor.id
+
+    return contributor

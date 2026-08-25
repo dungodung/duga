@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ concept.local_label or _('duga-vocab-concept-untitled') }}{% endblock %}
+{% block content %}
+<h1>{{ concept.local_label or _('duga-vocab-concept-untitled') }}</h1>
+<p class="term-meta">{{ _('duga-vocab-lifecycle-' ~ concept.lifecycle) }}</p>
+
+<h2>{{ _('duga-vocab-concept-terms-title') }}</h2>
+{% if terms %}
+<ul class="term-list">
+  {% for term in terms %}
+  <li class="term-row">
+    <a href="{{ url_for('vocab.term_detail', lang=term.language_code, term_id=term.id) }}">{{ term.written_form }}</a>
+    <span class="term-meta">
+      {{ autonyms.get(term.language_code, term.language_code) }}
+      · {{ _('duga-vocab-register-' ~ term.register) }}
+      · {{ _('duga-vocab-grade-' ~ term.evidence_grade) }}
+    </span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>{{ _('duga-vocab-list-empty') }}</p>
+{% endif %}
+{% endblock %}

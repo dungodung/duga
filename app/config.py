@@ -56,6 +56,11 @@ class BaseConfig:
     DUGA_OAUTH_CLIENT_SECRET = os.environ.get("DUGA_OAUTH_CLIENT_SECRET", "")
     DUGA_OAUTH_REDIRECT_URI = os.environ.get("DUGA_OAUTH_REDIRECT_URI", "")
 
+    # SPEC.md section 8: the 'community' evidence grade requires this many
+    # distinct contributors agreeing, computed from term_assertion rows --
+    # never typed in directly.
+    DUGA_COMMUNITY_ASSERTION_THRESHOLD = int(os.environ.get("DUGA_COMMUNITY_ASSERTION_THRESHOLD", "3"))
+
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
