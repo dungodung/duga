@@ -60,3 +60,17 @@ def logged_in(client, db):
         sess["contributor_id"] = contributor.id
 
     return contributor
+
+
+@pytest.fixture()
+def logged_in_with_token(logged_in, db):
+    """Like `logged_in`, but also seeds a valid (non-expired) stored OAuth
+    token -- for tests exercising the M6 write path, which needs
+    token_store.get_valid_access_token() to succeed. The `app` fixture
+    keeps an app context active for the whole test, so no need to push
+    another one here."""
+    from app.token_store import save_tokens
+
+    save_tokens(logged_in.id, "fake-access-token", "fake-refresh-token", 3600)
+    db.session.commit()
+    return logged_in

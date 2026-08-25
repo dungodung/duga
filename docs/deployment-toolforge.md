@@ -173,3 +173,35 @@ toolforge webservice buildservice restart
 Verify: `https://duga.toolforge.org/login` redirects to
 `meta.wikimedia.org`; logging in for the first time lands on `/account`
 with the attribution toggle visible before anywhere else.
+
+## M6 + M7: Wikidata writes and the promotion path
+
+M6 needs an OAuth consumer with an edit grant, not just identity -- see
+`docs/oauth-setup.md`'s updated grants list; if the existing consumer was
+registered identity-only, add the "Edit existing pages" grant to it (or
+register a new one) before deploying this. It also needs a **new** secret,
+`DUGA_TOKEN_ENCRYPTION_KEY`, to encrypt stored OAuth tokens at rest -- this
+does not exist yet in Toolforge's envvars and must be a real generated key,
+not the insecure process-local default `app/config.py` falls back to:
+
+```
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+toolforge envvars create DUGA_TOKEN_ENCRYPTION_KEY "..."   # paste the key above; this echoes back too, same caveat as SECRET_KEY
+toolforge envvars create DUGA_WRITES_ENABLED "true"        # the SPEC.md S8 kill switch -- set explicitly rather than relying on the code default
+toolforge build start https://github.com/<your-username>/duga --ref main
+toolforge jobs run migrate --command "flask --app wsgi db upgrade" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs delete migrate
+toolforge webservice buildservice restart
+```
+
+`DUGA_WRITES_ENABLED` can be flipped to `"false"` at any time (no redeploy
+needed, just a new envvar value and a webservice restart) to halt all
+Wikidata writes immediately -- SPEC.md S8's kill switch.
+
+Verify: log in, go to a `no_label`/`no_description` gap on the gap list,
+click "Edit here," and confirm a real edit lands on Wikidata under your own
+account (check `Special:Contributions` there). M7's promotion path (a local
+concept/term's "Propose for Wikidata" / "Link" buttons) needs no separate
+secrets -- it reuses the same read-only Wikidata API call the rest of the
+app already makes.

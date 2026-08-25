@@ -1,7 +1,15 @@
 """Wikimedia OAuth 2.0 Authorization Code flow (SPEC.md section 9: "Wikimedia
 OAuth. A contributor row is created on first login. No Duga-local
-passwords, ever."). Identity-only: Duga never persists access/refresh
-tokens past the single request that uses one to fetch the profile.
+passwords, ever.").
+
+As of M6, tokens *are* persisted (encrypted, server-side -- see
+app/token_store.py) between login and a later write request, which needs a
+still-valid access token possibly minutes or hours after login;
+refresh_access_token() is what keeps one usable without asking the person
+to log in again every time. M4's original design here was identity-only
+with nothing persisted past the single login request; M6's multi-request
+preview+confirm write flow (SPEC.md section 9: "show the user an exact
+preview... and require confirmation") is why that changed.
 
 Endpoint shape verified against a working production integration
 (WikiWhiz's own oauth_client.py, which already hit and fixed the classic
@@ -40,6 +48,21 @@ def exchange_code_for_token(client_id: str, client_secret: str, redirect_uri: st
             "client_id": client_id,
             "client_secret": client_secret,
             "redirect_uri": redirect_uri,
+        },
+        timeout=timeout,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def refresh_access_token(client_id: str, client_secret: str, refresh_token: str, timeout: int = 10) -> dict:
+    resp = requests.post(
+        TOKEN_URL,
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": client_id,
+            "client_secret": client_secret,
         },
         timeout=timeout,
     )

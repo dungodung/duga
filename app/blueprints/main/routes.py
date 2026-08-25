@@ -5,6 +5,7 @@ from sqlalchemy import and_, exists
 
 from ...extensions import db
 from ...models import Detector, Gap, GapOverride, Language, ScopeRule, Topic, TopicRule
+from ...wikidata_write import EDITABLE_GAP_TYPES
 
 main_bp = Blueprint("main", __name__)
 
@@ -18,13 +19,18 @@ def _seeded_language_or_404(lang):
     return language
 
 
-def _visible_gaps_query(lang):
+def _visible_gaps_query(lang=None):
     """The base query every gap-list-facing view must use. SPEC.md S4: a
     suppressed topic is filtered out "at query time in every code path" --
     not just by the next detector run -- and guardrail 5: a human
     gap_override decision must actually hide the gap it overrides, since
     detectors never touch that table themselves. Both are enforced here,
-    once, so no view can accidentally skip either."""
+    once, so no view can accidentally skip either.
+
+    `lang=None` (used by app/blueprints/write/routes.py, which looks a gap
+    up by id alone) applies the suppression/override filters without a
+    language filter -- omitting the language_code condition entirely,
+    not filtering for a null one, which would match nothing."""
     suppressed_topic = exists().where(and_(Topic.qid == Gap.topic_qid, Topic.suppressed.is_(True)))
     overridden_gap = exists().where(
         and_(
@@ -34,7 +40,10 @@ def _visible_gaps_query(lang):
             GapOverride.gap_type == Gap.gap_type,
         )
     )
-    return Gap.query.filter(Gap.language_code == lang, ~suppressed_topic, ~overridden_gap)
+    query = Gap.query.filter(~suppressed_topic, ~overridden_gap)
+    if lang is not None:
+        query = query.filter(Gap.language_code == lang)
+    return query
 
 
 @main_bp.get("/")
@@ -113,6 +122,7 @@ def gaps(lang):
         evidence = json.loads(row.evidence_json) if row.evidence_json else {}
         items.append(
             {
+                "id": row.id,
                 "qid": row.topic_qid,
                 "label": evidence.get("label") or row.topic_qid,
                 "project_code": row.project_code,
@@ -120,6 +130,7 @@ def gaps(lang):
                 "maturity": detector_maturity.get(row.detector_key, "experimental"),
                 "action_url": row.action_url,
                 "why_in_scope": rules_by_topic.get((row.scope_version_id, row.topic_qid), []),
+                "editable": row.project_code == "wikidata" and row.gap_type in EDITABLE_GAP_TYPES,
             }
         )
 

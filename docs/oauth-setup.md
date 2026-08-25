@@ -23,13 +23,14 @@ this for you.
      - prod consumer: `https://duga.toolforge.org/oauth/callback`
    - **Applicable project**: "all projects" (so any Wikimedia account works,
      not just en.wikipedia.org accounts).
-   - **Grants**: identity only, for now. M4 (this milestone) only logs
-     people in -- it never edits anything. **Do not** request any edit
-     grants yet; broadening this consumer's permissions is a decision for
-     M6, when the labels/descriptions write path actually lands, and even
-     then SPEC.md S1 requires it to go through an explicit property
-     allowlist. Requesting more than identity now would be asking for
-     permissions the code can't use and doesn't need.
+   - **Grants**: identity, plus "Edit existing pages" (the narrowest edit
+     grant Wikimedia offers). Duga only ever writes labels/descriptions via
+     `app/wikidata_write.py`, which SPEC.md S1 restricts to that allowlist
+     in code -- the OAuth grant is broader than what the code will use, but
+     Wikimedia doesn't offer a label/description-only grant, so "edit
+     existing pages" is the narrowest available superset. Do not request
+     "create pages" or any admin-level grant; Duga never creates a new
+     Wikidata item or Lexeme (SPEC.md section 10).
 4. Submit. Approval for a non-owner-only consumer can take some time
    (reviewed by OAuth admins) -- start this early, it doesn't block any
    other work.
@@ -49,7 +50,16 @@ see the module docstring): `GET /login` redirects to Wikimedia's authorize
 endpoint with a random `state`; `GET /oauth/callback` validates that `state`
 (CSRF protection), exchanges the code for an access token, fetches the
 profile, and upserts a `Contributor` row keyed by the profile's `username`.
-The access/refresh tokens are never persisted past that one request.
+
+As of M6, the access/refresh tokens are also stored, encrypted at rest
+(`app/token_crypto.py`, Fernet, keyed by `DUGA_TOKEN_ENCRYPTION_KEY`) via
+`app/token_store.py`, one row per contributor in `contributor_token`. This
+is needed because the Wikidata write flow (`/gap/<id>/edit`) is a
+preview-then-confirm form spanning two requests, and the confirm step needs
+a token to act with. `token_store.get_valid_access_token()` transparently
+refreshes an expiring token; if no usable token exists, the write route
+sends the contributor back through `/login` rather than failing partway.
+See `docs/architecture.md`'s M6 section for the full write path.
 
 A brand-new contributor is sent to `/account` first (not straight to
 wherever they were headed) to see the public-attribution opt-out prominently,

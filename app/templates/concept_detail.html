@@ -2,7 +2,29 @@
 {% block title %}{{ concept.local_label or _('duga-vocab-concept-untitled') }}{% endblock %}
 {% block content %}
 <h1>{{ concept.local_label or _('duga-vocab-concept-untitled') }}</h1>
-<p class="term-meta">{{ _('duga-vocab-lifecycle-' ~ concept.lifecycle) }}</p>
+<p class="term-meta">
+  {{ _('duga-vocab-lifecycle-' ~ concept.lifecycle) }}
+  {% if concept.qid %}
+  · <a href="https://www.wikidata.org/wiki/{{ concept.qid }}">{{ concept.qid }}</a>
+  {% endif %}
+</p>
+
+{% if contributor %}
+  {% if concept.lifecycle == 'local' %}
+  <form method="post" action="{{ url_for('vocab.propose_concept', concept_id=concept.id) }}">
+    <button type="submit">{{ _('duga-promote-propose-button') }}</button>
+  </form>
+  {% elif concept.lifecycle == 'proposed' %}
+  <form method="post" action="{{ url_for('vocab.link_concept_upstream', concept_id=concept.id) }}" class="vocab-add-form">
+    <p>{{ _('duga-promote-link-explain-concept') }}</p>
+    <p>
+      <label for="qid">{{ _('duga-promote-qid-label') }}</label><br>
+      <input type="text" id="qid" name="qid" placeholder="Q12345" required>
+    </p>
+    <button type="submit">{{ _('duga-promote-link-button') }}</button>
+  </form>
+  {% endif %}
+{% endif %}
 
 <h2>{{ _('duga-vocab-concept-terms-title') }}</h2>
 {% if terms %}

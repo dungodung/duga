@@ -9,7 +9,34 @@
   · <a href="{{ url_for('vocab.concept_detail', concept_id=term.concept.id) }}">{{ _('duga-vocab-concept-link', term.concept.local_label) }}</a>
   {% endif %}
 </p>
-<p class="term-meta">{{ _('duga-vocab-lifecycle-' ~ term.lifecycle) }}</p>
+<p class="term-meta">
+  {{ _('duga-vocab-lifecycle-' ~ term.lifecycle) }}
+  {% if term.lexeme_id %}
+  · <a href="https://www.wikidata.org/wiki/Lexeme:{{ term.lexeme_id }}">{{ term.sense_id or term.lexeme_id }}</a>
+  {% endif %}
+</p>
+
+{% if contributor %}
+  {% if term.lifecycle == 'local' %}
+  <form method="post" action="{{ url_for('vocab.propose_term', term_id=term.id) }}">
+    <button type="submit">{{ _('duga-promote-propose-button') }}</button>
+  </form>
+  {% elif term.lifecycle == 'proposed' %}
+  <form method="post" action="{{ url_for('vocab.link_term_upstream', term_id=term.id) }}" class="vocab-add-form">
+    <p>{{ _('duga-promote-link-explain-term') }}</p>
+    <p>
+      <label for="lexeme_id">{{ _('duga-promote-lexeme-label') }}</label><br>
+      <input type="text" id="lexeme_id" name="lexeme_id" placeholder="L12345" required>
+    </p>
+    <p>
+      <label for="sense_id">{{ _('duga-promote-sense-label') }}</label><br>
+      <input type="text" id="sense_id" name="sense_id" placeholder="L12345-S1">
+    </p>
+    <button type="submit">{{ _('duga-promote-link-button') }}</button>
+  </form>
+  {% endif %}
+{% endif %}
+
 {% if term.usage_note %}
 <p>{{ term.usage_note }}</p>
 {% endif %}

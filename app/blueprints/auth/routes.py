@@ -6,6 +6,7 @@ from flask import Blueprint, current_app, redirect, render_template, request, se
 from ...audit import log as audit_log
 from ...extensions import db
 from ...models import Contributor
+from ...token_store import save_tokens
 from . import oauth_client
 
 auth_bp = Blueprint("auth", __name__)
@@ -100,6 +101,9 @@ def callback():
             after={"wiki_username": username, "display_public": True},
         )
     contributor.last_seen_at = now
+    # M6 write path: stored encrypted, not in the session cookie -- see
+    # app/token_store.py and oauth_client.py's module docstring for why.
+    save_tokens(contributor.id, token["access_token"], token.get("refresh_token"), token.get("expires_in"))
     db.session.commit()
 
     session["contributor_id"] = contributor.id

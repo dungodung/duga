@@ -1,6 +1,7 @@
+import re
 from datetime import datetime, timezone
 
-from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, g, redirect, render_template, request, url_for
 from sqlalchemy import func
 
 from ... import i18n
@@ -9,12 +10,21 @@ from ...attribution import public_name
 from ...extensions import db
 from ...models import Concept, Language, Term, TermAssertion, TermEvidence
 from ...vocab_grading import recompute_evidence_grade
+from ...wikidata_lookup import entity_exists
 from ..auth.routes import current_contributor, login_required
 
 vocab_bp = Blueprint("vocab", __name__)
 
 VALID_REGISTERS = {"neutral", "clinical", "outdated", "slur", "reclaimed", "regional", "unknown"}
 VALID_EVIDENCE_KINDS = {"publication", "style_guide", "dictionary", "law", "organisation", "other"}
+
+# SPEC.md section 10's promotion path only ever *links* a local concept/term
+# to something that already exists on Wikidata -- it never creates a new
+# item or lexeme there (that's out of scope entirely: section 9's write
+# allowlist is labels/descriptions/aliases now, lexemes/forms/senses
+# "post-v0.1", and item creation is never listed at all).
+QID_PATTERN = re.compile(r"^Q[1-9]\d*$")
+LEXEME_PATTERN = re.compile(r"^L[1-9]\d*$")
 
 
 def _t(key, *args):
@@ -249,11 +259,16 @@ def assert_term(term_id):
     return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
 
 
-@vocab_bp.get("/concept/<int:concept_id>")
-def concept_detail(concept_id):
+def _get_visible_concept_or_404(concept_id):
     concept = Concept.query.filter_by(id=concept_id, suppressed=False).first()
     if concept is None:
         abort(404)
+    return concept
+
+
+@vocab_bp.get("/concept/<int:concept_id>")
+def concept_detail(concept_id):
+    concept = _get_visible_concept_or_404(concept_id)
     terms = (
         Term.query.filter_by(concept_id=concept.id, suppressed=False)
         .order_by(Term.language_code, Term.written_form)
@@ -266,3 +281,136 @@ def concept_detail(concept_id):
         terms=terms,
         autonyms=autonyms,
     )
+
+
+# -- Promotion path (M7, SPEC.md section 10): local -> proposed -> upstream.
+# Never creates anything on Wikidata -- only ever links to something that
+# already exists there, verified live via wikidata_lookup.entity_exists()
+# before the link is accepted.
+
+
+@vocab_bp.post("/concept/<int:concept_id>/propose")
+@login_required
+def propose_concept(concept_id):
+    concept = _get_visible_concept_or_404(concept_id)
+    contributor = current_contributor()
+
+    if concept.lifecycle != "local":
+        flash(_t("duga-promote-error-not-local"))
+        return redirect(url_for("vocab.concept_detail", concept_id=concept.id))
+
+    concept.lifecycle = "proposed"
+    audit_log(
+        actor=contributor.wiki_username,
+        action="propose_concept",
+        entity_type="concept",
+        entity_id=concept.id,
+        before={"lifecycle": "local"},
+        after={"lifecycle": "proposed"},
+    )
+    db.session.commit()
+    flash(_t("duga-promote-proposed-success"))
+    return redirect(url_for("vocab.concept_detail", concept_id=concept.id))
+
+
+@vocab_bp.post("/concept/<int:concept_id>/link-upstream")
+@login_required
+def link_concept_upstream(concept_id):
+    concept = _get_visible_concept_or_404(concept_id)
+    contributor = current_contributor()
+
+    if concept.lifecycle != "proposed":
+        flash(_t("duga-promote-error-not-proposed"))
+        return redirect(url_for("vocab.concept_detail", concept_id=concept.id))
+
+    qid = (request.form.get("qid") or "").strip()
+    if not QID_PATTERN.match(qid):
+        flash(_t("duga-promote-error-bad-qid"))
+        return redirect(url_for("vocab.concept_detail", concept_id=concept.id))
+    if Concept.query.filter_by(qid=qid).first() is not None:
+        flash(_t("duga-promote-error-qid-taken"))
+        return redirect(url_for("vocab.concept_detail", concept_id=concept.id))
+    if not entity_exists(current_app.config["DUGA_WIKIDATA_API"], qid, current_app.config["DUGA_USER_AGENT"]):
+        flash(_t("duga-promote-error-not-found"))
+        return redirect(url_for("vocab.concept_detail", concept_id=concept.id))
+
+    before = {"lifecycle": "proposed", "qid": concept.qid}
+    concept.qid = qid
+    concept.lifecycle = "upstream"
+    audit_log(
+        actor=contributor.wiki_username,
+        action="link_concept_upstream",
+        entity_type="concept",
+        entity_id=concept.id,
+        before=before,
+        after={"lifecycle": "upstream", "qid": qid},
+    )
+    db.session.commit()
+    flash(_t("duga-promote-upstream-success"))
+    return redirect(url_for("vocab.concept_detail", concept_id=concept.id))
+
+
+@vocab_bp.post("/term/<int:term_id>/propose")
+@login_required
+def propose_term(term_id):
+    term = _get_visible_term_or_404(term_id)
+    contributor = current_contributor()
+
+    if term.lifecycle != "local":
+        flash(_t("duga-promote-error-not-local"))
+        return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
+
+    term.lifecycle = "proposed"
+    term.updated_at = datetime.now(timezone.utc)
+    audit_log(
+        actor=contributor.wiki_username,
+        action="propose_term",
+        entity_type="term",
+        entity_id=term.id,
+        before={"lifecycle": "local"},
+        after={"lifecycle": "proposed"},
+    )
+    db.session.commit()
+    flash(_t("duga-promote-proposed-success"))
+    return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
+
+
+@vocab_bp.post("/term/<int:term_id>/link-upstream")
+@login_required
+def link_term_upstream(term_id):
+    term = _get_visible_term_or_404(term_id)
+    contributor = current_contributor()
+
+    if term.lifecycle != "proposed":
+        flash(_t("duga-promote-error-not-proposed"))
+        return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
+
+    lexeme_id = (request.form.get("lexeme_id") or "").strip()
+    sense_id = (request.form.get("sense_id") or "").strip() or None
+    if not LEXEME_PATTERN.match(lexeme_id):
+        flash(_t("duga-promote-error-bad-lexeme"))
+        return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
+    if sense_id and not sense_id.startswith(f"{lexeme_id}-S"):
+        flash(_t("duga-promote-error-bad-sense"))
+        return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
+    if not entity_exists(current_app.config["DUGA_WIKIDATA_API"], lexeme_id, current_app.config["DUGA_USER_AGENT"]):
+        flash(_t("duga-promote-error-not-found"))
+        return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
+
+    before = {"lifecycle": "proposed", "lexeme_id": term.lexeme_id, "sense_id": term.sense_id}
+    term.lexeme_id = lexeme_id
+    term.sense_id = sense_id
+    term.upstream_ref = sense_id or lexeme_id
+    term.lifecycle = "upstream"
+    term.updated_at = datetime.now(timezone.utc)
+    audit_log(
+        actor=contributor.wiki_username,
+        action="link_term_upstream",
+        entity_type="term",
+        entity_id=term.id,
+        before=before,
+        after={"lifecycle": "upstream", "lexeme_id": lexeme_id, "sense_id": sense_id},
+    )
+    db.session.commit()
+    flash(_t("duga-promote-upstream-success"))
+    return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))

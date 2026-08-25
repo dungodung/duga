@@ -72,9 +72,8 @@ and is exposed to every template via a context processor (`_()`, `autonym()`,
 SPEC.md section 9: "No Duga-local passwords, ever." `app/blueprints/auth/`
 implements the Wikimedia OAuth 2.0 Authorization Code flow:
 
-- `oauth_client.py` — the three HTTP calls (authorize URL, token exchange,
-  profile fetch) against `meta.wikimedia.org/w/rest.php/oauth2/*`. Access/
-  refresh tokens are used once, at login, and never persisted.
+- `oauth_client.py` — the four HTTP calls (authorize URL, token exchange,
+  refresh, profile fetch) against `meta.wikimedia.org/w/rest.php/oauth2/*`.
 - `routes.py` — `/login` builds a random `state`, stores it in the session,
   and redirects; `/oauth/callback` validates that `state` (CSRF protection)
   before exchanging anything, then upserts a `Contributor` row keyed by the
@@ -92,8 +91,10 @@ implements the Wikimedia OAuth 2.0 Authorization Code flow:
   configured" page (503) instead of building a broken authorize URL --
   deploying before the OAuth consumer is registered is safe.
 
-No write path to Wikimedia itself exists yet (that's M6, gated by SPEC.md
-S1's property allowlist) -- M4 is login and attribution only.
+As of M4, access/refresh tokens were used once at login and never
+persisted -- M6's preview-then-confirm write flow (see below) needed that
+reversed, since it spans two separate HTTP requests and the second one
+needs a token to act with. See the M6 section for what changed and why.
 
 ## Vocabulary (M5)
 
@@ -121,15 +122,79 @@ phone in under 60 seconds"). `app/blueprints/vocabulary/`:
   this first. A username with no matching `Contributor` row, or one that
   opted out, renders as anonymous -- "show less" (guardrail 12) is the
   default for anything not confirmed public, not the exception.
-- All lifecycle values are `local` for now -- `proposed`/`upstream` exist in
-  the schema (SPEC.md section 10) but nothing moves a term through them
-  until M7.
 - Suppression follows the same pattern as `gap`'s `_visible_gaps_query()`:
   `_visible_terms_query()` excludes a term if either it or its concept is
   suppressed (SPEC.md S4 explicitly covers "topic or term"). Unlike `topic`,
   `concept`/`term` have only a bare `suppressed` boolean in the schema (no
   reason/by/at columns) -- `scripts/suppress_vocabulary.py` logs the reason
   and actor to `audit_log` instead, which exists as of M4.
+
+## Writing to Wikidata (M6)
+
+SPEC.md S1: "Duga never writes an identity statement (P21/P91/etc.) to
+Wikidata, full stop." `app/wikidata_write.py` is the *only* code in the
+codebase that can write to Wikimedia, and it is structurally narrow rather
+than merely allowlist-checked at runtime: the module contains exactly two
+functions, `set_label()` and `set_description()` -- there is no generic
+"set claim" function anywhere in Duga, so a P21/P91 write isn't just
+disallowed, it's not expressible through this code path at all.
+`EDITABLE_GAP_TYPES` maps `no_label`/`no_description` gaps to `label`/
+`description` edit kinds; no other gap type is editable.
+
+- `app/blueprints/write/routes.py` (`GET`/`POST /gap/<id>/edit`) --
+  preview-then-confirm: the first `POST` (no `confirmed` field) re-renders
+  the form with the exact value that would be written and does not touch
+  Wikidata; only a second `POST` with `confirmed=1` performs the edit. This
+  is the reason token persistence (below) exists -- the confirm step is a
+  separate HTTP request from the one that authenticated it.
+- SPEC.md S8 ("global write kill switch checked immediately before every
+  write") — `DUGA_WRITES_ENABLED` is read fresh at the top of the confirm
+  handler, not cached; `DUGA_MAX_WRITES_PER_HOUR_PER_USER` and
+  `_GLOBAL` are enforced the same way, counting recent `wiki_edit` rows.
+- Token persistence: `app/token_crypto.py` (Fernet symmetric encryption,
+  key from `DUGA_TOKEN_ENCRYPTION_KEY`) and `app/token_store.py`
+  (`save_tokens()`/`get_valid_access_token()`/`TokenUnavailable`) hold one
+  encrypted access+refresh token per contributor in `contributor_token`,
+  refreshing transparently via `oauth_client.refresh_access_token()` when
+  the access token is stale. If no usable token exists (never logged in
+  since this shipped, or the refresh itself fails), the write route redirects
+  to `/login` rather than failing -- SPEC.md guardrail 9, "fail loudly,
+  never serve stale as fresh," applies to a stuck write too.
+- Every attempt -- success or failure -- is logged to `audit_log`
+  (`wiki_edit_attempt` before, `wiki_edit_success`/`wiki_edit_failed` after)
+  and recorded as a `wiki_edit` row (guardrail 11). A successful edit is
+  attributed to the contributor's own Wikimedia account, exactly like any
+  other Wikidata edit -- Duga is not a bot account making the edit on their
+  behalf, the OAuth token *is* their account.
+- `app/wikidata_lookup.py` also exists (see M7 below) but performs no
+  writes -- it's a single read-only `wbgetentities` existence check.
+
+## Promoting local vocabulary upstream (M7)
+
+SPEC.md section 10's promotion path: `local -> proposed -> upstream`. This
+only ever *links* an existing local `Concept`/`Term` to something that
+already exists on Wikidata/Wikidata Lexemes -- it never creates a new item
+or Lexeme there. (SPEC.md section 9's write allowlist for v0.1 is labels/
+descriptions/aliases now, lexeme senses/forms "post-v0.1"; item/Lexeme
+*creation* is never listed at all, at any stage.)
+
+- `app/blueprints/vocabulary/routes.py`: `propose_concept`/`propose_term`
+  move a `local` row to `proposed` (a pure lifecycle flip, no external
+  call). `link_concept_upstream`/`link_term_upstream` move a `proposed` row
+  to `upstream`, but only after: the submitted QID/Lexeme ID matches the
+  expected format (`QID_PATTERN`/`LEXEME_PATTERN`), a concept's QID isn't
+  already claimed by a different concept (the `unique=True` column backs
+  this up), and -- the actual gate -- `app/wikidata_lookup.py:entity_exists()`
+  confirms live that the ID exists on Wikidata. A Sense ID, if given, must
+  be prefixed by its Lexeme ID (`L123-S1` under `L123`), since a mismatched
+  pair would silently link to the wrong sense.
+- Each stage transition is logged to `audit_log`
+  (`propose_concept`/`propose_term`/`link_concept_upstream`/
+  `link_term_upstream`), same pattern as every other contributor action.
+- The lifecycle sequence is enforced server-side on every route, not just
+  hidden via the UI: proposing something already `proposed`/`upstream`, or
+  linking something still `local`, is rejected with a flash message rather
+  than silently no-opping.
 
 ## Jobs (M1 + M2 + M3)
 
@@ -205,6 +270,6 @@ about the person. Flag this interpretation if it should be revisited.
 
 Per the milestone table (SPEC.md section 14): no self-service override/
 suppression UI (the three `scripts/suppress_*.py`/`set_gap_override.py`
-scripts remain the only way to exercise S4 and guardrail 5), no promotion
-path moving a term from `local` to `proposed`/`upstream` (M7), and no writes
-to Wikidata (M6, gated by S1's property allowlist).
+scripts remain the only way to exercise S4 and guardrail 5). M6 (Wikidata
+writes) and M7 (promotion path) are both now in place -- see their sections
+above.

@@ -11,16 +11,19 @@ constraints, data model, milestones). `docs/architecture.md`, `docs/i18n.md`,
 `docs/wikiproject-page.md`, `docs/scope-definition.md`, `docs/oauth-setup.md`,
 and `docs/deployment-toolforge.md` cover the current code.
 
-**Status:** M5 — the conference-seeding flow: vocabulary read, add-a-term,
-evidence grading, and community assertions. A logged-in visitor can add a
-term for a concept in under a minute from their phone, cite a source for
-it, and confirm/dispute other people's terms; evidence grades
-(documented/organisational/community/single_report) are computed, never
-typed in. An operator can suppress a topic, concept, or term, or override a
-specific gap, via `scripts/suppress_topic.py`/`scripts/suppress_vocabulary.py`/
+**Status:** M6/M7 — Wikidata writes and the promotion path. A logged-in
+visitor can fix a `no_label`/`no_description` Wikidata gap directly from the
+gap list: preview the exact edit, confirm, and it's written to Wikidata
+under their own account (never as identity statements — see SPEC.md S1).
+Writes are gated by a global kill switch (`DUGA_WRITES_ENABLED`) and
+per-user/global hourly rate limits, and every attempt is recorded in
+`audit_log` and `wiki_edit` before and after the call. A local concept or
+term can now be proposed and then linked to an *existing* Wikidata item or
+Lexeme (SPEC.md section 10) — this never creates anything on Wikidata, only
+links to something a live lookup confirms already exists. An operator can
+suppress a topic, concept, or term, or override a specific gap, via
+`scripts/suppress_topic.py`/`scripts/suppress_vocabulary.py`/
 `scripts/set_gap_override.py` (still no self-service UI for any of those).
-Still no writes to Wikidata (M6, gated by SPEC.md S1), and nothing promotes
-from `local` to `proposed`/`upstream` yet (M7).
 
 **Login needs a registered OAuth consumer to actually work** — see
 `docs/oauth-setup.md` for the one manual step (`DUGA_OAUTH_CLIENT_ID`/

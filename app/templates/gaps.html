@@ -17,6 +17,9 @@
       {% endif %}
     </div>
     <a class="gap-action" href="{{ item.action_url }}">{{ _('duga-gaps-fix-button') }}</a>
+    {% if item.editable and contributor %}
+    <a class="gap-action" href="{{ url_for('write.edit_form', gap_id=item.id) }}">{{ _('duga-gaps-edit-here-button') }}</a>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>

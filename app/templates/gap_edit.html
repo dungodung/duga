@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duga-write-title-' ~ edit_kind, label) }}{% endblock %}
+{% block content %}
+<h1>{{ _('duga-write-title-' ~ edit_kind, label) }}</h1>
+
+{% if confirming %}
+<div class="notice">
+  <p>{{ _('duga-write-preview-' ~ edit_kind, gap.language_code, gap.topic_qid, value) }}</p>
+  <p>{{ _('duga-write-preview-public') }}</p>
+</div>
+<form method="post" action="{{ url_for('write.edit_submit', gap_id=gap.id) }}">
+  <input type="hidden" name="value" value="{{ value }}">
+  <input type="hidden" name="confirmed" value="1">
+  <button type="submit">{{ _('duga-write-confirm-button') }}</button>
+</form>
+<p><a href="{{ url_for('write.edit_form', gap_id=gap.id) }}">{{ _('duga-write-cancel') }}</a></p>
+{% else %}
+<p>{{ _('duga-write-explain-' ~ edit_kind, label) }}</p>
+<form method="post" action="{{ url_for('write.edit_submit', gap_id=gap.id) }}">
+  <p>
+    <label for="value">{{ _('duga-write-value-label-' ~ edit_kind) }}</label><br>
+    <input type="text" id="value" name="value" required>
+  </p>
+  <button type="submit">{{ _('duga-write-preview-button') }}</button>
+</form>
+{% endif %}
+
+<p>
+  <a href="https://www.wikidata.org/wiki/{{ gap.topic_qid }}">{{ _('duga-write-view-on-wikidata') }}</a>
+  · <a href="{{ url_for('main.gaps', lang=gap.language_code) }}">{{ _('duga-gaps-back') }}</a>
+</p>
+{% endblock %}

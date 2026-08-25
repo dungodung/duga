@@ -17,10 +17,12 @@ def create_app(config_name: str = "production") -> Flask:
     from .blueprints.auth.routes import auth_bp, current_contributor
     from .blueprints.main.routes import main_bp
     from .blueprints.vocabulary.routes import vocab_bp
+    from .blueprints.write.routes import write_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(vocab_bp)
+    app.register_blueprint(write_bp)
 
     @app.before_request
     def set_interface_lang():

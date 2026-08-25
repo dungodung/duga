@@ -1,5 +1,14 @@
 import os
 
+from cryptography.fernet import Fernet
+
+# A fresh, process-local key used only when DUGA_TOKEN_ENCRYPTION_KEY isn't
+# set. Never checked into git, generated once per process -- fine for local
+# dev/tests (whose tokens are throwaway anyway); production MUST set a real
+# one (see docs/oauth-setup.md), or every restart would silently strand
+# everyone's stored refresh tokens.
+_DEV_ONLY_TOKEN_KEY = Fernet.generate_key().decode()
+
 
 def _db_uri() -> str:
     # TOOL_TOOLSDB_USER/PASSWORD are read-only system envvars Toolforge
@@ -60,6 +69,22 @@ class BaseConfig:
     # distinct contributors agreeing, computed from term_assertion rows --
     # never typed in directly.
     DUGA_COMMUNITY_ASSERTION_THRESHOLD = int(os.environ.get("DUGA_COMMUNITY_ASSERTION_THRESHOLD", "3"))
+
+    # M6 write path (SPEC.md section 9, S1, S8). Generate a real production
+    # value with:
+    #   python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    DUGA_TOKEN_ENCRYPTION_KEY = os.environ.get("DUGA_TOKEN_ENCRYPTION_KEY", _DEV_ONLY_TOKEN_KEY)
+
+    # S8: "A single config flag disables all outbound wiki edits without a
+    # redeploy. It must be checked immediately before every write, not at
+    # startup." -- see app/blueprints/write/routes.py for where that check
+    # actually happens; this config value is only ever read there, per-request.
+    DUGA_WRITES_ENABLED = os.environ.get("DUGA_WRITES_ENABLED", "true").lower() == "true"
+
+    # SPEC.md section 9: "respect per-user and global rate limits." Simple
+    # sliding-hour counts against wiki_edit -- enough for v0.1 scale.
+    DUGA_MAX_WRITES_PER_HOUR_PER_USER = int(os.environ.get("DUGA_MAX_WRITES_PER_HOUR_PER_USER", "20"))
+    DUGA_MAX_WRITES_PER_HOUR_GLOBAL = int(os.environ.get("DUGA_MAX_WRITES_PER_HOUR_GLOBAL", "100"))
 
 
 class DevelopmentConfig(BaseConfig):
