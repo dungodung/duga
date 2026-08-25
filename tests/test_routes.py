@@ -185,6 +185,59 @@ def test_gaps_page_hides_gaps_for_a_suppressed_topic(client, db, seed_languages)
     assert b"Suppressed Person" not in resp.data
 
 
+def test_gaps_page_hides_gaps_from_a_disabled_detector(client, db, seed_languages):
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Detector(
+            detector_key="wiktionary_no_entry",
+            project_code="wiktionary",
+            gap_type="no_entry",
+            maturity="experimental",
+            enabled=False,
+        )
+    )
+    db.session.add(
+        Gap(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wiktionary",
+            gap_type="no_entry",
+            detector_key="wiktionary_no_entry",
+            scope_version_id=1,
+            evidence_json='{"label": "Disabled Detector Topic"}',
+            action_url="https://www.wikidata.org/wiki/Q1#sitelinks-wiktionary",
+            computed_at=now,
+        )
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps")
+    assert b"Disabled Detector Topic" not in resp.data
+
+
+def test_gaps_page_shows_gaps_with_no_matching_detector_row(client, db, seed_languages):
+    """A gap seeded without a matching detector row (as most tests here
+    do) must still show -- the disabled-detector filter fails open."""
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Gap(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wiktionary",
+            gap_type="no_entry",
+            detector_key="wiktionary_no_entry",
+            scope_version_id=1,
+            evidence_json='{"label": "No Detector Row Topic"}',
+            action_url="https://www.wikidata.org/wiki/Q1#sitelinks-wiktionary",
+            computed_at=now,
+        )
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps")
+    assert b"No Detector Row Topic" in resp.data
+
+
 def test_lang_home_gap_count_excludes_suppressed_topics(client, db, seed_languages):
     now = datetime.now(timezone.utc)
     db.session.add(

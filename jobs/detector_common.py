@@ -29,7 +29,11 @@ def upsert_detector_row(detector_key, project_code, gap_type, maturity, descript
             project_code=project_code,
             gap_type=gap_type,
             maturity=maturity,
-            enabled=True,
+            # SPEC.md section 11: post-v0.1 detectors ship "behind
+            # maturity='experimental', disabled by default" -- promotion to
+            # enabled is then a human decision, not something a job grants
+            # itself on creation.
+            enabled=(maturity != "experimental"),
             description=description,
         )
         db.session.add(detector)
@@ -95,7 +99,15 @@ def run_presence_detector(
             sys.exit(1)
         language_codes = [language.code for language in languages]
 
-        qids = [row[0] for row in Topic.query.filter_by(suppressed=False).with_entities(Topic.qid).all()]
+        topic_query = Topic.query.filter_by(suppressed=False)
+        if maturity == "experimental":
+            # SPEC.md section 11 / S7: experimental detectors exclude
+            # living topics, enforced centrally here rather than trusting
+            # each new detector file to remember it individually -- the
+            # same reasoning as wikidata_write.py enforcing S1 structurally
+            # instead of per-call-site discipline.
+            topic_query = topic_query.filter_by(is_living=False)
+        qids = [row[0] for row in topic_query.with_entities(Topic.qid).all()]
 
         # Release the DB connection before the slow part -- see
         # jobs/wp_no_article.py's original fix notes: holding a connection

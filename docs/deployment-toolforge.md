@@ -205,3 +205,58 @@ account (check `Special:Contributions` there). M7's promotion path (a local
 concept/term's "Propose for Wikidata" / "Link" buttons) needs no separate
 secrets -- it reuses the same read-only Wikidata API call the rest of the
 app already makes.
+
+## S1+: post-v0.1 sitelink detectors
+
+No new secrets or envvars. Just the usual build + migrate (the migration
+seeds `project` rows for `wiktionary`/`wikiquote`/`wikisource`):
+
+```
+toolforge build start https://github.com/<your-username>/duga --ref main
+toolforge jobs run migrate --command "flask --app wsgi db upgrade" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs delete migrate
+```
+
+Run each once by hand first and watch the logs, same caution as the v0.1
+detectors above:
+
+```
+toolforge jobs run wiktionary-no-entry --command "python3 jobs/wiktionary_no_entry.py" \
+  --image tool-duga/tool-duga:latest --wait 900
+toolforge jobs run wikiquote-no-quotes --command "python3 jobs/wikiquote_no_quotes.py" \
+  --image tool-duga/tool-duga:latest --wait 900
+toolforge jobs run wikisource-no-text --command "python3 jobs/wikisource_no_text.py" \
+  --image tool-duga/tool-duga:latest --wait 900
+```
+
+Then schedule them, staggered after the v0.1 detectors:
+
+```
+toolforge jobs run wiktionary-no-entry --command "python3 jobs/wiktionary_no_entry.py" \
+  --image tool-duga/tool-duga:latest --schedule "0 5 * * *" --emails onfailure
+toolforge jobs run wikiquote-no-quotes --command "python3 jobs/wikiquote_no_quotes.py" \
+  --image tool-duga/tool-duga:latest --schedule "20 5 * * *" --emails onfailure
+toolforge jobs run wikisource-no-text --command "python3 jobs/wikisource_no_text.py" \
+  --image tool-duga/tool-duga:latest --schedule "40 5 * * *" --emails onfailure
+```
+
+They ship `enabled = FALSE` (SPEC.md section 11: disabled by default), so
+none of their gaps appear on any gap list yet even after these runs --
+confirm the job populated `gap` rows and check `detector.last_status`, but
+verifying they show on `/sr/gaps` needs the explicit promotion step below.
+
+Promoting one to visible after review with native speakers of at least two
+affected languages (SPEC.md section 11) is a direct SQL update -- there's
+no operator UI for this, on the same "still a plain CLI/DB action" footing
+as `suppress_topic.py`/`set_gap_override.py`:
+
+```
+toolforge jobs run enable-detector --command "flask --app wsgi shell -c \"from app.extensions import db; from app.models import Detector; d = Detector.query.filter_by(detector_key='wiktionary_no_entry').first(); d.enabled = True; db.session.commit()\"" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs delete enable-detector
+```
+
+Verify: `/sr/gaps?project=wiktionary&type=no_entry` returns rows only
+after that detector's been enabled, and never lists a gap for a topic
+seeded with `is_living = TRUE` (S7).

@@ -283,6 +283,74 @@ be used to fake having fixed something.
   reversibility gap worth revisiting if it turns out to matter in practice --
   flagged here rather than solved speculatively.
 
+## Post-v0.1 detectors (S1+)
+
+SPEC.md section 11 lists further detectors to "ship behind
+`maturity = 'experimental'`, disabled by default" once v0.1 is stable.
+Three sitelink-presence detectors are in place so far, structurally
+identical to `wp_no_article` (a sitelink is either present under a given
+project family's dbname or it isn't) but for sister projects instead of
+Wikipedia:
+
+- `jobs/wiktionary_no_entry.py` (project `wiktionary`, gap type `no_entry`)
+- `jobs/wikiquote_no_quotes.py` (project `wikiquote`, gap type `no_quotes`)
+- `jobs/wikisource_no_text.py` (project `wikisource`, gap type `no_text`)
+
+The shared dbname/compute logic lives in `jobs/sitelink_gap.py`
+(`sitelink_dbname()`, `make_compute_fn()`) rather than being copied three
+times; `wp_no_article.py` itself is untouched and keeps its own inline
+version, since it's a stable v0.1 detector and there was no need to
+refactor it for this.
+
+Two pieces of shared detector infrastructure needed fixing before any
+experimental detector could correctly satisfy the contract in SPEC.md
+section 11:
+
+- `jobs/detector_common.py:upsert_detector_row()` used to hardcode
+  `enabled=True` on every newly-created `detector` row regardless of
+  `maturity`, which would have shipped every new detector *enabled* by
+  default -- the opposite of what the spec calls for. It now defaults
+  `enabled=(maturity != "experimental")` on creation only; an operator
+  flipping an existing row's `enabled` flag is never touched by a later
+  run (`tests/jobs/test_detector_common.py`).
+- `jobs/detector_common.py:run_presence_detector()` now excludes
+  `topic.is_living` topics from the qid set it hands to `compute_fn` when
+  `maturity == "experimental"` -- SPEC.md S7, enforced centrally here
+  rather than trusted to each new detector file, the same reasoning as
+  `wikidata_write.py` enforcing S1 structurally instead of via
+  per-call-site discipline. Stable detectors (`wp_no_article`,
+  `wd_no_label`, `wd_no_description`) are unaffected.
+- `app/blueprints/main/routes.py:_visible_gaps_query()` now also hides a
+  gap whose `detector` row exists and says `enabled=False`. This fails
+  open: a gap seeded without a matching `detector` row (as most existing
+  tests do, and as could happen operationally) is unaffected, only an
+  *explicit* disabled flag hides anything.
+
+Since `enabled` now defaults to `False` for these three, none show up on
+any gap list yet even after their jobs run -- promoting one to visible is
+`UPDATE detector SET enabled = TRUE WHERE detector_key = '...'` by an
+operator, matching the spec's "promotion to beta/stable is a human
+decision after review with native speakers of at least two affected
+languages."
+
+Their `project` rows (`wiktionary`, `wikiquote`, `wikisource`) are seeded
+by migration `6255d6f3ff0b`, matching the pattern M2/M3 used for
+`wikipedia`/`wikidata` -- though note the `project` table itself is
+currently unread by any code path; it's bookkeeping only, kept in sync as
+a matter of hygiene rather than because something depends on it.
+
+Not yet built from the section 11 post-v0.1 list: `commons_no_image`,
+`commons_no_category` (need a claims-fetching Wikimedia API helper --
+`get_entities_batch` only fetches sitelinks/labels -- and SPEC.md section
+16 flags `commons_no_image` on living people as "probably not
+acceptable," so this one likely wants living topics excluded outright
+rather than just at experimental-maturity default), `vocab_no_term`,
+`vocab_no_evidence` (read the local `concept`/`term` tables rather than
+Wikidata; a `concept` can have `qid IS NULL` while purely local, which
+doesn't fit `gap.topic_qid NOT NULL` for that subset), lexeme write-back,
+and impact scoring (SPEC.md section 16 defers this explicitly pending a
+formula that satisfies S6).
+
 ## A scope note worth re-checking later
 
 `jobs/wp_no_article.py` reads SPEC.md S7 ("is_living topics excluded from
@@ -294,13 +362,17 @@ about the person. Flag this interpretation if it should be revisited.
 
 ## What's deliberately not here yet
 
-All seven milestones in SPEC.md section 14's table (M0-M7) are now in
-place. What's left is either explicitly deferred in SPEC.md section 16
-(impact scoring formula, handover terms with the Wikimedia LGBT+ User
-Group), or post-v0.1 experimental detectors (Commons, Wiktionary,
-Wikiquote, Wikisource, lexeme write-back -- SPEC.md section 11) that the
-spec says to ship later, disabled by default. Suppression (topic/concept/
-term) still has no self-service UI, only the three `scripts/suppress_*.py`
-CLIs -- unlike gap overrides, SPEC.md's v0.1 route list never calls for a
-self-service suppression endpoint, so this isn't a gap against the spec,
-just a possible future extension.
+All seven milestones in SPEC.md section 14's table (M0-M7) are in place,
+and three of the section 11 post-v0.1 sitelink detectors (Wiktionary,
+Wikiquote, Wikisource -- see the section above) are built and shipping
+disabled-by-default. Still remaining from that same list: the two Commons
+detectors, `vocab_no_term`/`vocab_no_evidence`, lexeme write-back, and
+impact scoring -- see "Post-v0.1 detectors (S1+)" above for exactly what
+each one needs before it can be built. Impact scoring is explicitly
+deferred in SPEC.md section 16 pending a formula that satisfies S6, not
+merely unbuilt. Handover terms with the Wikimedia LGBT+ User Group
+(SPEC.md section 16) are outside this repo's scope entirely. Suppression
+(topic/concept/term) still has no self-service UI, only the three
+`scripts/suppress_*.py` CLIs -- unlike gap overrides, SPEC.md's v0.1 route
+list never calls for a self-service suppression endpoint, so this isn't a
+gap against the spec, just a possible future extension.

@@ -41,7 +41,13 @@ def _visible_gaps_query(lang=None):
     `lang=None` (used by app/blueprints/write/routes.py, which looks a gap
     up by id alone) applies the suppression/override filters without a
     language filter -- omitting the language_code condition entirely,
-    not filtering for a null one, which would match nothing."""
+    not filtering for a null one, which would match nothing.
+
+    Also hides gaps from a detector explicitly marked disabled (SPEC.md
+    section 11: post-v0.1 detectors ship disabled by default). This fails
+    open -- a gap only disappears when a `detector` row exists AND says
+    enabled=False -- so gaps seeded without a matching detector row (as
+    plenty of tests do) are unaffected."""
     suppressed_topic = exists().where(and_(Topic.qid == Gap.topic_qid, Topic.suppressed.is_(True)))
     overridden_gap = exists().where(
         and_(
@@ -51,7 +57,10 @@ def _visible_gaps_query(lang=None):
             GapOverride.gap_type == Gap.gap_type,
         )
     )
-    query = Gap.query.filter(~suppressed_topic, ~overridden_gap)
+    disabled_detector = exists().where(
+        and_(Detector.detector_key == Gap.detector_key, Detector.enabled.is_(False))
+    )
+    query = Gap.query.filter(~suppressed_topic, ~overridden_gap, ~disabled_detector)
     if lang is not None:
         query = query.filter(Gap.language_code == lang)
     return query
