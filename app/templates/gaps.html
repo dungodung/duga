@@ -20,6 +20,14 @@
     {% if item.editable and contributor %}
     <a class="gap-action" href="{{ url_for('write.edit_form', gap_id=item.id) }}">{{ _('duga-gaps-edit-here-button') }}</a>
     {% endif %}
+    {% if contributor %}
+    <form method="post" action="{{ url_for('main.override_gap') }}" class="gap-override-form">
+      <input type="hidden" name="gap_id" value="{{ item.id }}">
+      <input type="text" name="reason" placeholder="{{ _('duga-gaps-override-reason-placeholder') }}" class="gap-override-reason">
+      <button type="submit" name="status" value="not_applicable">{{ _('duga-gaps-override-not-applicable-button') }}</button>
+      <button type="submit" name="status" value="declined">{{ _('duga-gaps-override-declined-button') }}</button>
+    </form>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>

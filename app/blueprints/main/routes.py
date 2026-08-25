@@ -1,15 +1,26 @@
 import json
+from datetime import datetime, timezone
 
-from flask import Blueprint, abort, jsonify, render_template, request
+from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import and_, exists
 
+from ... import i18n
+from ...audit import log as audit_log
 from ...extensions import db
 from ...models import Detector, Gap, GapOverride, Language, ScopeRule, Topic, TopicRule
 from ...wikidata_write import EDITABLE_GAP_TYPES
+from ..auth.routes import current_contributor, login_required
 
 main_bp = Blueprint("main", __name__)
 
 GAPS_PAGE_SIZE = 50
+OVERRIDE_STATUSES = {"declined", "not_applicable"}
+
+
+def _t(key, *args):
+    """Translates a flash message server-side -- flash() has no access to
+    the Jinja context processor's _() at the point routes.py calls it."""
+    return i18n.translate(key, g.get("interface_lang", i18n.FALLBACK_LANG), *args)
 
 
 def _seeded_language_or_404(lang):
@@ -145,6 +156,69 @@ def gaps(lang):
         project_filter=project_filter,
         type_filter=type_filter,
     )
+
+
+@main_bp.post("/gap/override")
+@login_required
+def override_gap():
+    """SPEC.md section 12's `POST /gap/override` -- a contributor's own
+    "this doesn't need fixing" decision, distinct from M6's write path
+    (which resolves a gap by actually fixing it). Only declined/
+    not_applicable are self-service; 'done' stays operator-only
+    (scripts/set_gap_override.py), since M6 already marks a gap done by
+    fixing and removing it directly. Guardrail 5: this only ever touches
+    `gap_override`, never `gap` itself -- a detector's next run can't
+    destroy this decision, and can't be destroyed by one either."""
+    contributor = current_contributor()
+    gap_id = request.form.get("gap_id", type=int)
+    status = request.form.get("status")
+    reason = (request.form.get("reason") or "").strip() or None
+
+    if status not in OVERRIDE_STATUSES:
+        abort(400)
+
+    gap = _visible_gaps_query().filter(Gap.id == gap_id).first()
+    if gap is None:
+        abort(404)
+
+    existing = GapOverride.query.filter_by(
+        topic_qid=gap.topic_qid,
+        language_code=gap.language_code,
+        project_code=gap.project_code,
+        gap_type=gap.gap_type,
+    ).first()
+    if existing is None:
+        existing = GapOverride(
+            topic_qid=gap.topic_qid,
+            language_code=gap.language_code,
+            project_code=gap.project_code,
+            gap_type=gap.gap_type,
+        )
+        db.session.add(existing)
+    existing.status = status
+    existing.reason = reason
+    existing.set_by = contributor.wiki_username
+    existing.set_at = datetime.now(timezone.utc)
+
+    audit_log(
+        actor=contributor.wiki_username,
+        action="override_gap",
+        entity_type="gap",
+        entity_id=gap.id,
+        before=None,
+        after={
+            "status": status,
+            "topic_qid": gap.topic_qid,
+            "language_code": gap.language_code,
+            "project_code": gap.project_code,
+            "gap_type": gap.gap_type,
+            "reason": reason,
+        },
+    )
+    db.session.commit()
+
+    flash(_t("duga-gaps-override-success"))
+    return redirect(url_for("main.gaps", lang=gap.language_code))
 
 
 @main_bp.get("/about")

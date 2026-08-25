@@ -244,10 +244,11 @@ request (SPEC.md section 4 -- "the web app only reads"):
   Vocabulary section above for why it logs to `audit_log` rather than
   dedicated columns).
 
-None of these scripts are web endpoints -- there's still no admin UI for
-suppression/overrides (that's a self-service `POST /gap/override` endpoint,
-not yet built even with M4's login now in place), so each stays a plain CLI
-an operator runs by hand on Toolforge.
+None of these scripts are web endpoints -- there's still no UI for
+suppression (topic/concept/term), so each stays a plain CLI an operator
+runs by hand on Toolforge. `set_gap_override.py` remains the only way to
+set a gap's status to `done` (self-service can't -- see the section below),
+but `declined`/`not_applicable` now have a self-service equivalent.
 
 All jobs are idempotent (SPEC.md guardrail 8): re-running `scope_fetch` for
 an already-stored revision is a no-op; `topic_refresh` and the three
@@ -256,6 +257,31 @@ active scope_version_id; `gap` per detector_key + language_code), while
 `topic` rows persist (`first_seen` fixed, `last_seen` advances, `suppressed`
 never touched by a job) and `gap_override` rows are never touched by a
 detector at all.
+
+## Self-service gap overrides
+
+SPEC.md section 12's `POST /gap/override` (`app/blueprints/main/routes.py:
+override_gap`) -- any logged-in contributor can mark a specific gap
+`declined` or `not_applicable` directly from the gap list, with an optional
+one-line reason. Deliberately narrower than the operator CLI in one way:
+self-service can only ever set `declined`/`not_applicable`, never `done` --
+`done` stays `scripts/set_gap_override.py`-only, since M6's write path
+already marks a gap done the moment it's actually fixed (by deleting the
+`gap` row directly), so a self-service "mark done" button would only ever
+be used to fake having fixed something.
+
+- Writes only to `gap_override`, exactly like the CLI script (guardrail 5:
+  a detector's next run can never see or touch this table). The lookup
+  reuses `_visible_gaps_query()`, so a gap that's already suppressed,
+  already overridden, or doesn't exist 404s -- the same gap can't be
+  overridden twice through this endpoint.
+- Logged to `audit_log` (`override_gap`, guardrail 11) with the full
+  before-state gap identity and the decision, on top of the `set_by`/
+  `set_at`/`reason` columns `gap_override` already carries.
+- No self-service undo: once set, only an operator can clear it
+  (`scripts/set_gap_override.py --clear`). This is a real, if narrow,
+  reversibility gap worth revisiting if it turns out to matter in practice --
+  flagged here rather than solved speculatively.
 
 ## A scope note worth re-checking later
 
@@ -268,8 +294,13 @@ about the person. Flag this interpretation if it should be revisited.
 
 ## What's deliberately not here yet
 
-Per the milestone table (SPEC.md section 14): no self-service override/
-suppression UI (the three `scripts/suppress_*.py`/`set_gap_override.py`
-scripts remain the only way to exercise S4 and guardrail 5). M6 (Wikidata
-writes) and M7 (promotion path) are both now in place -- see their sections
-above.
+All seven milestones in SPEC.md section 14's table (M0-M7) are now in
+place. What's left is either explicitly deferred in SPEC.md section 16
+(impact scoring formula, handover terms with the Wikimedia LGBT+ User
+Group), or post-v0.1 experimental detectors (Commons, Wiktionary,
+Wikiquote, Wikisource, lexeme write-back -- SPEC.md section 11) that the
+spec says to ship later, disabled by default. Suppression (topic/concept/
+term) still has no self-service UI, only the three `scripts/suppress_*.py`
+CLIs -- unlike gap overrides, SPEC.md's v0.1 route list never calls for a
+self-service suppression endpoint, so this isn't a gap against the spec,
+just a possible future extension.

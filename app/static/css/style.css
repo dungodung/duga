@@ -133,6 +133,34 @@ a {
   white-space: nowrap;
 }
 
+.gap-override-form {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.gap-override-reason {
+  font-size: 0.85rem;
+  padding: 0.15rem 0.4rem;
+  width: 8rem;
+}
+
+.gap-override-form button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.gap-override-form button:hover {
+  text-decoration: underline;
+}
+
 .pagination {
   display: flex;
   justify-content: space-between;
