@@ -338,3 +338,31 @@ way: gap rows exist after the run, `/sr/gaps` shows nothing under
 `vocab_no_evidence` gap's "Fix this" link lands directly on the specific
 under-evidenced term's page (not just the language's generic vocabulary
 list, unlike every other detector's action_url).
+
+## S1+: lexeme write-back
+
+No new secrets, no migration -- this reuses M6's `DUGA_TOKEN_ENCRYPTION_KEY`/
+`DUGA_WRITES_ENABLED` and the same OAuth consumer's edit grant. Just the
+usual rebuild:
+
+```
+toolforge build start https://github.com/<your-username>/duga --ref main
+toolforge webservice buildservice restart
+```
+
+**Worth confirming on first live test:** M6's OAuth consumer was
+registered with the "Edit existing pages" grant for labels/descriptions
+on regular items. Lexeme namespace edits (`wbladdsense`) should be
+covered by the same grant -- MediaWiki OAuth grants aren't normally
+namespace-scoped -- but this hasn't been exercised against production
+before, so treat the first real attempt as the actual test of that
+assumption, not just a formality. If it comes back permission-denied,
+the fix is adding whatever grant Wikidata reports as missing to the
+existing OAuth consumer, not writing any new code.
+
+Verify: get a term to `lifecycle = 'upstream'` with a real `lexeme_id`
+and no `sense_id` (via `vocab.propose_term` then `vocab.link_term_upstream`
+against a real Lexeme, entering no sense id), confirm the "Add a sense to
+this Lexeme" link appears on its detail page, and that submitting a gloss
+actually creates a new Sense on that Lexeme (check the Lexeme's page
+history on Wikidata) and updates `term.sense_id` locally to match.

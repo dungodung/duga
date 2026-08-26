@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duga-write-title-sense', term.written_form) }}{% endblock %}
+{% block content %}
+<h1>{{ _('duga-write-title-sense', term.written_form) }}</h1>
+
+{% if confirming %}
+<div class="notice">
+  <p>{{ _('duga-write-preview-sense', term.lexeme_id, term.language_code, gloss) }}</p>
+  <p>{{ _('duga-write-preview-public') }}</p>
+</div>
+<form method="post" action="{{ url_for('write.add_sense_submit', term_id=term.id) }}">
+  <input type="hidden" name="gloss" value="{{ gloss }}">
+  <input type="hidden" name="confirmed" value="1">
+  <button type="submit">{{ _('duga-write-confirm-button') }}</button>
+</form>
+<p><a href="{{ url_for('write.add_sense_form', term_id=term.id) }}">{{ _('duga-write-cancel') }}</a></p>
+{% else %}
+<p>{{ _('duga-write-explain-sense', term.written_form, term.lexeme_id) }}</p>
+<form method="post" action="{{ url_for('write.add_sense_submit', term_id=term.id) }}">
+  <p>
+    <label for="gloss">{{ _('duga-write-value-label-sense') }}</label><br>
+    <textarea id="gloss" name="gloss" rows="2" required>{{ gloss }}</textarea>
+  </p>
+  <button type="submit">{{ _('duga-write-preview-button') }}</button>
+</form>
+{% endif %}
+
+<p>
+  <a href="https://www.wikidata.org/wiki/Lexeme:{{ term.lexeme_id }}">{{ _('duga-write-view-on-wikidata') }}</a>
+  · <a href="{{ url_for('vocab.term_detail', lang=term.language_code, term_id=term.id) }}">{{ _('duga-write-back-to-term', term.written_form) }}</a>
+</p>
+{% endblock %}

@@ -31,9 +31,13 @@ Wikiquote, Wikisource sitelink presence; Commons image/category claim
 presence; and `vocab_no_term`/`vocab_no_evidence`, which check Duga's own
 local vocabulary tables instead of Wikidata — shipping
 `maturity = 'experimental'` and disabled by default until an operator
-promotes them; see `docs/architecture.md` for what's still to come
-(lexeme write-back, impact scoring) and for the qid-only scoping the two
-vocabulary detectors use.
+promotes them. Lexeme write-back is also live: a term already linked to an
+existing Wikidata Lexeme but with no Sense yet can have one added —
+gloss, preview, confirm, same kill switch and rate limits as every other
+write — via "Add a sense to this Lexeme" on the term's page; this never
+creates a new Lexeme, only a Sense on one that already exists. See
+`docs/architecture.md` for what's still to come (impact scoring) and for
+the qid-only scoping the two vocabulary detectors use.
 
 **Login needs a registered OAuth consumer to actually work** — see
 `docs/oauth-setup.md` for the one manual step (`DUGA_OAUTH_CLIENT_ID`/

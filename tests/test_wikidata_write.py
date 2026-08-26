@@ -1,3 +1,5 @@
+import json
+
 import pytest
 import responses
 
@@ -5,6 +7,7 @@ from app.wikidata_write import (
     ALLOWED_EDIT_KINDS,
     EDITABLE_GAP_TYPES,
     WikidataWriteError,
+    add_sense,
     edit_summary,
     set_description,
     set_label,
@@ -23,8 +26,8 @@ def mock_csrf_and_write(write_response, action):
     responses.add(responses.POST, API_URL, json=write_response, status=200)
 
 
-def test_allowed_edit_kinds_is_exactly_label_and_description():
-    assert ALLOWED_EDIT_KINDS == {"label", "description"}
+def test_allowed_edit_kinds_is_exactly_label_description_and_sense():
+    assert ALLOWED_EDIT_KINDS == {"label", "description", "sense"}
 
 
 def test_editable_gap_types_maps_to_allowed_kinds():
@@ -114,3 +117,85 @@ def test_csrf_token_request_uses_bearer_auth():
 
     set_label(API_URL, "the-access-token", "Q1", "sr", "реч", "test-agent")
     assert captured["auth"] == "Bearer the-access-token"
+
+
+# -- add_sense --------------------------------------------------------------
+
+
+@responses.activate
+def test_add_sense_returns_sense_id_revid_and_summary():
+    mock_csrf_and_write({"sense": {"id": "L12345-S1"}, "lastrevid": 555}, "wbladdsense")
+    sense_id, revid, summary = add_sense(API_URL, "fake-token", "L12345", "sr", "нека дефиниција", "test-agent")
+    assert sense_id == "L12345-S1"
+    assert revid == 555
+    assert "Duga" in summary
+
+
+@responses.activate
+def test_add_sense_sends_entity_and_glosses_data():
+    captured = {}
+
+    def record_write(request):
+        captured["body"] = request.body
+        return (200, {}, '{"sense": {"id": "L12345-S1"}, "lastrevid": 1}')
+
+    responses.add(
+        responses.GET, API_URL,
+        json={"query": {"tokens": {"csrftoken": "abc123+\\"}}},
+        status=200,
+    )
+    responses.add_callback(responses.POST, API_URL, callback=record_write)
+
+    add_sense(API_URL, "fake-token", "L12345", "sr", "нека дефиниција", "test-agent")
+
+    assert "action=wbladdsense" in captured["body"]
+    assert "entity=L12345" in captured["body"]
+    from urllib.parse import parse_qs
+    parsed = parse_qs(captured["body"])
+    payload = json.loads(parsed["data"][0])
+    assert payload == {"glosses": {"sr": {"language": "sr", "value": "нека дефиниција"}}}
+
+
+@responses.activate
+def test_add_sense_raises_on_api_error_response():
+    mock_csrf_and_write({"error": {"code": "no-such-entity", "info": "No such entity"}}, "wbladdsense")
+    with pytest.raises(WikidataWriteError, match="No such entity"):
+        add_sense(API_URL, "fake-token", "L12345", "sr", "дефиниција", "test-agent")
+
+
+@responses.activate
+def test_add_sense_raises_on_http_error():
+    responses.add(
+        responses.GET, API_URL,
+        json={"query": {"tokens": {"csrftoken": "abc123+\\"}}},
+        status=200,
+    )
+    responses.add(responses.POST, API_URL, body="Internal Server Error", status=500)
+    with pytest.raises(WikidataWriteError):
+        add_sense(API_URL, "fake-token", "L12345", "sr", "дефиниција", "test-agent")
+
+
+@responses.activate
+def test_add_sense_raises_when_response_has_no_sense_id():
+    mock_csrf_and_write({"lastrevid": 1}, "wbladdsense")
+    with pytest.raises(WikidataWriteError, match="no sense id"):
+        add_sense(API_URL, "fake-token", "L12345", "sr", "дефиниција", "test-agent")
+
+
+@responses.activate
+def test_add_sense_never_sends_a_bot_parameter():
+    captured = {}
+
+    def record_write(request):
+        captured["body"] = request.body
+        return (200, {}, '{"sense": {"id": "L12345-S1"}, "lastrevid": 1}')
+
+    responses.add(
+        responses.GET, API_URL,
+        json={"query": {"tokens": {"csrftoken": "abc123+\\"}}},
+        status=200,
+    )
+    responses.add_callback(responses.POST, API_URL, callback=record_write)
+
+    add_sense(API_URL, "fake-token", "L12345", "sr", "дефиниција", "test-agent")
+    assert "bot" not in captured["body"]

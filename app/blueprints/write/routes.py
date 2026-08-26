@@ -27,9 +27,17 @@ from ...audit import log as audit_log
 from ...extensions import db
 from ...models import Gap, WikiEdit
 from ...token_store import TokenUnavailable, get_valid_access_token
-from ...wikidata_write import EDITABLE_GAP_TYPES, WikidataWriteError, edit_summary, set_description, set_label
+from ...wikidata_write import (
+    EDITABLE_GAP_TYPES,
+    WikidataWriteError,
+    add_sense,
+    edit_summary,
+    set_description,
+    set_label,
+)
 from ..auth.routes import current_contributor, login_required
 from ..main.routes import _visible_gaps_query
+from ..vocabulary.routes import _get_visible_term_or_404
 
 write_bp = Blueprint("write", __name__)
 
@@ -58,6 +66,20 @@ def _editable_gap_or_404(gap_id):
 def _gap_evidence_label(gap):
     evidence = json.loads(gap.evidence_json) if gap.evidence_json else {}
     return evidence.get("label") or gap.topic_qid
+
+
+def _term_awaiting_sense_or_404(term_id):
+    """Lexeme write-back (SPEC.md section 9: "Wikidata Lexemes, Forms,
+    Senses (post-v0.1)") is only offered for a term that M7's promotion
+    path already linked to an existing Lexeme but not yet to any specific
+    Sense there -- reached via propose_term + link_term_upstream in
+    app/blueprints/vocabulary/routes.py. Once term.sense_id is set (either
+    entered directly at link time, or by a previous run through this
+    flow), there's nothing left to add here."""
+    term = _get_visible_term_or_404(term_id)
+    if term.lifecycle != "upstream" or not term.lexeme_id or term.sense_id:
+        abort(404)
+    return term
 
 
 def _rate_limited(contributor_username):
@@ -188,3 +210,123 @@ def edit_submit(gap_id):
 
     flash(_t("duga-write-success"))
     return redirect(url_for("main.gaps", lang=gap.language_code))
+
+
+@write_bp.get("/term/<int:term_id>/add-sense")
+@login_required
+def add_sense_form(term_id):
+    term = _term_awaiting_sense_or_404(term_id)
+    return render_template(
+        "term_add_sense.html",
+        term=term,
+        gloss=term.usage_note or "",
+        confirming=False,
+    )
+
+
+@write_bp.post("/term/<int:term_id>/add-sense")
+@login_required
+def add_sense_submit(term_id):
+    term = _term_awaiting_sense_or_404(term_id)
+    contributor = current_contributor()
+    gloss = (request.form.get("gloss") or "").strip()
+    confirmed = request.form.get("confirmed") == "1"
+
+    if not gloss:
+        flash(_t("duga-write-error-required"))
+        return redirect(url_for("write.add_sense_form", term_id=term_id))
+
+    if not confirmed:
+        # Step 1 of 2: show the exact preview. Nothing is written yet.
+        return render_template("term_add_sense.html", term=term, gloss=gloss, confirming=True)
+
+    # --- Step 2 of 2: the person has seen the preview and confirmed. ---
+
+    if not current_app.config["DUGA_WRITES_ENABLED"]:  # S8, checked here, not earlier
+        flash(_t("duga-write-error-disabled"))
+        return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
+
+    if _rate_limited(contributor.wiki_username):
+        flash(_t("duga-write-error-rate-limited"))
+        return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
+
+    try:
+        access_token = get_valid_access_token(contributor.id)
+    except TokenUnavailable:
+        flash(_t("duga-write-error-relogin"))
+        return redirect(url_for("auth.login", next=url_for("write.add_sense_form", term_id=term_id)))
+
+    wiki_edit = WikiEdit(
+        contributor=contributor.wiki_username,
+        target_wiki="wikidata",
+        target_entity=term.lexeme_id,
+        edit_kind="sense",
+        summary=edit_summary("sense"),
+        status="pending",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.session.add(wiki_edit)
+    db.session.flush()  # assigns wiki_edit.id
+    audit_log(
+        actor=contributor.wiki_username,
+        action="wiki_edit_attempt",
+        entity_type="wiki_edit",
+        entity_id=wiki_edit.id,
+        before=None,
+        after={"target_entity": term.lexeme_id, "edit_kind": "sense", "gloss": gloss, "term_id": term.id},
+    )
+    db.session.commit()
+
+    try:
+        sense_id, revid, _summary = add_sense(
+            current_app.config["DUGA_WIKIDATA_API"],
+            access_token,
+            term.lexeme_id,
+            term.language_code,
+            gloss,
+            current_app.config["DUGA_USER_AGENT"],
+        )
+    except WikidataWriteError as exc:
+        wiki_edit.status = "failed"
+        wiki_edit.error = str(exc)
+        audit_log(
+            actor=contributor.wiki_username,
+            action="wiki_edit_failed",
+            entity_type="wiki_edit",
+            entity_id=wiki_edit.id,
+            before={"status": "pending"},
+            after={"status": "failed", "error": str(exc)},
+        )
+        db.session.commit()
+        flash(_t("duga-write-error-failed", str(exc)))
+        return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
+
+    wiki_edit.status = "success"
+    wiki_edit.revid = revid
+    before = {"sense_id": term.sense_id, "upstream_ref": term.upstream_ref}
+    term.sense_id = sense_id
+    # Now that a real Sense exists, it's the more specific reference --
+    # same preference link_term_upstream itself gives sense_id over
+    # lexeme_id when computing upstream_ref.
+    term.upstream_ref = sense_id
+    term.updated_at = datetime.now(timezone.utc)
+    audit_log(
+        actor=contributor.wiki_username,
+        action="wiki_edit_success",
+        entity_type="wiki_edit",
+        entity_id=wiki_edit.id,
+        before={"status": "pending"},
+        after={"status": "success", "revid": revid, "sense_id": sense_id},
+    )
+    audit_log(
+        actor=contributor.wiki_username,
+        action="link_term_sense",
+        entity_type="term",
+        entity_id=term.id,
+        before=before,
+        after={"sense_id": sense_id, "upstream_ref": sense_id},
+    )
+    db.session.commit()
+
+    flash(_t("duga-write-sense-success"))
+    return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))

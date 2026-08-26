@@ -1,20 +1,26 @@
 """The only code in Duga that writes to Wikidata (SPEC.md section 9, S1,
-S8). Only set_label()/set_description() exist -- there is no generic
-"set claim" function anywhere in this module or called from it, so writing
-an identity statement (P91, P21, or any other claim) isn't merely
-disallowed by a check, it is structurally impossible through this code
-path. Guardrail 6 ("property allowlist for writes, never a denylist,
-adding a property to the allowlist is a human decision") is enforced the
-same way: ALLOWED_EDIT_KINDS exists as an explicit, visible allowlist even
-though the API surface above it already can't reach anything else.
+S8). Only set_label()/set_description()/add_sense() exist -- there is no
+generic "set claim" function anywhere in this module or called from it,
+so writing an identity statement (P91, P21, or any other claim) isn't
+merely disallowed by a check, it is structurally impossible through this
+code path. add_sense() writes a gloss to a *new* Sense on an *existing*
+Lexeme -- never a new Lexeme, and never a Form or a claim of any kind --
+matching SPEC.md section 10's promotion path, which only ever links to
+something that already exists. Guardrail 6 ("property allowlist for
+writes, never a denylist, adding a property to the allowlist is a human
+decision") is enforced the same way: ALLOWED_EDIT_KINDS exists as an
+explicit, visible allowlist even though the API surface above it already
+can't reach anything else.
 
 Callers are responsible for the kill switch (S8), preview+confirmation,
 rate limiting, and wiki_edit/audit_log bookkeeping -- see
 app/blueprints/write/routes.py, which is the only caller.
 """
+import json
+
 import requests
 
-ALLOWED_EDIT_KINDS = {"label", "description"}
+ALLOWED_EDIT_KINDS = {"label", "description", "sense"}
 
 # gap_type -> edit_kind for the two gap types this write path can resolve.
 # Lives here (not in app/blueprints/write/routes.py) so app/blueprints/main
@@ -92,3 +98,39 @@ def set_label(api_url: str, access_token: str, qid: str, language: str, value: s
 
 def set_description(api_url: str, access_token: str, qid: str, language: str, value: str, user_agent: str, timeout: int = 10):
     return _set_term("wbsetdescription", api_url, access_token, qid, language, value, "description", user_agent, timeout)
+
+
+def add_sense(api_url: str, access_token: str, lexeme_id: str, language: str, gloss: str, user_agent: str, timeout: int = 10):
+    """Adds a new Sense with one gloss to an existing Lexeme via the
+    Wikibase Lexeme extension's wbladdsense action -- never wbeditentity,
+    so there's no path from this function to editing anything on the
+    Lexeme other than adding a brand new sense. Returns
+    (sense_id, revid, summary); sense_id is the newly created "L123-S1"
+    style id straight from Wikidata's response, not guessed locally."""
+    summary = edit_summary("sense")
+    csrf_token = _get_csrf_token(api_url, access_token, user_agent, timeout)
+
+    resp = requests.post(
+        api_url,
+        data={
+            "action": "wbladdsense",
+            "entity": lexeme_id,
+            "data": json.dumps({"glosses": {language: {"language": language, "value": gloss}}}),
+            "summary": summary,
+            "token": csrf_token,
+            "format": "json",
+            "formatversion": "2",
+        },
+        headers={"Authorization": f"Bearer {access_token}", "User-Agent": user_agent},
+        timeout=timeout,
+    )
+    if resp.status_code != 200:
+        raise WikidataWriteError(f"Wikidata API returned HTTP {resp.status_code}: {resp.text[:500]}")
+    data = resp.json()
+    if "error" in data:
+        raise WikidataWriteError(data["error"].get("info") or str(data["error"]))
+
+    sense_id = data.get("sense", {}).get("id")
+    if not sense_id:
+        raise WikidataWriteError(f"Unexpected wbladdsense response, no sense id: {data}")
+    return sense_id, data.get("lastrevid"), summary

@@ -34,6 +34,10 @@
     </p>
     <button type="submit">{{ _('duga-promote-link-button') }}</button>
   </form>
+  {% elif term.lifecycle == 'upstream' and term.lexeme_id and not term.sense_id %}
+  <p>
+    <a href="{{ url_for('write.add_sense_form', term_id=term.id) }}">{{ _('duga-write-add-sense-button') }}</a>
+  </p>
   {% endif %}
 {% endif %}
 

@@ -441,9 +441,48 @@ doesn't get its own gap until the first one gets a citation.
 Their `project` row (`vocabulary`, family `duga` since it isn't a real
 Wikimedia sister project) is seeded by migration `c2669d54cd43`.
 
-Not yet built from the section 11 post-v0.1 list: lexeme write-back and
-impact scoring (SPEC.md section 16 defers the latter explicitly pending a
-formula that satisfies S6).
+Not yet built from the section 11 post-v0.1 list: impact scoring (SPEC.md
+section 16 defers this explicitly pending a formula that satisfies S6).
+
+## Lexeme write-back (S1+)
+
+SPEC.md section 9 lists Wikidata Lexemes, Forms, and Senses as writable
+"post-v0.1," alongside the labels/descriptions M6 already ships. This adds
+exactly one new write: adding a brand new **Sense** (a meaning, with a
+short gloss) to a Lexeme that **already exists** -- never a new Lexeme,
+never a Form, never a claim. That scope wasn't picked arbitrarily: it's
+the one gap M7's promotion path (`docs/architecture.md`'s "Promoting
+local vocabulary upstream" section above) leaves behind. `link_term_upstream`
+lets a contributor link a local term to an existing Lexeme without
+necessarily having (or being able to find) an existing Sense for that
+specific meaning -- `sense_id` is optional there. A term stuck in that
+state -- `lifecycle = 'upstream'`, `lexeme_id` set, `sense_id` still NULL
+-- is exactly the "linked but not really captured yet" case this closes.
+
+- `app/wikidata_write.py:add_sense()` -- the only new function, calling
+  the Wikibase Lexeme extension's `wbladdsense` action (never
+  `wbeditentity`), so there's no path through this code to editing
+  anything on the Lexeme except adding a wholly new Sense. `sense`
+  joins `label`/`description` in `ALLOWED_EDIT_KINDS` (guardrail 6's
+  explicit allowlist).
+- `GET`/`POST /term/<id>/add-sense` (`app/blueprints/write/routes.py`) --
+  same shape as every other write in this app: two-step preview/confirm,
+  the S8 kill switch re-checked immediately before the API call (not
+  earlier), the same per-user/global hourly rate limit `_rate_limited()`
+  already enforced, `wiki_edit` written before and after, `audit_log`
+  entries for the attempt and the outcome. `_term_awaiting_sense_or_404()`
+  is this flow's equivalent of the gap-edit path's `_editable_gap_or_404`:
+  only a visible term (SPEC.md S4 -- reuses `vocab.routes._get_visible_term_or_404`)
+  in exactly the "linked, no sense yet" state is reachable.
+- On success, `term.sense_id` is set to the real id Wikidata returned
+  (never guessed locally), and `term.upstream_ref` is updated to point at
+  it -- the same preference `link_term_upstream` itself gives a sense id
+  over a bare lexeme id.
+- Surfaced on `term_detail.html` as an "Add a sense to this Lexeme" link,
+  shown only when the term is actually in that state -- there's no
+  separate feature flag beyond that natural gating plus the existing
+  `DUGA_WRITES_ENABLED` kill switch and rate limits, since every M6-level
+  safety property already applies identically here.
 
 ## A scope note worth re-checking later
 
@@ -456,16 +495,16 @@ about the person. Flag this interpretation if it should be revisited.
 
 ## What's deliberately not here yet
 
-All seven milestones in SPEC.md section 14's table (M0-M7) are in place,
-and all six of the section 11 post-v0.1 *detectors* (Wiktionary,
-Wikiquote, Wikisource, Commons image, Commons category, plus the two
+All seven milestones in SPEC.md section 14's table (M0-M7) are in place.
+All six of the section 11 post-v0.1 *detectors* (Wiktionary, Wikiquote,
+Wikisource, Commons image, Commons category, plus the two
 local-vocabulary detectors -- see the sections above) are built and
 shipping disabled-by-default, each scoped to concepts/topics that already
 carry a qid (see "Scope decision, not an oversight" above for what that
-excludes). Still remaining from that same section 11 list: lexeme
-write-back and impact scoring. Impact scoring is explicitly deferred in
-SPEC.md section 16 pending a formula that satisfies S6, not merely
-unbuilt. Handover terms with the Wikimedia LGBT+ User Group
+excludes). Lexeme write-back (see the section above) is also in place,
+scoped to adding a Sense to an existing Lexeme. Still remaining from the
+section 11/S1+ list: impact scoring, explicitly deferred in SPEC.md
+section 16 pending a formula that satisfies S6, not merely unbuilt. Handover terms with the Wikimedia LGBT+ User Group
 (SPEC.md section 16) are outside this repo's scope entirely. Suppression
 (topic/concept/term) still has no self-service UI, only the three
 `scripts/suppress_*.py` CLIs -- unlike gap overrides, SPEC.md's v0.1 route
