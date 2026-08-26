@@ -339,12 +339,41 @@ by migration `6255d6f3ff0b`, matching the pattern M2/M3 used for
 currently unread by any code path; it's bookkeeping only, kept in sync as
 a matter of hygiene rather than because something depends on it.
 
-Not yet built from the section 11 post-v0.1 list: `commons_no_image`,
-`commons_no_category` (need a claims-fetching Wikimedia API helper --
-`get_entities_batch` only fetches sitelinks/labels -- and SPEC.md section
-16 flags `commons_no_image` on living people as "probably not
-acceptable," so this one likely wants living topics excluded outright
-rather than just at experimental-maturity default), `vocab_no_term`,
+Two Commons detectors are also in place, checking for claim presence
+rather than sitelink presence:
+
+- `jobs/commons_no_image.py` (project `commons`, gap type `no_image`,
+  P18)
+- `jobs/commons_no_category.py` (project `commons`, gap type
+  `no_category`, P373)
+
+These needed a new Wikimedia API helper --
+`jobs/wikimedia_api.py:get_claims_batch()` -- since `get_entities_batch`
+only ever fetches sitelinks/labels, not claims. Shared compute logic
+lives in `jobs/claim_gap.py:make_compute_fn(property_id)`, structurally
+identical to `jobs/sitelink_gap.py` but checking "does this item have any
+statement for property X" instead of "does this item have a sitelink to
+project Y." Both ship `maturity = 'experimental'`, so both already get
+the `is_living` exclusion for free from `run_presence_detector` --
+which also resolves SPEC.md section 16's open question ("whether
+commons_no_image on living people is ever acceptable (probably not)") in
+the cautious direction by construction, without needing a special case:
+the exclusion isn't specific to this detector, it's what "experimental"
+already means for every detector in this batch.
+
+One property of both that's worth calling out: unlike a sitelink or a
+label, "does Q42 have a P18 statement" doesn't depend on which language
+you're asking from. The gap is still written once per tracked language
+regardless, because gaps are always scoped per-language in this app (each
+language's `/<lang>/gaps` is its own actionable page) -- so a Serbian and
+a French gap list can each surface the same "no image yet" fact
+independently, which is exactly what you'd want two different language
+communities to be able to act on.
+
+Their `project` row (`commons`) is seeded by migration
+`4eaa3f76db75`.
+
+Not yet built from the section 11 post-v0.1 list: `vocab_no_term`,
 `vocab_no_evidence` (read the local `concept`/`term` tables rather than
 Wikidata; a `concept` can have `qid IS NULL` while purely local, which
 doesn't fit `gap.topic_qid NOT NULL` for that subset), lexeme write-back,
@@ -363,12 +392,12 @@ about the person. Flag this interpretation if it should be revisited.
 ## What's deliberately not here yet
 
 All seven milestones in SPEC.md section 14's table (M0-M7) are in place,
-and three of the section 11 post-v0.1 sitelink detectors (Wiktionary,
-Wikiquote, Wikisource -- see the section above) are built and shipping
-disabled-by-default. Still remaining from that same list: the two Commons
-detectors, `vocab_no_term`/`vocab_no_evidence`, lexeme write-back, and
-impact scoring -- see "Post-v0.1 detectors (S1+)" above for exactly what
-each one needs before it can be built. Impact scoring is explicitly
+and five of the section 11 post-v0.1 detectors (Wiktionary, Wikiquote,
+Wikisource, Commons image, Commons category -- see the section above) are
+built and shipping disabled-by-default. Still remaining from that same
+list: `vocab_no_term`/`vocab_no_evidence`, lexeme write-back, and impact
+scoring -- see "Post-v0.1 detectors (S1+)" above for exactly what each one
+needs before it can be built. Impact scoring is explicitly
 deferred in SPEC.md section 16 pending a formula that satisfies S6, not
 merely unbuilt. Handover terms with the Wikimedia LGBT+ User Group
 (SPEC.md section 16) are outside this repo's scope entirely. Suppression

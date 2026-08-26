@@ -130,6 +130,54 @@ def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str,
     return result
 
 
+def get_claims_batch(api_url: str, qids: list, properties: list, language: str, user_agent: str, timeout: int = 30):
+    """Fetches claim presence for `properties` (e.g. ["P18"]) plus a
+    best-effort label (same fallback behaviour as get_entities_batch) for
+    up to 50 QIDs in one call -- for "is there a P18/P373/... statement at
+    all" checks (commons_no_image, commons_no_category), as opposed to
+    get_entities_batch's sitelink-presence check. Returns
+    {qid: {"claims": {property: bool}, "label": str | None}}.
+    """
+    if len(qids) > MAX_ENTITY_IDS_PER_REQUEST:
+        raise ValueError(f"get_claims_batch takes at most {MAX_ENTITY_IDS_PER_REQUEST} ids at a time")
+
+    languages = language if language == "en" else f"{language}|en"
+
+    resp = requests.get(
+        api_url,
+        params={
+            "action": "wbgetentities",
+            "format": "json",
+            "formatversion": "2",
+            "ids": "|".join(qids),
+            "props": "claims|labels",
+            "languages": languages,
+            "languagefallback": "1",
+        },
+        headers={"User-Agent": user_agent},
+        timeout=timeout,
+    )
+    if resp.status_code != 200:
+        raise WikimediaApiError(
+            f"wbgetentities returned HTTP {resp.status_code} for {len(qids)} ids: {resp.text[:500]}"
+        )
+    data = resp.json()
+
+    result = {}
+    for qid, entity in data.get("entities", {}).items():
+        if "missing" in entity:
+            result[qid] = {"claims": {prop: False for prop in properties}, "label": None}
+            continue
+        claims = entity.get("claims", {})
+        labels = entity.get("labels", {})
+        label_entry = labels.get(language) or labels.get("en")
+        result[qid] = {
+            "claims": {prop: bool(claims.get(prop)) for prop in properties},
+            "label": label_entry["value"] if label_entry else None,
+        }
+    return result
+
+
 def get_raw_labels_and_descriptions(api_url: str, qids: list, language: str, user_agent: str, timeout: int = 30):
     """Like get_entities_batch, but deliberately WITHOUT MediaWiki's
     language fallback chain: a label/description here is present only if a

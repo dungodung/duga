@@ -260,3 +260,39 @@ toolforge jobs delete enable-detector
 Verify: `/sr/gaps?project=wiktionary&type=no_entry` returns rows only
 after that detector's been enabled, and never lists a gap for a topic
 seeded with `is_living = TRUE` (S7).
+
+## S1+: Commons detectors
+
+Same shape again, no new secrets. The migration seeds a `project` row for
+`commons`:
+
+```
+toolforge build start https://github.com/<your-username>/duga --ref main
+toolforge jobs run migrate --command "flask --app wsgi db upgrade" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs delete migrate
+```
+
+```
+toolforge jobs run commons-no-image --command "python3 jobs/commons_no_image.py" \
+  --image tool-duga/tool-duga:latest --wait 900
+toolforge jobs run commons-no-category --command "python3 jobs/commons_no_category.py" \
+  --image tool-duga/tool-duga:latest --wait 900
+```
+
+Then schedule them, staggered after the other experimental detectors:
+
+```
+toolforge jobs run commons-no-image --command "python3 jobs/commons_no_image.py" \
+  --image tool-duga/tool-duga:latest --schedule "0 6 * * *" --emails onfailure
+toolforge jobs run commons-no-category --command "python3 jobs/commons_no_category.py" \
+  --image tool-duga/tool-duga:latest --schedule "20 6 * * *" --emails onfailure
+```
+
+Same disabled-by-default / promotion story as above (`enable-detector`
+with `detector_key='commons_no_image'` or `'commons_no_category'`).
+Verify the same way: gap rows exist after the run, but `/sr/gaps` shows
+nothing under `project=commons` until enabled, and no gap ever appears
+for an `is_living = TRUE` topic -- which for `commons_no_image` also
+resolves SPEC.md section 16's "probably not" on images of living people,
+by construction rather than a special case.

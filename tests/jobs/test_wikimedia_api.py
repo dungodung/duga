@@ -1,6 +1,6 @@
 import responses
 
-from jobs.wikimedia_api import get_entities_batch, get_raw_labels_and_descriptions
+from jobs.wikimedia_api import get_claims_batch, get_entities_batch, get_raw_labels_and_descriptions
 
 API_URL = "https://www.wikidata.org/w/api.php"
 
@@ -148,3 +148,70 @@ def test_get_raw_labels_handles_missing_entity():
         "description_language": None,
         "description_en": None,
     }
+
+
+# -- get_claims_batch -------------------------------------------------------
+
+
+@responses.activate
+def test_get_claims_batch_true_when_property_present():
+    responses.add(
+        responses.GET,
+        API_URL,
+        json={
+            "entities": {
+                "Q1": {
+                    "id": "Q1",
+                    "claims": {"P18": [{"mainsnak": {}}]},
+                    "labels": {"en": {"value": "Has an image", "language": "en"}},
+                }
+            }
+        },
+        status=200,
+    )
+    result = get_claims_batch(API_URL, ["Q1"], ["P18"], "sr", "test-agent")
+    assert result["Q1"] == {"claims": {"P18": True}, "label": "Has an image"}
+
+
+@responses.activate
+def test_get_claims_batch_false_when_property_absent():
+    responses.add(
+        responses.GET,
+        API_URL,
+        json={
+            "entities": {
+                "Q1": {
+                    "id": "Q1",
+                    "claims": {"P31": [{"mainsnak": {}}]},
+                    "labels": {},
+                }
+            }
+        },
+        status=200,
+    )
+    result = get_claims_batch(API_URL, ["Q1"], ["P18"], "sr", "test-agent")
+    assert result["Q1"] == {"claims": {"P18": False}, "label": None}
+
+
+@responses.activate
+def test_get_claims_batch_false_when_property_present_but_empty_list():
+    responses.add(
+        responses.GET,
+        API_URL,
+        json={"entities": {"Q1": {"id": "Q1", "claims": {"P18": []}, "labels": {}}}},
+        status=200,
+    )
+    result = get_claims_batch(API_URL, ["Q1"], ["P18"], "sr", "test-agent")
+    assert result["Q1"]["claims"]["P18"] is False
+
+
+@responses.activate
+def test_get_claims_batch_handles_missing_entity():
+    responses.add(
+        responses.GET,
+        API_URL,
+        json={"entities": {"Q999": {"id": "Q999", "missing": ""}}},
+        status=200,
+    )
+    result = get_claims_batch(API_URL, ["Q999"], ["P18", "P373"], "sr", "test-agent")
+    assert result["Q999"] == {"claims": {"P18": False, "P373": False}, "label": None}

@@ -25,13 +25,13 @@ also mark a gap `declined`/`not_applicable` directly from the gap list
 (`POST /gap/override`); an operator can additionally mark one `done`, or
 suppress a topic, concept, or term, via `scripts/set_gap_override.py`/
 `scripts/suppress_topic.py`/`scripts/suppress_vocabulary.py` (suppression
-still has no self-service UI — SPEC.md doesn't call for one). Three
-post-v0.1 sitelink detectors (Wiktionary, Wikiquote, Wikisource — SPEC.md
-section 11) are also in place, shipping `maturity = 'experimental'` and
-disabled by default until an operator promotes them; see
-`docs/architecture.md` for what's still to come from that same list
-(Commons detectors, local-vocabulary detectors, lexeme write-back, impact
-scoring).
+still has no self-service UI — SPEC.md doesn't call for one). Five
+post-v0.1 detectors (Wiktionary, Wikiquote, Wikisource sitelink presence,
+and Commons image/category claim presence — SPEC.md section 11) are also
+in place, shipping `maturity = 'experimental'` and disabled by default
+until an operator promotes them; see `docs/architecture.md` for what's
+still to come from that same list (local-vocabulary detectors, lexeme
+write-back, impact scoring).
 
 **Login needs a registered OAuth consumer to actually work** — see
 `docs/oauth-setup.md` for the one manual step (`DUGA_OAUTH_CLIENT_ID`/
@@ -64,6 +64,8 @@ make wd-no-description   # jobs/wd_no_description.py -- missing Wikidata descrip
 make wiktionary-no-entry     # jobs/wiktionary_no_entry.py -- experimental, disabled by default
 make wikiquote-no-quotes     # jobs/wikiquote_no_quotes.py -- experimental, disabled by default
 make wikisource-no-text      # jobs/wikisource_no_text.py -- experimental, disabled by default
+make commons-no-image        # jobs/commons_no_image.py -- experimental, disabled by default
+make commons-no-category     # jobs/commons_no_category.py -- experimental, disabled by default
 ```
 
 Operator actions (no auth'd UI yet -- see `docs/architecture.md`):

@@ -1,4 +1,4 @@
-.PHONY: dev dev-db dev-down test migrate run scope-fetch topic-refresh wp-no-article wd-no-label wd-no-description wiktionary-no-entry wikiquote-no-quotes wikisource-no-text
+.PHONY: dev dev-db dev-down test migrate run scope-fetch topic-refresh wp-no-article wd-no-label wd-no-description wiktionary-no-entry wikiquote-no-quotes wikisource-no-text commons-no-image commons-no-category
 
 dev:
 	FLASK_ENV=development flask --app wsgi run --debug
@@ -41,3 +41,9 @@ wikiquote-no-quotes:
 
 wikisource-no-text:
 	FLASK_ENV=development python3 jobs/wikisource_no_text.py
+
+commons-no-image:
+	FLASK_ENV=development python3 jobs/commons_no_image.py
+
+commons-no-category:
+	FLASK_ENV=development python3 jobs/commons_no_category.py
