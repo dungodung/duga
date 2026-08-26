@@ -85,6 +85,22 @@ def compute_scores(app):
 
     qids = sorted({qid for qid, _lang in pairs})
 
+    catchup_by_qid = dict(
+        db.session.query(Gap.topic_qid, db.func.count(Gap.id))
+        .filter(Gap.topic_qid.in_(qids))
+        .group_by(Gap.topic_qid)
+        .all()
+    )
+
+    # Release the DB connection before the slow API loops below -- see
+    # jobs/detector_common.py's run_presence_detector for the identical
+    # fix and why: holding a connection checked out across a multi-minute
+    # API loop (here, potentially thousands of individual pageviews
+    # calls) produced "MySQL server has gone away" against ToolsDB in
+    # production. SQLAlchemy checks a fresh connection back out lazily
+    # the next time db.session is used, e.g. for the writes in run().
+    db.session.close()
+
     sitelinks_by_qid = {}
     for chunk in chunks(qids, MAX_ENTITY_IDS_PER_REQUEST):
         entities = get_entities_batch(app.config["DUGA_WIKIDATA_API"], chunk, "en", app.config["DUGA_USER_AGENT"])
@@ -92,13 +108,6 @@ def compute_scores(app):
             sitelinks_by_qid[qid] = info["sitelinks"]
 
     reach_by_qid = {qid: len(sitelinks_by_qid.get(qid, {})) for qid in qids}
-
-    catchup_by_qid = dict(
-        db.session.query(Gap.topic_qid, db.func.count(Gap.id))
-        .filter(Gap.topic_qid.in_(qids))
-        .group_by(Gap.topic_qid)
-        .all()
-    )
 
     traffic_by_pair = {}
     fallback_count = 0
