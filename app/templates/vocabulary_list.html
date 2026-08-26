@@ -4,7 +4,7 @@
 <h1>{{ _('duga-vocab-title', language.autonym) }}</h1>
 
 {% if contributor %}
-<form method="post" action="{{ url_for('vocab.add_term', lang=language.code) }}" class="vocab-add-form">
+<form id="add-term-form" method="post" action="{{ url_for('vocab.add_term', lang=language.code) }}" class="vocab-add-form">
   <h2>{{ _('duga-vocab-add-title') }}</h2>
   <p>
     <label for="concept_label">{{ _('duga-vocab-add-concept-label') }}</label><br>

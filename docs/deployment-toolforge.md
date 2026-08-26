@@ -296,3 +296,45 @@ nothing under `project=commons` until enabled, and no gap ever appears
 for an `is_living = TRUE` topic -- which for `commons_no_image` also
 resolves SPEC.md section 16's "probably not" on images of living people,
 by construction rather than a special case.
+
+## S1+: local-vocabulary detectors
+
+Same shape, no new secrets. The migration seeds a `project` row for
+`vocabulary`:
+
+```
+toolforge build start https://github.com/<your-username>/duga --ref main
+toolforge jobs run migrate --command "flask --app wsgi db upgrade" \
+  --image tool-duga/tool-duga:latest --wait
+toolforge jobs delete migrate
+```
+
+```
+toolforge jobs run vocab-no-term --command "python3 jobs/vocab_no_term.py" \
+  --image tool-duga/tool-duga:latest --wait 900
+toolforge jobs run vocab-no-evidence --command "python3 jobs/vocab_no_evidence.py" \
+  --image tool-duga/tool-duga:latest --wait 900
+```
+
+These two are purely local-DB (no Wikimedia API calls in the "is it
+missing" check itself -- `vocab_no_term` makes one afterward, just to
+fetch a label for whatever it finds missing), so they should run faster
+than the sitelink/claims detectors above; `--wait 900` is still safe to
+leave as-is.
+
+Then schedule them, staggered after the other experimental detectors:
+
+```
+toolforge jobs run vocab-no-term --command "python3 jobs/vocab_no_term.py" \
+  --image tool-duga/tool-duga:latest --schedule "0 7 * * *" --emails onfailure
+toolforge jobs run vocab-no-evidence --command "python3 jobs/vocab_no_evidence.py" \
+  --image tool-duga/tool-duga:latest --schedule "20 7 * * *" --emails onfailure
+```
+
+Same disabled-by-default / promotion story (`enable-detector` with
+`detector_key='vocab_no_term'` or `'vocab_no_evidence'`). Verify the same
+way: gap rows exist after the run, `/sr/gaps` shows nothing under
+`project=vocabulary` until enabled, and clicking through to a
+`vocab_no_evidence` gap's "Fix this" link lands directly on the specific
+under-evidenced term's page (not just the language's generic vocabulary
+list, unlike every other detector's action_url).

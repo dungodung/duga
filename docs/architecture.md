@@ -373,11 +373,76 @@ communities to be able to act on.
 Their `project` row (`commons`) is seeded by migration
 `4eaa3f76db75`.
 
-Not yet built from the section 11 post-v0.1 list: `vocab_no_term`,
-`vocab_no_evidence` (read the local `concept`/`term` tables rather than
-Wikidata; a `concept` can have `qid IS NULL` while purely local, which
-doesn't fit `gap.topic_qid NOT NULL` for that subset), lexeme write-back,
-and impact scoring (SPEC.md section 16 defers this explicitly pending a
+Two more detectors, `jobs/vocab_no_term.py` and `jobs/vocab_no_evidence.py`
+(project `vocabulary`, gap types `no_term`/`no_evidence`), are unlike every
+other detector so far: they check Duga's own `concept`/`term` tables, not
+Wikidata or a sister project. "Does the community have a word for this
+here" is a different question from "does Wikidata have a label for this,"
+and "has anyone sourced this word" has no Wikidata analogue at all.
+
+- `vocab_no_term`: flags an in-scope topic with no visible local term at
+  all in a tracked language. The "missing" check is one local query per
+  language (no external API call needed for it); a Wikidata label is then
+  fetched, via the existing `get_entities_batch`, only for the topics that
+  turn out to be missing -- so the gap row can show a real name rather
+  than a bare QID.
+- `vocab_no_evidence`: flags a local term that exists but has zero
+  `term_evidence` rows (SPEC.md section 8: evidence_grade only rises above
+  `single_report` once at least one citation or community assertion
+  exists -- this is the case where there isn't even one). No API call at
+  all; the term's own written form is the label, since that's literally
+  the thing that needs a source.
+
+Both are purely local-DB detectors, which `run_presence_detector` already
+supported without changes: `db.session.close()` before the compute loop
+only releases the current connection, it doesn't stop a `compute_fn` from
+issuing new queries afterwards -- SQLAlchemy just checks a fresh one back
+out lazily.
+
+**Scope decision, not an oversight:** a `concept` can be purely local
+(`qid IS NULL` -- SPEC.md section 10's local -> proposed -> upstream
+lifecycle), which doesn't fit `gap.topic_qid NOT NULL`. Both detectors
+only cover concepts that already have a qid (i.e. are linked to a Topic
+already in scope). A purely local concept/term with no Wikidata item
+behind it yet -- arguably the case Duga's vocabulary feature exists for
+in the first place -- isn't represented as a gap by either detector. This
+was chosen over widening the `gap` schema (a nullable `topic_qid` plus a
+`concept_id` column, or a second table entirely) to avoid a schema change
+for two detectors that ship disabled by default; revisit if operator
+review after promotion shows the qid-only slice isn't the useful part.
+
+**Action URLs needed a signature change.** Every other detector's fix
+destination lives on Wikidata and doesn't depend on which language's gap
+list is showing it, so the shared `action_url_fn(qid)` was only ever
+called with the qid. `vocab_no_term`'s destination is
+`/<lang>/vocabulary` -- language-specific -- so `action_url_fn` now takes
+`(qid, language_code)` everywhere (all eight existing detectors' action
+url functions were updated to accept and ignore the new parameter).
+`vocab_no_evidence` needed to go one step further still: its real
+destination is one specific term's detail page, which `action_url_fn`
+has no way to know. `jobs/detector_common.py:replace_gaps()` now checks
+for `evidence["_action_url"]` and uses it in place of `action_url_fn`
+when a compute_fn sets it, stripping the key before the evidence is
+stored so it never leaks into what's displayed as evidence. Two small
+template anchors support these: `id="add-term-form"` in
+`vocabulary_list.html` and `id="add-evidence-form"` in `term_detail.html`.
+
+**A concept can have more than one under-evidenced term in the same
+language** (different written forms of one idea) -- the `gap` table has
+no per-term column, only `(topic_qid, language_code, project_code,
+gap_type)`, so `vocab_no_evidence` flags the pair if *any* visible term
+lacks evidence, deterministically linking to the lowest-id such term.
+Guardrail 12 ("when in doubt, show less") is about sensitive display
+decisions, not about hiding an ordinary maintenance need, so surfacing
+the gap rather than suppressing it was the deliberate choice here -- the
+cost is that a second under-evidenced term for the same concept/language
+doesn't get its own gap until the first one gets a citation.
+
+Their `project` row (`vocabulary`, family `duga` since it isn't a real
+Wikimedia sister project) is seeded by migration `c2669d54cd43`.
+
+Not yet built from the section 11 post-v0.1 list: lexeme write-back and
+impact scoring (SPEC.md section 16 defers the latter explicitly pending a
 formula that satisfies S6).
 
 ## A scope note worth re-checking later
@@ -392,14 +457,15 @@ about the person. Flag this interpretation if it should be revisited.
 ## What's deliberately not here yet
 
 All seven milestones in SPEC.md section 14's table (M0-M7) are in place,
-and five of the section 11 post-v0.1 detectors (Wiktionary, Wikiquote,
-Wikisource, Commons image, Commons category -- see the section above) are
-built and shipping disabled-by-default. Still remaining from that same
-list: `vocab_no_term`/`vocab_no_evidence`, lexeme write-back, and impact
-scoring -- see "Post-v0.1 detectors (S1+)" above for exactly what each one
-needs before it can be built. Impact scoring is explicitly
-deferred in SPEC.md section 16 pending a formula that satisfies S6, not
-merely unbuilt. Handover terms with the Wikimedia LGBT+ User Group
+and all six of the section 11 post-v0.1 *detectors* (Wiktionary,
+Wikiquote, Wikisource, Commons image, Commons category, plus the two
+local-vocabulary detectors -- see the sections above) are built and
+shipping disabled-by-default, each scoped to concepts/topics that already
+carry a qid (see "Scope decision, not an oversight" above for what that
+excludes). Still remaining from that same section 11 list: lexeme
+write-back and impact scoring. Impact scoring is explicitly deferred in
+SPEC.md section 16 pending a formula that satisfies S6, not merely
+unbuilt. Handover terms with the Wikimedia LGBT+ User Group
 (SPEC.md section 16) are outside this repo's scope entirely. Suppression
 (topic/concept/term) still has no self-service UI, only the three
 `scripts/suppress_*.py` CLIs -- unlike gap overrides, SPEC.md's v0.1 route

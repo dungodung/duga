@@ -44,7 +44,10 @@ def wikipedia_dbname(language_code: str) -> str:
     return WIKIPEDIA_DBNAME_OVERRIDES.get(language_code, f"{language_code}wiki")
 
 
-def action_url(qid: str) -> str:
+def action_url(qid: str, language_code: str) -> str:
+    # This detector's destination is on Wikidata, same URL for every
+    # language -- language_code is part of the shared action_url_fn
+    # signature (see jobs/detector_common.py) but unused here.
     return f"https://www.wikidata.org/wiki/{qid}#sitelinks-wikipedia"
 
 

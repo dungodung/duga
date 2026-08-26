@@ -29,7 +29,10 @@ GAP_TYPE = "no_label"
 DESCRIPTION = "No Wikidata label in a tracked language for an in-scope topic."
 
 
-def action_url(qid: str) -> str:
+def action_url(qid: str, language_code: str) -> str:
+    # This detector's destination is on Wikidata, same URL for every
+    # language -- language_code is part of the shared action_url_fn
+    # signature (see jobs/detector_common.py) but unused here.
     return f"https://www.wikidata.org/wiki/{qid}#labels"
 
 

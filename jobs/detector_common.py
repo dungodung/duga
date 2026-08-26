@@ -47,7 +47,15 @@ def replace_gaps(detector_key, project_code, gap_type, results, active_version_i
     detector's gap rows for every language present in `results` -- SPEC.md
     guardrail 8 (idempotent jobs): a topic no longer in `results[lang]`
     simply isn't re-inserted, so it drops out of the gap list on this run.
-    Returns the total number of gap rows written."""
+    Returns the total number of gap rows written.
+
+    action_url_fn(qid, language_code) supplies the default action_url for
+    a gap row. A compute_fn that already knows a more specific destination
+    than the shared function can produce (e.g. vocab_no_evidence linking
+    straight to one term's detail page, not just the language's generic
+    vocabulary list) can set evidence["_action_url"] instead -- it's used
+    in place of action_url_fn and stripped before evidence_json is stored,
+    so it never leaks into what's displayed as evidence."""
     now = datetime.now(timezone.utc)
     total = 0
     for language_code, missing in results.items():
@@ -58,6 +66,7 @@ def replace_gaps(detector_key, project_code, gap_type, results, active_version_i
             gap_type=gap_type,
         ).delete()
         for qid, evidence in missing.items():
+            action_url = evidence.pop("_action_url", None) or action_url_fn(qid, language_code)
             db.session.add(
                 Gap(
                     topic_qid=qid,
@@ -67,7 +76,7 @@ def replace_gaps(detector_key, project_code, gap_type, results, active_version_i
                     detector_key=detector_key,
                     scope_version_id=active_version_id,
                     evidence_json=json.dumps(evidence),
-                    action_url=action_url_fn(qid),
+                    action_url=action_url,
                     computed_at=now,
                 )
             )
@@ -85,7 +94,16 @@ def run_presence_detector(
     replace-or-leave-untouched write, detector self-registration) is
     shared. Exits the process (sys.exit(1)) on any failure condition,
     matching SPEC.md guardrail 9 (fail loudly, never serve stale data as
-    current without saying so)."""
+    current without saying so).
+
+    action_url_fn(qid, language_code) -> str; see replace_gaps() for the
+    per-gap evidence["_action_url"] override a compute_fn can use instead.
+
+    compute_fn isn't required to call an external API at all -- a purely
+    local-DB detector (vocab_no_term, vocab_no_evidence) works fine too,
+    since closing db.session before the loop (below) only releases the
+    current connection, it doesn't stop compute_fn from issuing new
+    queries; SQLAlchemy just checks out a fresh one lazily."""
     with app.app_context():
         active_version = ScopeVersion.query.filter_by(active=True).first()
         if active_version is None:

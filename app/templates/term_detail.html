@@ -68,7 +68,7 @@
 <p>{{ _('duga-vocab-community-count', agree_count) }}</p>
 
 {% if contributor %}
-<h2>{{ _('duga-vocab-evidence-add-title') }}</h2>
+<h2 id="add-evidence-form">{{ _('duga-vocab-evidence-add-title') }}</h2>
 <form method="post" action="{{ url_for('vocab.add_evidence', term_id=term.id) }}">
   <p>
     <label for="kind">{{ _('duga-vocab-evidence-kind-label') }}</label><br>
