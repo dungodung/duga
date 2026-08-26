@@ -35,9 +35,15 @@ promotes them. Lexeme write-back is also live: a term already linked to an
 existing Wikidata Lexeme but with no Sense yet can have one added —
 gloss, preview, confirm, same kill switch and rate limits as every other
 write — via "Add a sense to this Lexeme" on the term's page; this never
-creates a new Lexeme, only a Sense on one that already exists. See
-`docs/architecture.md` for what's still to come (impact scoring) and for
-the qid-only scoping the two vocabulary detectors use.
+creates a new Lexeme, only a Sense on one that already exists. Impact
+scoring is also live — a per-(topic, language) score, computed daily from
+Wikidata sitelink count, Duga's own gap count, and that language's own
+Wikipedia pageviews, used only to reorder each language's gap list
+(highest-reach topics first); the score itself is never shown (SPEC.md
+S6: it only ever ranks topics within one language, never languages
+against each other). See `docs/architecture.md` for the full design and
+for the qid-only scoping the two vocabulary detectors use — every item in
+SPEC.md's "S1+" milestone row is now built.
 
 **Login needs a registered OAuth consumer to actually work** — see
 `docs/oauth-setup.md` for the one manual step (`DUGA_OAUTH_CLIENT_ID`/
@@ -74,6 +80,7 @@ make commons-no-image        # jobs/commons_no_image.py -- experimental, disable
 make commons-no-category     # jobs/commons_no_category.py -- experimental, disabled by default
 make vocab-no-term           # jobs/vocab_no_term.py -- experimental, disabled by default
 make vocab-no-evidence       # jobs/vocab_no_evidence.py -- experimental, disabled by default
+make impact-score            # jobs/impact_score.py -- scores gap.impact_score, run last
 ```
 
 Operator actions (no auth'd UI yet -- see `docs/architecture.md`):

@@ -111,7 +111,16 @@ def gaps(lang):
     page = max(request.args.get("page", 1, type=int) or 1, 1)
     total = query.count()
     rows = (
-        query.order_by(Gap.computed_at.desc(), Gap.id.desc())
+        # Impact scoring (SPEC.md S6: ranks topics *within* a language,
+        # never languages against each other -- see jobs/impact_score.py)
+        # sorts highest-reach topics first within this one already
+        # language-filtered list; NULLS-last via the boolean ordering
+        # trick below (portable across SQLite/MariaDB, unlike NULLS LAST
+        # syntax) so unscored topics fall back to the original
+        # recency-based order rather than sinking in an arbitrary way.
+        query.order_by(
+            Gap.impact_score.is_(None), Gap.impact_score.desc(), Gap.computed_at.desc(), Gap.id.desc()
+        )
         .offset((page - 1) * GAPS_PAGE_SIZE)
         .limit(GAPS_PAGE_SIZE)
         .all()

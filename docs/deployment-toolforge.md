@@ -366,3 +366,43 @@ against a real Lexeme, entering no sense id), confirm the "Add a sense to
 this Lexeme" link appears on its detail page, and that submitting a gloss
 actually creates a new Sense on that Lexeme (check the Lexeme's page
 history on Wikidata) and updates `term.sense_id` locally to match.
+
+## S1+: impact scoring
+
+No new secrets, no migration (`gap.impact_score` has existed since M2).
+Just the usual rebuild:
+
+```
+toolforge build start https://github.com/<your-username>/duga --ref main
+toolforge webservice buildservice restart
+```
+
+Run it once by hand and watch the logs -- this one legitimately can take
+longer than the detectors above, since the pageviews component is one
+API call per (topic, language) pair with no batch endpoint:
+
+```
+toolforge jobs run impact-score --command "python3 jobs/impact_score.py" \
+  --image tool-duga/tool-duga:latest --wait 1800
+```
+
+The closing log line reports how many (topic, language) pairs it scored
+and how many fell back to zero traffic after a pageviews failure -- a
+handful of fallbacks on a given day is normal (rate limits, deleted
+pages); a very high count across the board is worth investigating even
+though it doesn't fail the job (see docs/architecture.md's "Impact
+scoring" section for why that failure mode is deliberate).
+
+Schedule it **last**, after every detector above has had time to finish,
+since it scores whatever `gap` rows already exist that day:
+
+```
+toolforge jobs run impact-score --command "python3 jobs/impact_score.py" \
+  --image tool-duga/tool-duga:latest --schedule "0 8 * * *" --emails onfailure
+```
+
+Verify: `gap.impact_score` is populated (non-NULL) for gap rows whose
+topic has at least one sitelink somewhere, and a language's gap list
+(`/sr/gaps`) visibly reorders to put higher-reach topics first -- but
+nowhere on that page prints the number itself (SPEC.md S6 -- the score is
+sort-order-only, by design).

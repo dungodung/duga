@@ -1,8 +1,18 @@
+import re
+
+import pytest
 import responses
 
-from jobs.wikimedia_api import get_claims_batch, get_entities_batch, get_raw_labels_and_descriptions
+from jobs.wikimedia_api import (
+    WikimediaApiError,
+    get_claims_batch,
+    get_entities_batch,
+    get_monthly_pageviews,
+    get_raw_labels_and_descriptions,
+)
 
 API_URL = "https://www.wikidata.org/w/api.php"
+PAGEVIEWS_PREFIX = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/sr.wikipedia/all-access/all-agents/"
 
 
 @responses.activate
@@ -148,6 +158,71 @@ def test_get_raw_labels_handles_missing_entity():
         "description_language": None,
         "description_en": None,
     }
+
+
+# -- get_monthly_pageviews ---------------------------------------------------
+
+
+@responses.activate
+def test_get_monthly_pageviews_sums_items():
+    responses.add(
+        responses.GET,
+        re.compile(re.escape(PAGEVIEWS_PREFIX) + r"Marsha_P\._Johnson/monthly/\d+/\d+"),
+        json={"items": [{"views": 12345}]},
+        status=200,
+    )
+    assert get_monthly_pageviews("sr", "Marsha P. Johnson", "test-agent") == 12345
+
+
+@responses.activate
+def test_get_monthly_pageviews_sums_multiple_items_defensively():
+    responses.add(
+        responses.GET,
+        re.compile(re.escape(PAGEVIEWS_PREFIX) + r".+/monthly/\d+/\d+"),
+        json={"items": [{"views": 100}, {"views": 50}]},
+        status=200,
+    )
+    assert get_monthly_pageviews("sr", "Some Article", "test-agent") == 150
+
+
+@responses.activate
+def test_get_monthly_pageviews_returns_zero_on_404():
+    responses.add(
+        responses.GET,
+        re.compile(re.escape(PAGEVIEWS_PREFIX) + r".+/monthly/\d+/\d+"),
+        status=404,
+    )
+    assert get_monthly_pageviews("sr", "Too New Article", "test-agent") == 0
+
+
+@responses.activate
+def test_get_monthly_pageviews_raises_on_server_error():
+    responses.add(
+        responses.GET,
+        re.compile(re.escape(PAGEVIEWS_PREFIX) + r".+/monthly/\d+/\d+"),
+        status=500,
+        body="Internal Server Error",
+    )
+    with pytest.raises(WikimediaApiError):
+        get_monthly_pageviews("sr", "Some Article", "test-agent")
+
+
+@responses.activate
+def test_get_monthly_pageviews_encodes_title_with_spaces_and_dots():
+    captured = {}
+
+    def record(request):
+        captured["url"] = request.url
+        return (200, {}, '{"items": [{"views": 1}]}')
+
+    responses.add_callback(
+        responses.GET,
+        re.compile(re.escape(PAGEVIEWS_PREFIX) + r".+"),
+        callback=record,
+    )
+    get_monthly_pageviews("sr", "Marsha P. Johnson", "test-agent")
+    assert "Marsha_P.%20Johnson" not in captured["url"]
+    assert "Marsha_P._Johnson" in captured["url"]
 
 
 # -- get_claims_batch -------------------------------------------------------

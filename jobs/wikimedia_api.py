@@ -1,8 +1,12 @@
-"""Thin, read-only helpers for the two Wikimedia endpoints Duga's jobs use:
-the Wikidata action API (to fetch the scope page's wikitext) and WDQS (to
-resolve scope rules to topics). No writes happen from here -- see SPEC.md
-section 9 for the (separate, M6+) write path.
+"""Thin, read-only helpers for the Wikimedia endpoints Duga's jobs use:
+the Wikidata action API (scope page wikitext, entity data), WDQS (resolving
+scope rules to topics), and the Wikimedia pageviews REST API (impact
+scoring, S1+). No writes happen from here -- see SPEC.md section 9 for the
+(separate, M6+) write path.
 """
+from datetime import date, timedelta
+from urllib.parse import quote
+
 import requests
 
 
@@ -236,3 +240,43 @@ def get_raw_labels_and_descriptions(api_url: str, qids: list, language: str, use
             "description_en": descriptions.get("en", {}).get("value"),
         }
     return result
+
+
+PAGEVIEWS_API = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article"
+
+
+def _previous_month_range() -> tuple:
+    """Returns (start, end) timestamps -- YYYYMMDD00 -- spanning the most
+    recently completed calendar month, the standard window for a single
+    "monthly" granularity bucket from the pageviews API."""
+    today = date.today()
+    first_of_this_month = today.replace(day=1)
+    last_day_prev_month = first_of_this_month - timedelta(days=1)
+    first_day_prev_month = last_day_prev_month.replace(day=1)
+    start = first_day_prev_month.strftime("%Y%m%d") + "00"
+    end = last_day_prev_month.strftime("%Y%m%d") + "00"
+    return start, end
+
+
+def get_monthly_pageviews(language_code: str, article_title: str, user_agent: str, timeout: int = 15) -> int:
+    """Total pageviews for `article_title` on `{language_code}.wikipedia`
+    over the most recently completed calendar month (impact scoring,
+    S1+). Returns 0 -- not an error -- when the endpoint has no data for
+    this article (HTTP 404: too new, redirect, or genuinely never
+    viewed); raises WikimediaApiError on an actual failure (5xx,
+    malformed response), leaving it to the caller to decide whether that
+    should fail the whole run or just this one topic."""
+    start, end = _previous_month_range()
+    project = f"{language_code}.wikipedia"
+    encoded_title = quote(article_title.replace(" ", "_"), safe="")
+    url = f"{PAGEVIEWS_API}/{project}/all-access/all-agents/{encoded_title}/monthly/{start}/{end}"
+
+    resp = requests.get(url, headers={"User-Agent": user_agent}, timeout=timeout)
+    if resp.status_code == 404:
+        return 0
+    if resp.status_code != 200:
+        raise WikimediaApiError(
+            f"pageviews API returned HTTP {resp.status_code} for {project}/{article_title}: {resp.text[:300]}"
+        )
+    data = resp.json()
+    return sum(item.get("views", 0) for item in data.get("items", []))

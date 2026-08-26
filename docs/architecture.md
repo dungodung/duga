@@ -484,6 +484,71 @@ state -- `lifecycle = 'upstream'`, `lexeme_id` set, `sense_id` still NULL
   `DUGA_WRITES_ENABLED` kill switch and rate limits, since every M6-level
   safety property already applies identically here.
 
+## Impact scoring (S1+)
+
+SPEC.md section 16 explicitly deferred this: "Impact scoring formula --
+deferred; must satisfy S6." S6 itself is specific about what that means:
+"Impact scoring ranks *topics within a language*. It never ranks
+languages against each other, and no view may be constructed that does
+so implicitly (e.g. sorting languages by gap count)." The design below
+was worked out with the tool's operator rather than built unilaterally,
+given the spec's own instruction to stop and think here.
+
+`jobs/impact_score.py` is a standalone job -- not a detector; it owns no
+`gap_type` and never creates or deletes `gap` rows, only annotates the
+`impact_score` column other jobs already wrote. Same footing as
+`scope_fetch.py`/`topic_refresh.py`, neither of which has a `detector`
+row either.
+
+It computes one score per **(topic, language)** pair -- not per topic --
+specifically so it stays genuinely "within a language" rather than being
+one global number duplicated everywhere. Three signals, each
+`log1p`-transformed then min-max normalized across the current batch,
+averaged with equal weight into a single 0-100 number:
+
+- **reach** -- total Wikidata sitelink count for the topic across every
+  wiki, not just tracked ones (topic-global; free, reuses the same
+  `sitelinks` data several detectors already fetch)
+- **catchup** -- how many `gap` rows currently exist for the topic across
+  every tracked language and gap type (topic-global; free, pure SQL over
+  Duga's own tables)
+- **traffic** -- that language's own Wikipedia article's pageviews over
+  the last completed month, via the new `get_monthly_pageviews()` helper
+  in `jobs/wikimedia_api.py`; 0 if no article exists yet in this language
+  (language-specific -- the signal that actually varies per language)
+
+**The score is never displayed anywhere.** It's used only to reorder each
+language's own gap list (`app/blueprints/main/routes.py:gaps()`, `ORDER
+BY impact_score DESC` with `impact_score IS NULL` sorted first via the
+boolean-ordering trick -- portable NULLS-last across SQLite/MariaDB --
+falling back to the original recency order for anything unscored). A
+visible "score: 87" printed next to a real person's name was considered
+and deliberately rejected: even though the number is about article reach,
+not the person, a bare number next to a name reads uncomfortably close to
+ranking someone's importance (guardrail 12: when in doubt, show less).
+
+**Failure handling is split by signal, deliberately.** Sitelink count and
+the internal gap count are both required for a meaningful score, so a
+failure fetching sitelinks aborts the *entire* run without committing
+anything -- SPEC.md guardrail 9, same as every detector's "fail loudly,
+never serve stale data as current without saying so." Pageviews is
+different: it's one extra API call per (topic, language) pair with no
+batch endpoint, so a single flaky lookup failing the whole day's scoring
+for every topic would be a bad trade. A pageviews failure degrades just
+that one pair's traffic component to 0 and the run continues; the
+closing log line reports how many pairs fell back this way, so a
+systemic pageviews outage is still visible in the job's own output even
+though it doesn't block the run.
+
+Not applied here: SPEC.md S7's `is_living` exclusion. That constraint is
+specifically about experimental detectors and bulk/batch editing
+surfaces; impact scoring is a read-only, purely informational sort key
+built from data that's already public on the Wikidata item itself
+(sitelink count) or already computed elsewhere in Duga (gap count,
+pageviews on an article that already exists) -- it doesn't add or infer
+anything about a person. This is a judgment call, not an oversight; flag
+it if it should be revisited.
+
 ## A scope note worth re-checking later
 
 `jobs/wp_no_article.py` reads SPEC.md S7 ("is_living topics excluded from
@@ -496,15 +561,16 @@ about the person. Flag this interpretation if it should be revisited.
 ## What's deliberately not here yet
 
 All seven milestones in SPEC.md section 14's table (M0-M7) are in place.
-All six of the section 11 post-v0.1 *detectors* (Wiktionary, Wikiquote,
-Wikisource, Commons image, Commons category, plus the two
-local-vocabulary detectors -- see the sections above) are built and
-shipping disabled-by-default, each scoped to concepts/topics that already
-carry a qid (see "Scope decision, not an oversight" above for what that
-excludes). Lexeme write-back (see the section above) is also in place,
-scoped to adding a Sense to an existing Lexeme. Still remaining from the
-section 11/S1+ list: impact scoring, explicitly deferred in SPEC.md
-section 16 pending a formula that satisfies S6, not merely unbuilt. Handover terms with the Wikimedia LGBT+ User Group
+Every item in SPEC.md section 11/14's "S1+" row is now built: all six
+post-v0.1 *detectors* (Wiktionary, Wikiquote, Wikisource, Commons image,
+Commons category, plus the two local-vocabulary detectors -- see the
+sections above), each shipping disabled-by-default and scoped to
+concepts/topics that already carry a qid (see "Scope decision, not an
+oversight" above for what that excludes); lexeme write-back, scoped to
+adding a Sense to an existing Lexeme; and impact scoring, designed
+together with the tool's operator per SPEC.md section 16's explicit
+instruction to satisfy S6 rather than build ahead of that conversation.
+Handover terms with the Wikimedia LGBT+ User Group
 (SPEC.md section 16) are outside this repo's scope entirely. Suppression
 (topic/concept/term) still has no self-service UI, only the three
 `scripts/suppress_*.py` CLIs -- unlike gap overrides, SPEC.md's v0.1 route

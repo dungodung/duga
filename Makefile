@@ -1,4 +1,4 @@
-.PHONY: dev dev-db dev-down test migrate run scope-fetch topic-refresh wp-no-article wd-no-label wd-no-description wiktionary-no-entry wikiquote-no-quotes wikisource-no-text commons-no-image commons-no-category vocab-no-term vocab-no-evidence
+.PHONY: dev dev-db dev-down test migrate run scope-fetch topic-refresh wp-no-article wd-no-label wd-no-description wiktionary-no-entry wikiquote-no-quotes wikisource-no-text commons-no-image commons-no-category vocab-no-term vocab-no-evidence impact-score
 
 dev:
 	FLASK_ENV=development flask --app wsgi run --debug
@@ -53,3 +53,6 @@ vocab-no-term:
 
 vocab-no-evidence:
 	FLASK_ENV=development python3 jobs/vocab_no_evidence.py
+
+impact-score:
+	FLASK_ENV=development python3 jobs/impact_score.py

@@ -364,6 +364,37 @@ def test_gaps_page_paginates(client, db, seed_languages):
     assert b"Previous page" in page2.data
 
 
+def test_gaps_page_orders_by_impact_score_then_falls_back_to_recency(client, db, seed_languages):
+    now = datetime.now(timezone.utc)
+    db.session.add_all(
+        [
+            Gap(
+                topic_qid="Q1", language_code="sr", project_code="wikipedia", gap_type="no_article",
+                detector_key="wp_no_article", scope_version_id=1, evidence_json='{"label": "Low impact"}',
+                action_url="https://example.org/1", computed_at=now, impact_score=5,
+            ),
+            Gap(
+                topic_qid="Q2", language_code="sr", project_code="wikipedia", gap_type="no_article",
+                detector_key="wp_no_article", scope_version_id=1, evidence_json='{"label": "High impact"}',
+                action_url="https://example.org/2", computed_at=now, impact_score=90,
+            ),
+            Gap(
+                topic_qid="Q3", language_code="sr", project_code="wikipedia", gap_type="no_article",
+                detector_key="wp_no_article", scope_version_id=1, evidence_json='{"label": "Unscored"}',
+                action_url="https://example.org/3", computed_at=now, impact_score=None,
+            ),
+        ]
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps?uselang=en")
+    body = resp.data.decode()
+    # Highest impact_score first, then lower, then the unscored gap last
+    # (NULLs-last, not sorted arbitrarily) -- SPEC.md S6: this only ever
+    # reorders topics within this one already language-filtered list.
+    assert body.index("High impact") < body.index("Low impact") < body.index("Unscored")
+
+
 def test_about_page_renders(client):
     resp = client.get("/about")
     assert resp.status_code == 200
