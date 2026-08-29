@@ -395,6 +395,168 @@ def test_gaps_page_orders_by_impact_score_then_falls_back_to_recency(client, db,
     assert body.index("High impact") < body.index("Low impact") < body.index("Unscored")
 
 
+def _gap(qid, label, *, project="wikipedia", gap_type="no_article", detector_key="wp_no_article", lang="sr"):
+    return Gap(
+        topic_qid=qid, language_code=lang, project_code=project, gap_type=gap_type,
+        detector_key=detector_key, scope_version_id=1, evidence_json=f'{{"label": "{label}"}}',
+        action_url=f"https://www.wikidata.org/wiki/{qid}", computed_at=datetime.now(timezone.utc),
+    )
+
+
+def test_gaps_page_filters_by_detector_maturity(client, db, seed_languages):
+    """SPEC.md section 12: the gap list is filterable by project/type/
+    maturity. Maturity lives on the detector, not on the gap row."""
+    db.session.add_all(
+        [
+            Detector(detector_key="wp_no_article", project_code="wikipedia", gap_type="no_article", maturity="stable"),
+            Detector(detector_key="commons_no_image", project_code="commons", gap_type="no_image", maturity="experimental"),
+            _gap("Q1", "Stable Topic"),
+            _gap("Q2", "Experimental Topic", project="commons", gap_type="no_image", detector_key="commons_no_image"),
+        ]
+    )
+    db.session.commit()
+
+    stable = client.get("/sr/gaps?maturity=stable")
+    assert b"Stable Topic" in stable.data
+    assert b"Experimental Topic" not in stable.data
+
+    experimental = client.get("/sr/gaps?maturity=experimental")
+    assert b"Experimental Topic" in experimental.data
+    assert b"Stable Topic" not in experimental.data
+
+
+def test_gaps_maturity_filter_includes_a_gap_with_no_detector_row(client, db, seed_languages):
+    """A gap whose detector has no row is *displayed* as experimental, so
+    filtering for experimental has to return it -- otherwise the filter
+    would hide a row by the very label it shows."""
+    db.session.add(_gap("Q1", "No Detector Row Topic"))
+    db.session.commit()
+
+    assert b"No Detector Row Topic" in client.get("/sr/gaps?maturity=experimental").data
+    assert b"No Detector Row Topic" not in client.get("/sr/gaps?maturity=stable").data
+
+
+def test_gaps_unknown_maturity_filter_matches_nothing(client, db, seed_languages):
+    db.session.add_all(
+        [
+            Detector(detector_key="wp_no_article", project_code="wikipedia", gap_type="no_article", maturity="stable"),
+            _gap("Q1", "Stable Topic"),
+        ]
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps?maturity=nonsense&uselang=en")
+    assert resp.status_code == 200
+    assert b"Stable Topic" not in resp.data
+    assert b"No gaps match" in resp.data
+
+
+def test_gaps_filter_form_offers_present_projects_and_keeps_the_selection(client, db, seed_languages):
+    db.session.add_all([_gap("Q1", "Article Topic"), _gap("Q2", "Label Topic", project="wikidata", gap_type="no_label")])
+    db.session.commit()
+
+    resp = client.get("/sr/gaps?project=wikidata&uselang=en")
+    assert b'<option value="wikidata" selected>' in resp.data
+    assert b'<option value="wikipedia">' in resp.data
+    # Nothing in this language has a Wiktionary gap, so it isn't offered.
+    assert b'value="wiktionary"' not in resp.data
+    # ...but every option stays on screen while a filter is applied, so a
+    # visitor who filters into an empty list can always get back out.
+    assert b'<option value="stable">' in resp.data
+
+
+def test_gaps_filter_form_is_still_shown_when_a_filter_matches_nothing(client, db, seed_languages):
+    db.session.add(_gap("Q1", "Article Topic"))
+    db.session.commit()
+
+    resp = client.get("/sr/gaps?project=wikidata&uselang=en")
+    assert b"No gaps match" in resp.data
+    assert b'<option value="wikipedia">' in resp.data
+
+
+def test_gaps_filters_survive_pagination(client, db, seed_languages):
+    db.session.add_all(_gap(f"Q{i}", f"Topic {i}") for i in range(60))
+    db.session.commit()
+
+    page1 = client.get("/sr/gaps?maturity=experimental&project=wikipedia&uselang=en")
+    assert b"Next page" in page1.data
+    assert b"maturity=experimental" in page1.data
+    assert b"project=wikipedia" in page1.data
+
+    page2 = client.get("/sr/gaps?page=2&maturity=experimental&project=wikipedia&uselang=en")
+    assert b"Previous page" in page2.data
+    assert b"maturity=experimental" in page2.data
+
+
+def test_gaps_page_warns_that_a_failed_detector_is_stale(client, db, seed_languages):
+    """SPEC.md section 11: a failed detector shows as stale in the UI
+    rather than silently serving old data as current -- and the gap list
+    is where that old data actually gets served."""
+    db.session.add_all(
+        [
+            Detector(
+                detector_key="wp_no_article", project_code="wikipedia", gap_type="no_article",
+                maturity="stable", enabled=True,
+                last_run_at=datetime(2026, 3, 1, 12, 0, tzinfo=timezone.utc), last_status="error",
+            ),
+            _gap("Q1", "Possibly Stale Topic"),
+        ]
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps?uselang=en")
+    assert b"may be out of date" in resp.data
+    assert b"2026-03-01 12:00 UTC" in resp.data
+    # The warning names the affected detector, so it's clear which rows
+    # it applies to.
+    stale_notice = resp.data.split(b'class="notice notice-stale"')[1].split(b"</p>")[0]
+    assert b"Wikipedia" in stale_notice
+    assert b"no article yet" in stale_notice
+
+
+def test_gaps_page_does_not_warn_about_a_healthy_or_never_run_detector(client, db, seed_languages):
+    db.session.add_all(
+        [
+            Detector(
+                detector_key="wp_no_article", project_code="wikipedia", gap_type="no_article",
+                maturity="stable", enabled=True,
+                last_run_at=datetime.now(timezone.utc), last_status="ok",
+            ),
+            # Never run: it can't have served anything stale yet.
+            Detector(
+                detector_key="wd_no_label", project_code="wikidata", gap_type="no_label",
+                maturity="stable", enabled=True,
+            ),
+            _gap("Q1", "Fresh Topic"),
+        ]
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps?uselang=en")
+    assert b"Fresh Topic" in resp.data
+    assert b"may be out of date" not in resp.data
+
+
+def test_gaps_page_does_not_warn_about_a_failed_but_disabled_detector(client, db, seed_languages):
+    """A disabled detector's gaps are already hidden entirely, so there's
+    nothing stale on screen to warn about."""
+    db.session.add_all(
+        [
+            Detector(
+                detector_key="commons_no_image", project_code="commons", gap_type="no_image",
+                maturity="experimental", enabled=False,
+                last_run_at=datetime.now(timezone.utc), last_status="error",
+            ),
+            _gap("Q1", "Fresh Topic"),
+        ]
+    )
+    db.session.commit()
+
+    resp = client.get("/sr/gaps?uselang=en")
+    assert b"Fresh Topic" in resp.data
+    assert b"may be out of date" not in resp.data
+
+
 def test_about_page_renders(client):
     resp = client.get("/about")
     assert resp.status_code == 200

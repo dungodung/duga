@@ -43,11 +43,14 @@ request-path SPARQL) -- that only happens in `jobs/`:
 - `GET /<lang>/` — per-language overview: gap count, detector staleness, or
   a placeholder if nothing has run yet. 404s for an unseeded language.
 - `GET /<lang>/gaps` — the gap list for that language, filterable by
-  `?project=`/`?type=`, paginated (`GAPS_PAGE_SIZE` = 50). Every gap query
-  goes through `_visible_gaps_query()`, which excludes a gap if its topic is
+  `?project=`/`?type=`/`?maturity=` (SPEC.md section 12's three filters,
+  offered as one plain no-JS `GET` form above the list), paginated
+  (`GAPS_PAGE_SIZE` = 50). Every gap query goes through
+  `_visible_gaps_query()`, which excludes a gap if its topic is
   suppressed or if a `gap_override` row exists for that exact
   (topic, language, project, gap_type) -- SPEC.md S4 ("filtered at query
-  time in every code path") and guardrail 5.
+  time in every code path") and guardrail 5. See "Gap list filters and
+  staleness" below for the two non-obvious parts.
 - `GET /about` — name/licence blurb
 - `GET /health` — JSON `{"status": "ok"}` for monitoring
 - `GET /login`, `GET /oauth/callback`, `POST /logout` — Wikimedia OAuth 2.0
@@ -441,8 +444,42 @@ doesn't get its own gap until the first one gets a citation.
 Their `project` row (`vocabulary`, family `duga` since it isn't a real
 Wikimedia sister project) is seeded by migration `c2669d54cd43`.
 
-Not yet built from the section 11 post-v0.1 list: impact scoring (SPEC.md
-section 16 defers this explicitly pending a formula that satisfies S6).
+## Gap list filters and staleness
+
+Two details of `/<lang>/gaps` are worth writing down, because both are
+places where the obvious implementation would quietly contradict what the
+page shows.
+
+**Maturity is a detector property, not a gap column.** `?maturity=` is
+therefore an `EXISTS` against the matching `detector` row, not a column
+comparison on `gap`. That interacts with `_visible_gaps_query()`'s
+deliberate fail-open behaviour: a gap whose `detector_key` has no
+`detector` row at all is still listed, and is *labelled* experimental
+(`UNREGISTERED_MATURITY`). So `?maturity=experimental` matches "detector
+says experimental **or** no detector row" -- otherwise filtering by the
+word printed on a row would make that row disappear. An unrecognised
+maturity value matches no detector and so returns nothing, the same way an
+unrecognised `?project=` already did.
+
+The `<select>` options for project and type are built from the
+*unfiltered* visible gaps in that language, so the form never offers a
+choice that returns zero rows, and a visitor who filters into an empty
+list still has every other option on screen to get back out with. Maturity
+is a closed three-value set, so all three are always offered. Pagination
+links are built with `url_for`, which drops `None`-valued arguments --
+inactive filters simply aren't in the link, active ones survive paging.
+
+**Stale detectors are surfaced here, not only on the language overview.**
+SPEC.md section 11's detector contract says a failed detector "shows as
+stale in the UI rather than silently serving old data as current", and the
+gap list is where that old data actually gets served -- a visitor can land
+on `/sr/gaps` directly without passing the overview page. The warning names
+the affected detector (project + gap type), so it's clear which rows are in
+doubt rather than casting suspicion over the whole list. It's shown for a
+detector that is enabled, has actually run, and whose `last_status` isn't
+`ok`: a detector that never ran can't have served anything stale, and a
+disabled detector's gaps are already hidden entirely by
+`_visible_gaps_query()`.
 
 ## Lexeme write-back (S1+)
 

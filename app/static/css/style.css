@@ -103,6 +103,26 @@ a {
   border: 1px solid rgba(200, 120, 30, 0.4);
 }
 
+.gap-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.gap-filter {
+  display: flex;
+  flex-direction: column;
+  min-width: 9rem;
+}
+
+/* Overrides the generic `form select { width: 100% }` rule further down:
+   these three sit side by side, sized to their column, not the page. */
+.gap-filters select {
+  width: auto;
+}
+
 .gap-list {
   list-style: none;
   padding: 0;

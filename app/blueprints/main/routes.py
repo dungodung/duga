@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 
 from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, url_for
-from sqlalchemy import and_, exists
+from sqlalchemy import and_, exists, or_
 
 from ... import i18n
 from ...audit import log as audit_log
@@ -15,6 +15,13 @@ main_bp = Blueprint("main", __name__)
 
 GAPS_PAGE_SIZE = 50
 OVERRIDE_STATUSES = {"declined", "not_applicable"}
+GAP_MATURITIES = ("stable", "beta", "experimental")
+# What a gap row's maturity displays as when its detector_key has no
+# `detector` row at all -- _visible_gaps_query() deliberately fails open on
+# that case, so such gaps are listed and have to be labelled something. The
+# maturity filter has to agree with the label the row visibly carries, or
+# filtering by what you can read on screen would silently drop rows.
+UNREGISTERED_MATURITY = "experimental"
 
 
 def _t(key, *args):
@@ -100,6 +107,13 @@ def gaps(lang):
 
     query = _visible_gaps_query(lang)
 
+    # Filter options come from the *unfiltered* visible list for this
+    # language, so the form can never offer a choice that returns nothing
+    # and -- more importantly -- filtering into an empty result still
+    # leaves every option on screen to get back out with.
+    project_options = sorted(row[0] for row in query.with_entities(Gap.project_code).distinct())
+    type_options = sorted(row[0] for row in query.with_entities(Gap.gap_type).distinct())
+
     project_filter = request.args.get("project")
     if project_filter:
         query = query.filter(Gap.project_code == project_filter)
@@ -107,6 +121,22 @@ def gaps(lang):
     type_filter = request.args.get("type")
     if type_filter:
         query = query.filter(Gap.gap_type == type_filter)
+
+    # SPEC.md section 12: the gap list is "filterable by project/type/
+    # maturity". Maturity lives on `detector`, not on `gap`, so this is an
+    # EXISTS against the detector row rather than a column comparison. An
+    # unrecognised value matches no detector and so returns nothing, the
+    # same way an unrecognised project or type already does.
+    maturity_filter = request.args.get("maturity")
+    if maturity_filter:
+        has_maturity = exists().where(
+            and_(Detector.detector_key == Gap.detector_key, Detector.maturity == maturity_filter)
+        )
+        if maturity_filter == UNREGISTERED_MATURITY:
+            unregistered = ~exists().where(Detector.detector_key == Gap.detector_key)
+            query = query.filter(or_(has_maturity, unregistered))
+        else:
+            query = query.filter(has_maturity)
 
     page = max(request.args.get("page", 1, type=int) or 1, 1)
     total = query.count()
@@ -126,7 +156,19 @@ def gaps(lang):
         .all()
     )
 
-    detector_maturity = {d.detector_key: d.maturity for d in Detector.query.all()}
+    detectors = Detector.query.all()
+    detector_maturity = {d.detector_key: d.maturity for d in detectors}
+
+    # SPEC.md section 11's detector contract: "a failed detector shows as
+    # stale in the UI rather than silently serving old data as current".
+    # The gap list is where that old data actually gets served, so the
+    # warning belongs here and not only on the language overview. Only
+    # detectors that have actually run can have served anything stale, and
+    # a disabled detector's gaps are already hidden by
+    # _visible_gaps_query(), so neither is worth warning about.
+    stale_detectors = [
+        d for d in detectors if d.enabled and d.last_run_at is not None and d.last_status != "ok"
+    ]
 
     scope_version_ids = {row.scope_version_id for row in rows}
     topic_qids = {row.topic_qid for row in rows}
@@ -156,7 +198,7 @@ def gaps(lang):
                 "label": evidence.get("label") or row.topic_qid,
                 "project_code": row.project_code,
                 "gap_type": row.gap_type,
-                "maturity": detector_maturity.get(row.detector_key, "experimental"),
+                "maturity": detector_maturity.get(row.detector_key, UNREGISTERED_MATURITY),
                 "action_url": row.action_url,
                 "why_in_scope": rules_by_topic.get((row.scope_version_id, row.topic_qid), []),
                 "editable": row.project_code == "wikidata" and row.gap_type in EDITABLE_GAP_TYPES,
@@ -173,6 +215,11 @@ def gaps(lang):
         has_next=page * GAPS_PAGE_SIZE < total,
         project_filter=project_filter,
         type_filter=type_filter,
+        maturity_filter=maturity_filter,
+        project_options=project_options,
+        type_options=type_options,
+        maturity_options=GAP_MATURITIES,
+        stale_detectors=stale_detectors,
     )
 
 

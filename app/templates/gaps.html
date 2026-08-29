@@ -4,6 +4,43 @@
 <h1>{{ _('duga-gaps-title', language.autonym) }}</h1>
 <p><a href="{{ url_for('main.lang_home', lang=language.code) }}">{{ _('duga-gaps-back') }}</a></p>
 
+{% for detector in stale_detectors %}
+<p class="notice notice-stale">{{ _('duga-gaps-stale', _('duga-gaps-what', _('duga-gaps-project-' ~ detector.project_code), _('duga-gaps-type-' ~ detector.gap_type)), detector.last_run_at.strftime('%Y-%m-%d %H:%M UTC')) }}</p>
+{% endfor %}
+
+{% if project_options or type_options or project_filter or type_filter or maturity_filter %}
+<form class="gap-filters" method="get" action="{{ url_for('main.gaps', lang=language.code) }}">
+  <div class="gap-filter">
+    <label for="filter-project">{{ _('duga-gaps-filter-project') }}</label>
+    <select name="project" id="filter-project">
+      <option value="">{{ _('duga-gaps-filter-any') }}</option>
+      {% for code in project_options %}
+      <option value="{{ code }}"{% if code == project_filter %} selected{% endif %}>{{ _('duga-gaps-project-' ~ code) }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="gap-filter">
+    <label for="filter-type">{{ _('duga-gaps-filter-type') }}</label>
+    <select name="type" id="filter-type">
+      <option value="">{{ _('duga-gaps-filter-any') }}</option>
+      {% for code in type_options %}
+      <option value="{{ code }}"{% if code == type_filter %} selected{% endif %}>{{ _('duga-gaps-type-' ~ code) }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="gap-filter">
+    <label for="filter-maturity">{{ _('duga-gaps-filter-maturity') }}</label>
+    <select name="maturity" id="filter-maturity">
+      <option value="">{{ _('duga-gaps-filter-any') }}</option>
+      {% for code in maturity_options %}
+      <option value="{{ code }}"{% if code == maturity_filter %} selected{% endif %}>{{ _('duga-gaps-maturity-' ~ code) }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit">{{ _('duga-gaps-filter-submit') }}</button>
+</form>
+{% endif %}
+
 {% if items %}
 <ul class="gap-list">
   {% for item in items %}
@@ -32,12 +69,14 @@
   {% endfor %}
 </ul>
 
+{# url_for drops None-valued arguments, so an inactive filter simply
+   isn't in the link -- and every active one survives paging. #}
 <nav class="pagination">
   {% if page > 1 %}
-  <a href="?page={{ page - 1 }}{% if project_filter %}&amp;project={{ project_filter }}{% endif %}{% if type_filter %}&amp;type={{ type_filter }}{% endif %}">{{ _('duga-gaps-prev-page') }}</a>
+  <a href="{{ url_for('main.gaps', lang=language.code, page=page - 1, project=project_filter or none, type=type_filter or none, maturity=maturity_filter or none) }}">{{ _('duga-gaps-prev-page') }}</a>
   {% endif %}
   {% if has_next %}
-  <a href="?page={{ page + 1 }}{% if project_filter %}&amp;project={{ project_filter }}{% endif %}{% if type_filter %}&amp;type={{ type_filter }}{% endif %}">{{ _('duga-gaps-next-page') }}</a>
+  <a href="{{ url_for('main.gaps', lang=language.code, page=page + 1, project=project_filter or none, type=type_filter or none, maturity=maturity_filter or none) }}">{{ _('duga-gaps-next-page') }}</a>
   {% endif %}
 </nav>
 {% else %}
