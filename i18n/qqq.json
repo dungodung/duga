@@ -195,5 +195,18 @@
   "duga-gaps-order-note": "One-line explanation of the gap list's ordering, shown under the count. The list is sorted by an internal impact score that is deliberately never displayed as a number (SPEC.md S6); this states the principle instead. \"Most-read\" refers to article traffic in the language being browsed.",
   "duga-gaps-page-position": "Pagination position. $1 is the current page number, $2 is the total number of pages.",
   "duga-gaps-add-word-button": "Link on a gap row offering to add a word in the local vocabulary for this topic. Shown only for missing-label/description gaps on topics that are not people. Leads to the add-a-term form with the concept name filled in.",
-  "duga-lang-home-breakdown-title": "Heading above the per-project, per-gap-type breakdown on a language's overview page. Each row links to the gap list filtered to that combination."
+  "duga-lang-home-breakdown-title": "Heading above the per-project, per-gap-type breakdown on a language's overview page. Each row links to the gap list filtered to that combination.",
+  "duga-topic-gap-count": "Summary line on a topic's own page. $1 is the number of gaps for this topic, $2 is how many languages they span. Deliberately a count of gaps, never a completeness figure (SPEC.md S6).",
+  "duga-topic-view-language-gaps": "Link from a topic page to the full gap list for one language. $1 is that language's autonym.",
+  "duga-topic-no-gaps": "Shown on a topic page when the topic is tracked but currently has no outstanding gaps.",
+  "duga-home-search-label": "Label for the search box that filters the language picker on the landing page.",
+  "duga-home-search-placeholder": "Placeholder inside the language search box.",
+  "duga-home-search-submit": "Button that submits the language search. Only visible without JavaScript; with it, the list filters as you type.",
+  "duga-home-search-empty": "Shown when a language search matches none of the tracked languages.",
+  "duga-home-search-clear": "Link that clears the language search and shows the full list again.",
+  "duga-home-suggested-title": "Heading over the handful of languages lifted to the top of the picker, guessed from the visitor's browser settings and the languages they have already opened. It is a shortcut, not a filter -- the full list follows underneath. Avoid wording that implies Duga knows anything about the visitor.",
+  "duga-home-all-languages-title": "Heading over the complete language list. $1 is how many languages Duga tracks. Deliberately just a count of languages -- never a ranking or a size comparison between them (SPEC.md S6).",
+  "duga-gaps-meta-description": "HTML meta description for a language's gap list. $1 is the language autonym. Not shown on the page itself.",
+  "duga-lang-home-meta-description": "HTML meta description for a language's overview page. $1 is the language autonym. This page IS indexed by search engines, so this is the sentence that shows up in results.",
+  "duga-vocab-meta-description": "HTML meta description for a language's vocabulary page. $1 is the language autonym."
 }

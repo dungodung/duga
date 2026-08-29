@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ _('duga-write-title-' ~ edit_kind, label) }}{% endblock %}
+{# Private or transactional: nothing here belongs in an index. #}
+{% block robots %}noindex, nofollow{% endblock %}
 {% block content %}
 <h1>{{ _('duga-write-title-' ~ edit_kind, label) }}</h1>
 

@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ _('duga-gaps-title', language.autonym) }}{% endblock %}
+{# Not indexed. A crawlable, paginated index of real people's names under a
+   queer-topics heading is a concentration this tool should not create --
+   SPEC.md guardrail 12, and S7's "any bulk/batch surface" for living
+   people. The overview pages that link here stay indexable. #}
+{% block robots %}noindex, follow{% endblock %}
+{% block description %}{{ _('duga-gaps-meta-description', language.autonym) }}{% endblock %}
 {% block content %}
 <h1>{{ _('duga-gaps-title', language.autonym) }}</h1>
 <p><a href="{{ url_for('main.lang_home', lang=language.code) }}">{{ _('duga-gaps-back') }}</a></p>
@@ -53,7 +59,7 @@
 <ul class="gap-list">
   {% for item in items %}
   <li class="gap-row">
-    <div class="gap-label"{% if item.label_lang %} lang="{{ item.label_lang }}"{% endif %}>{{ item.label }}</div>
+    <div class="gap-label"{% if item.label_lang %} lang="{{ item.label_lang }}"{% endif %}><a href="{{ url_for('main.topic_detail', qid=item.qid) }}">{{ item.label }}</a></div>
     <div class="gap-meta">
       {{ _('duga-gaps-what', _('duga-gaps-project-' ~ item.project_code), _('duga-gaps-type-' ~ item.gap_type)) }}
       · {{ _('duga-gaps-maturity-' ~ item.maturity) }}
@@ -79,10 +85,6 @@
       <button type="submit" name="status" value="not_applicable">{{ _('duga-gaps-override-not-applicable-button') }}</button>
       <button type="submit" name="status" value="declined">{{ _('duga-gaps-override-declined-button') }}</button>
     </form>
-    {# Suppression is deliberately a link to a confirmation page, not a
-       button in this form: it hides the topic in every language, for
-       everyone, not just this row. #}
-    <a class="gap-action gap-suppress" href="{{ url_for('main.suppress_topic', qid=item.qid, lang=language.code) }}">{{ _('duga-suppress-link-topic') }}</a>
     {% endif %}
     </div>
   </li>

@@ -606,8 +606,8 @@ def test_gaps_page_marks_the_label_with_the_language_it_is_actually_in(client, d
     db.session.commit()
 
     body = client.get("/sr/gaps?uselang=en").data.decode()
-    assert '<div class="gap-label" lang="en">Marsha P. Johnson</div>' in body
-    assert '<div class="gap-label" lang="sr">родно квир</div>' in body
+    assert '<div class="gap-label" lang="en"><a href="/topic/Q1">Marsha P. Johnson</a>' in body
+    assert '<div class="gap-label" lang="sr"><a href="/topic/Q2">родно квир</a>' in body
 
 
 def test_gaps_page_omits_the_lang_attribute_when_the_label_language_is_unknown(client, db, seed_languages):
@@ -616,7 +616,7 @@ def test_gaps_page_omits_the_lang_attribute_when_the_label_language_is_unknown(c
     db.session.commit()
 
     body = client.get("/sr/gaps?uselang=en").data.decode()
-    assert '<div class="gap-label">Unknown Provenance</div>' in body
+    assert '<div class="gap-label"><a href="/topic/Q1">Unknown Provenance</a>' in body
 
 
 def test_gaps_page_invites_a_local_word_only_where_it_makes_sense(client, db, seed_languages):
@@ -682,3 +682,151 @@ def test_unknown_multi_segment_route_404s_directly(client):
     resp = client.get("/no/such/page")
     assert resp.status_code == 404
     assert b"Page not found" in resp.data
+
+
+# -- per-topic page ----------------------------------------------------------
+
+
+def test_topic_page_gathers_every_language(client, db, seed_languages):
+    db.session.add_all(
+        [
+            _topic_row("Q1"),
+            _gap("Q1", "genderqueer", lang="sr"),
+            _gap("Q1", "genderqueer", lang="fr"),
+            _gap("Q1", "genderqueer", lang="sr", project="wikidata", gap_type="no_label", detector_key="wd_no_label"),
+        ]
+    )
+    db.session.commit()
+
+    resp = client.get("/topic/Q1?uselang=en")
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert "3 things missing, across 2 language(s)." in body
+    assert "Српски" in body and "Français" in body
+    assert "/sr/gaps" in body and "/fr/gaps" in body
+
+
+def test_topic_page_is_never_indexed(client, db, seed_languages):
+    """Everything Duga knows about one topic in one place is exactly the
+    concentration guardrail 12 says to show less of -- doubly so for a
+    living person."""
+    db.session.add_all([_topic_row("Q1"), _gap("Q1", "Someone")])
+    db.session.commit()
+
+    assert b'<meta name="robots" content="noindex, nofollow">' in client.get("/topic/Q1").data
+
+
+def test_topic_page_404s_for_a_suppressed_topic(client, db, seed_languages):
+    now = datetime.now(timezone.utc)
+    db.session.add_all(
+        [
+            Topic(qid="Q1", entity_class="concept", is_human=False, is_living=False,
+                  first_seen=now, last_seen=now, suppressed=True),
+            _gap("Q1", "Hidden"),
+        ]
+    )
+    db.session.commit()
+
+    assert client.get("/topic/Q1").status_code == 404
+
+
+def test_topic_page_404s_for_an_unknown_topic(client, seed_languages):
+    assert client.get("/topic/Q999").status_code == 404
+
+
+def test_topic_page_hides_overridden_and_disabled_gaps(client, db, seed_languages):
+    """Same visibility rules as the gap list -- it reuses the one query."""
+    db.session.add_all(
+        [
+            _topic_row("Q1"),
+            Detector(detector_key="commons_no_image", project_code="commons", gap_type="no_image",
+                     maturity="experimental", enabled=False),
+            _gap("Q1", "Visible"),
+            _gap("Q1", "Hidden", project="commons", gap_type="no_image", detector_key="commons_no_image"),
+        ]
+    )
+    db.session.commit()
+
+    body = client.get("/topic/Q1?uselang=en").data.decode()
+    assert "1 things missing" in body
+    assert "no image yet" not in body
+
+
+# -- language picker at scale -------------------------------------------------
+
+
+def _seed_many_languages(db):
+    from app.models import Language
+
+    for code, autonym in [("de", "Deutsch"), ("es", "Español"), ("ru", "Русский")]:
+        db.session.add(Language(code=code, autonym=autonym, seeded=True))
+    db.session.commit()
+
+
+def test_home_lists_languages_alphabetically_by_autonym(client, db, seed_languages):
+    _seed_many_languages(db)
+    body = client.get("/").data.decode()
+    assert body.index("Deutsch") < body.index("Español") < body.index("Français")
+
+
+def test_home_never_shows_gap_counts(client, db, seed_languages):
+    """SPEC.md S6: no view may rank languages against each other, including
+    implicitly by sorting or counting them."""
+    _seed_many_languages(db)
+    db.session.add_all(_gap(f"Q{i}", f"T{i}") for i in range(5))
+    db.session.commit()
+
+    main = _main(client.get("/?uselang=en")).replace("All 5 languages", "")
+    assert "5" not in main
+
+
+def _main(response):
+    """Just the page body -- the footer carries an interface-language
+    switcher listing every translated language, which is a different thing
+    from the content-language picker being tested here."""
+    body = response.data.decode()
+    return body[body.index("<main>"):body.index("</main>")]
+
+
+def test_home_search_filters_server_side(client, db, seed_languages):
+    """Works with JavaScript off -- the live filter is enhancement only."""
+    _seed_many_languages(db)
+    main = _main(client.get("/?q=deu&uselang=en"))
+    assert "Deutsch" in main
+    assert "Français" not in main
+
+
+def test_home_search_matches_the_language_code_too(client, db, seed_languages):
+    _seed_many_languages(db)
+    assert b"Deutsch" in client.get("/?q=de").data
+
+
+def test_home_search_with_no_match_offers_a_way_back(client, db, seed_languages):
+    _seed_many_languages(db)
+    body = client.get("/?q=zzzz&uselang=en").data.decode()
+    assert "No tracked language matches that." in body
+    assert "Show every language" in body
+
+
+def test_home_suggests_languages_from_accept_language(client, db, seed_languages):
+    _seed_many_languages(db)
+    main = _main(client.get("/?uselang=en", headers={"Accept-Language": "ru-RU,ru;q=0.9"}))
+    suggested = main.split("Languages you read")[1].split("</ul>")[0]
+    assert "Русский" in suggested
+    assert "Français" not in suggested
+
+
+def test_home_suggests_a_language_you_have_already_opened(client, db, seed_languages):
+    """Visiting /de/ sets a cookie the picker reads next time."""
+    _seed_many_languages(db)
+    client.get("/de/")
+    main = _main(client.get("/?uselang=en"))
+    assert "Languages you read" in main
+    assert "Deutsch" in main.split("Languages you read")[1].split("</ul>")[0]
+
+
+def test_home_suggestions_never_hide_the_full_list(client, db, seed_languages):
+    _seed_many_languages(db)
+    main = _main(client.get("/?uselang=en", headers={"Accept-Language": "de"}))
+    for autonym in ("Deutsch", "Español", "Français", "Русский", "Српски"):
+        assert autonym in main.split("All 5 languages")[1]

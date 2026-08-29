@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ label }}{% endblock %}
+{# Never indexed: this page gathers everything Duga knows about one topic,
+   which for a living person is exactly the concentration SPEC.md guardrail
+   12 says to show less of. See docs/architecture.md, "Search engines". #}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block content %}
+<h1{% if label_lang %} lang="{{ label_lang }}"{% endif %}>{{ label }}</h1>
+
+<p class="term-meta">
+  <a href="https://www.wikidata.org/wiki/{{ topic.qid }}">{{ topic.qid }}</a>
+  {% if why_in_scope %}
+  · {{ _('duga-gaps-why-in-scope', why_in_scope | join(', ')) }}
+  {% endif %}
+</p>
+
+{% if languages %}
+<p>{{ _('duga-topic-gap-count', gap_count, languages | length) }}</p>
+
+{% for language in languages %}
+<h2 lang="{{ language.code }}">{{ language.autonym }}</h2>
+<ul class="gap-list">
+  {% for gap in language.gaps %}
+  <li class="gap-row">
+    <div class="gap-label">{{ _('duga-gaps-what', _('duga-gaps-project-' ~ gap.project_code), _('duga-gaps-type-' ~ gap.gap_type)) }}</div>
+    <div class="gap-meta">{{ _('duga-gaps-maturity-' ~ gap.maturity) }}</div>
+    <div class="gap-actions">
+      <a class="gap-action" href="{{ gap.action_url }}">{{ _('duga-gaps-fix-button') }}</a>
+      <a class="gap-action" href="{{ url_for('main.gaps', lang=language.code) }}">{{ _('duga-topic-view-language-gaps', language.autonym) }}</a>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %}
+{% else %}
+<p>{{ _('duga-topic-no-gaps') }}</p>
+{% endif %}
+
+{% if contributor %}
+{# Once, for the whole topic -- not once per row, which is what the gap
+   list used to do fifty times a page. #}
+<p><a class="suppress-link" href="{{ url_for('main.suppress_topic', qid=topic.qid) }}">{{ _('duga-suppress-link-topic') }}</a></p>
+{% endif %}
+{% endblock %}

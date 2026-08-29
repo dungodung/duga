@@ -124,6 +124,10 @@ def test_suppress_links_are_hidden_from_logged_out_visitors(client, db, seed_lan
     assert b"/topic/Q1/suppress" not in client.get("/sr/gaps").data
 
 
-def test_suppress_link_is_shown_to_a_logged_in_contributor(client, db, seed_languages, logged_in):
+def test_suppress_link_lives_on_the_topic_page_not_on_every_gap_row(client, db, seed_languages, logged_in):
+    """Suppression applies to the whole topic, so it belongs once on the
+    topic's own page rather than repeated on all fifty rows of a gap list
+    beside two override buttons."""
     _topic(db)
-    assert b"/topic/Q1/suppress" in client.get("/sr/gaps").data
+    assert b"/topic/Q1/suppress" not in client.get("/sr/gaps").data
+    assert b"/topic/Q1/suppress" in client.get("/topic/Q1").data

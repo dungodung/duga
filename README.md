@@ -89,9 +89,12 @@ make impact-score            # jobs/impact_score.py -- scores gap.impact_score, 
 ```
 
 Duga tracks eleven content languages: the ten largest Wikipedias by
-article count (en, ceb, de, fr, sv, nl, es, ru, it, pl) plus sr. These are
-content languages only — the interface is still translated into en/sr/fr,
-and SPEC.md section 13 keeps the two independent.
+article count (en, ceb, de, fr, sv, nl, es, ru, it, pl) plus sr. The
+interface is translated into ten of them — everything but Cebuano, which
+nobody here can check; see `docs/i18n.md` for why the seven newest
+translations are marked unreviewed. SPEC.md section 13 keeps the two sets
+independent, so a missing interface translation never limits which
+languages Duga tracks gaps for.
 
 Operator actions (most of the rest is self-service now — see
 `docs/architecture.md`):

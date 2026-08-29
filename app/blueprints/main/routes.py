@@ -1,7 +1,10 @@
 import json
 from datetime import datetime, timezone
 
-from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint, Response, abort, flash, g, jsonify, redirect, render_template, request, url_for,
+)
+from markupsafe import escape
 from sqlalchemy import and_, exists, or_
 
 from ... import i18n
@@ -16,6 +19,11 @@ main_bp = Blueprint("main", __name__)
 GAPS_PAGE_SIZE = 50
 OVERRIDE_STATUSES = {"declined", "not_applicable"}
 GAP_MATURITIES = ("stable", "beta", "experimental")
+# Content languages this visitor has actually opened, most recent first --
+# used only to lift them to the top of the picker. Distinct from
+# i18n.INTERFACE_LANG_COOKIE, which is the language the *chrome* is in.
+RECENT_LANGUAGE_COOKIE = "duga_recent_langs"
+RECENT_LANGUAGE_LIMIT = 5
 # What a gap row's maturity displays as when its detector_key has no
 # `detector` row at all -- _visible_gaps_query() deliberately fails open on
 # that case, so such gaps are listed and have to be labelled something. The
@@ -80,13 +88,82 @@ def _visible_gaps_query(lang=None):
 
 @main_bp.get("/")
 def home():
-    languages = Language.query.filter_by(seeded=True).order_by(Language.code).all()
-    return render_template("index.html", languages=languages)
+    """Language picker. Three things constrain how this can be built:
+
+    SPEC.md S6 forbids any view that ranks languages against each other,
+    "implicitly (e.g. sorting languages by gap count)" included -- so no
+    counts here, and no ordering derived from size. Alphabetical by autonym
+    is the neutral choice, and stays neutral as the list grows.
+
+    A flat list of every tracked language stops working somewhere past a
+    couple of dozen, so the ones a visitor is most likely to want are
+    lifted out first: their browser's own Accept-Language, plus any
+    language they have already been reading. That is a convenience, never a
+    filter -- the complete list is always right there underneath.
+
+    The search box is a plain GET form that filters server-side, so it
+    works with JavaScript off (SPEC.md section 12); enhance.js only makes
+    it filter as you type."""
+    languages = Language.query.filter_by(seeded=True).all()
+    languages.sort(key=lambda language: language.autonym.lower())
+
+    query = (request.args.get("q") or "").strip()
+    if query:
+        needle = query.lower()
+        languages = [
+            language
+            for language in languages
+            if needle in language.autonym.lower() or needle in language.code.lower()
+        ]
+
+    seeded_codes = {language.code for language in languages}
+    suggested_codes = []
+    for code in _preferred_language_codes():
+        if code in seeded_codes and code not in suggested_codes:
+            suggested_codes.append(code)
+    by_code = {language.code: language for language in languages}
+    suggested = [by_code[code] for code in suggested_codes]
+
+    return render_template(
+        "index.html",
+        languages=languages,
+        suggested=suggested,
+        query=query,
+        total_languages=Language.query.filter_by(seeded=True).count(),
+    )
+
+
+def _remember_language(lang):
+    """Records the content language being browsed so the picker can offer
+    it next time. Deferred to an after_request hook because a view has no
+    response object to set a cookie on yet."""
+    g.remember_language = lang
+
+
+def _preferred_language_codes():
+    """Best guess at which tracked languages this visitor actually reads:
+    the last content language they looked at, then their browser's
+    Accept-Language, in the browser's own order of preference. Never
+    inferred from anything about *them* -- only from what their client
+    volunteers and what they have already clicked."""
+    codes = []
+    recent = request.cookies.get(RECENT_LANGUAGE_COOKIE)
+    if recent:
+        codes.extend(code for code in recent.split(",") if code)
+    codes.extend(code for code, _quality in request.accept_languages)
+    # "sr-Latn"/"pt-BR" style tags also imply their base language.
+    expanded = []
+    for code in codes:
+        expanded.append(code)
+        if "-" in code:
+            expanded.append(code.split("-", 1)[0])
+    return expanded
 
 
 @main_bp.get("/<lang>/")
 def lang_home(lang):
     language = _seeded_language_or_404(lang)
+    _remember_language(lang)
 
     detectors = Detector.query.all()
     gap_counts = (
@@ -334,6 +411,78 @@ def override_gap():
     return redirect(url_for("main.gaps", lang=gap.language_code))
 
 
+@main_bp.get("/topic/<qid>")
+def topic_detail(qid):
+    """One topic, all its gaps, across every tracked language.
+
+    The gap list answers "what is missing in Serbian"; this answers "what
+    is missing about this topic anywhere", which is the view you want
+    before deciding a topic doesn't belong at all. It is also the right
+    home for suppression: the gap list used to repeat the suppress link on
+    every one of its fifty rows, next to two override buttons, which is a
+    lot of destructive affordance for an action that applies to the topic
+    as a whole rather than to the row it was clicked from.
+
+    A suppressed topic 404s here exactly as its gaps vanish everywhere
+    else (SPEC.md S4, filtered at query time in every code path)."""
+    topic = Topic.query.filter_by(qid=qid, suppressed=False).first()
+    if topic is None:
+        abort(404)
+
+    rows = (
+        _visible_gaps_query()
+        .filter(Gap.topic_qid == qid)
+        .order_by(Gap.language_code, Gap.project_code, Gap.gap_type)
+        .all()
+    )
+
+    detector_maturity = {d.detector_key: d.maturity for d in Detector.query.all()}
+    autonyms = {row.code: row.autonym for row in Language.query.filter_by(seeded=True).all()}
+
+    label = None
+    label_lang = None
+    by_language = {}
+    for row in rows:
+        evidence = json.loads(row.evidence_json) if row.evidence_json else {}
+        if label is None and evidence.get("label"):
+            label, label_lang = evidence["label"], evidence.get("label_lang")
+        by_language.setdefault(row.language_code, []).append(
+            {
+                "project_code": row.project_code,
+                "gap_type": row.gap_type,
+                "maturity": detector_maturity.get(row.detector_key, UNREGISTERED_MATURITY),
+                "action_url": row.action_url,
+            }
+        )
+
+    languages = [
+        {"code": code, "autonym": autonyms.get(code, code), "gaps": gaps}
+        for code, gaps in sorted(by_language.items(), key=lambda item: autonyms.get(item[0], item[0]))
+    ]
+
+    scope_version_ids = {row.scope_version_id for row in rows}
+    why_in_scope = []
+    if scope_version_ids:
+        rule_labels = {
+            (rule.scope_version_id, rule.rule_key): rule.label
+            for rule in ScopeRule.query.filter(ScopeRule.scope_version_id.in_(scope_version_ids)).all()
+        }
+        for tr in TopicRule.query.filter(
+            TopicRule.topic_qid == qid, TopicRule.scope_version_id.in_(scope_version_ids)
+        ).all():
+            why_in_scope.append(rule_labels.get((tr.scope_version_id, tr.rule_key), tr.rule_key))
+
+    return render_template(
+        "topic_detail.html",
+        topic=topic,
+        label=label or qid,
+        label_lang=label_lang,
+        languages=languages,
+        gap_count=len(rows),
+        why_in_scope=sorted(set(why_in_scope)),
+    )
+
+
 def _redirect_lang(default_endpoint="main.home"):
     """Where to send someone after a suppression. The subject they were
     looking at is gone from every list by the time we redirect, so we go
@@ -422,6 +571,63 @@ def suppress_topic(qid):
 @main_bp.get("/about")
 def about():
     return render_template("about.html")
+
+
+@main_bp.get("/robots.txt")
+def robots_txt():
+    """What crawlers may index. Two separate reasons to disallow things:
+
+    Safety -- /<lang>/gaps and /topic/<qid> concentrate real people's names
+    under a queer-topics heading. Those topics are already public on
+    Wikidata (S2 requires a sourced reference before anything is even in
+    scope), but a crawlable, paginated index of them is a new artefact that
+    Duga would be creating rather than reflecting. Guardrail 12: when in
+    doubt about a sensitive display decision, show less. The pages stay
+    fully public and linkable; they just aren't gathered up by search
+    engines.
+
+    Waste -- /login, /oauth/, /account and the write forms are
+    per-visitor or transactional and index to nothing useful.
+
+    The overview pages that explain the project stay open, so Duga is
+    findable by name."""
+    lines = [
+        "User-agent: *",
+        "Disallow: /gaps",
+        "Disallow: /topic/",
+        "Disallow: /login",
+        "Disallow: /logout",
+        "Disallow: /oauth/",
+        "Disallow: /account",
+        "Disallow: /gap/",
+        "Disallow: /term/",
+        "Allow: /$",
+        "Allow: /about",
+        f"Sitemap: {url_for('main.sitemap_xml', _external=True)}",
+    ]
+    # /<lang>/gaps sits under a language prefix, so it needs one rule per
+    # tracked language rather than a single path prefix.
+    for language in Language.query.filter_by(seeded=True).order_by(Language.code).all():
+        lines.insert(1, f"Disallow: /{language.code}/gaps")
+    return Response("\n".join(lines) + "\n", mimetype="text/plain")
+
+
+@main_bp.get("/sitemap.xml")
+def sitemap_xml():
+    """Only the pages robots.txt actually invites in: the landing page,
+    /about, and one overview per tracked language. Deliberately not the gap
+    lists (see robots_txt) and not one entry per topic."""
+    urls = [url_for("main.home", _external=True), url_for("main.about", _external=True)]
+    for language in Language.query.filter_by(seeded=True).order_by(Language.code).all():
+        urls.append(url_for("main.lang_home", lang=language.code, _external=True))
+        urls.append(url_for("vocab.list_terms", lang=language.code, _external=True))
+
+    body = ["<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+            "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">"]
+    for url in urls:
+        body.append(f"  <url><loc>{escape(url)}</loc></url>")
+    body.append("</urlset>")
+    return Response("\n".join(body) + "\n", mimetype="application/xml")
 
 
 @main_bp.get("/health")

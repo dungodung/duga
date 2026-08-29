@@ -195,5 +195,18 @@
   "duga-gaps-order-note": "Les sujets les plus consultés dans cette langue en premier.",
   "duga-gaps-page-position": "Page $1 sur $2",
   "duga-gaps-add-word-button": "Ajouter un mot pour ceci",
-  "duga-lang-home-breakdown-title": "Ce qui manque"
+  "duga-lang-home-breakdown-title": "Ce qui manque",
+  "duga-topic-gap-count": "$1 élément(s) manquant(s), dans $2 langue(s).",
+  "duga-topic-view-language-gaps": "Toutes les lacunes en $1",
+  "duga-topic-no-gaps": "Rien ne manque pour ce sujet actuellement.",
+  "duga-home-search-label": "Trouver une langue",
+  "duga-home-search-placeholder": "Saisissez un nom de langue",
+  "duga-home-search-submit": "Rechercher",
+  "duga-home-search-empty": "Aucune langue suivie ne correspond.",
+  "duga-home-search-clear": "Afficher toutes les langues",
+  "duga-home-suggested-title": "Langues que vous lisez",
+  "duga-home-all-languages-title": "Les $1 langues",
+  "duga-gaps-meta-description": "Ce qui manque aux projets Wikimédia en $1, et où le corriger.",
+  "duga-lang-home-meta-description": "Le savoir queer absent des projets Wikimédia en $1 : ce qui manque, pourquoi, et comment aider.",
+  "duga-vocab-meta-description": "Vocabulaire queer en $1 : mots, registres et sources."
 }

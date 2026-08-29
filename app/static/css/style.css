@@ -60,8 +60,54 @@ body {
   font-style: italic;
 }
 
+.lang-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.lang-search input {
+  flex: 1 1 12rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+/* With JS the list filters as you type, so the submit button that makes it
+   work without JS is no longer needed -- same pattern as .lang-switch. */
+.js .lang-search.js-live-search button {
+  display: none;
+}
+
+.lang-group-heading {
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.4rem;
+}
+
 .lang-list {
   padding-left: 1.25rem;
+}
+
+/* Many languages, short names: columns beat a single tall list. */
+.lang-list {
+  columns: 2;
+  column-gap: 2rem;
+}
+
+.lang-list-suggested {
+  columns: 1;
+}
+
+.lang-empty {
+  color: var(--muted);
 }
 
 .lang-list li {
@@ -387,5 +433,21 @@ form textarea {
   .term-row,
   .breakdown-list li {
     flex-wrap: wrap;
+  }
+
+  /* One column of languages on a narrow screen, and a search field big
+     enough to tap. */
+  .lang-list {
+    columns: 1;
+  }
+
+  .lang-search input {
+    flex: 1 1 100%;
+    font-size: 1rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    overflow-wrap: break-word;
   }
 }

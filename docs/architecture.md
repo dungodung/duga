@@ -48,6 +48,63 @@ each detector loops languages × topics — so the daily job window and the
 for something community-weighted (active users, or a hand-picked set) is a
 one-line change to a migration, not a code change.
 
+## The language picker, and why it has no numbers on it
+
+`main.home` is the one page whose design is dictated almost entirely by
+SPEC.md S6: "no view may be constructed that [ranks languages against each
+other] implicitly (e.g. sorting languages by gap count)". So the picker
+shows **no counts of anything per language**, and its order is
+alphabetical by autonym -- a neutral order that stays neutral as the list
+grows. The only number on the page is how many languages exist in total.
+
+A flat list stops being readable somewhere past a couple of dozen entries,
+which the top-ten-Wikipedias seed already pushes towards, so:
+
+- **A search box** (`?q=`) filtering on autonym and language code. It is a
+  plain GET form handled server-side, because SPEC.md section 12 requires
+  every page to work without JavaScript; `enhance.js` then filters the
+  already-rendered list as you type and hides the submit button it no
+  longer needs, the same pattern the interface-language switcher uses.
+- **"Languages you read"**, a short list lifted to the top from the
+  visitor's own `Accept-Language` plus a `duga_recent_langs` cookie
+  recording which language overviews they have opened. It is a shortcut,
+  never a filter -- the complete list is always directly underneath, and
+  a test enforces that.
+
+The recent-languages cookie is deliberately client-side only and separate
+from `duga_uselang`: which language you read *about* and which language
+the buttons are in are independent (SPEC.md section 13), and Duga builds
+no server-side profile of anyone.
+
+## Search engines
+
+Duga should be findable; a crawlable index of who is queer should not
+exist. `robots.txt` and per-page `noindex` split the site accordingly:
+
+**Indexed** -- the landing page, `/about`, each language's overview, and
+each language's vocabulary list. These describe the project and its words.
+`sitemap.xml` lists exactly these.
+
+**Not indexed** -- `/<lang>/gaps` and `/topic/<qid>`. Every topic on them
+is already public on Wikidata, and S2 means nothing enters scope without a
+sourced reference, so nothing here is secret. But a paginated, crawlable
+list of real people's names gathered under a queer-topics heading is a new
+artefact that Duga would be *creating* rather than reflecting, and the
+topic page concentrates everything Duga knows about one person onto one
+URL. Guardrail 12 ("when in doubt about a sensitive display decision, show
+less") and S7's exclusion of living people from "any bulk/batch surface"
+both point the same way. The pages stay fully public and linkable; they
+are simply not gathered up by search engines. Login, OAuth, account and
+the write forms are `noindex` for the duller reason that they index to
+nothing.
+
+Every page also carries a canonical URL with the query string dropped
+(`?uselang=`, filters and page numbers are views of one document, not
+separate ones), `hreflang` alternates for each *interface* language, and
+Open Graph tags. Content languages are deliberately absent from the
+`hreflang` set: `/sr/gaps` and `/de/gaps` are different subjects, not
+translations of each other.
+
 ## Request flow (web app)
 
 Every route is a plain `GET` rendering a template; nothing on the web side
@@ -319,6 +376,23 @@ be used to fake having fixed something.
   (`scripts/set_gap_override.py --clear`). This is a real, if narrow,
   reversibility gap worth revisiting if it turns out to matter in practice --
   flagged here rather than solved speculatively.
+
+## The topic page
+
+`GET /topic/<qid>` (`main.topic_detail`) answers "what is missing about
+this topic anywhere", where the gap list answers "what is missing in
+Serbian". It groups a topic's visible gaps by language, shows why the
+topic is in scope, and is reached from the label on every gap row.
+
+It is also where **suppression** now lives. The gap list used to repeat
+the suppress link on all fifty of its rows, beside two override buttons --
+a lot of destructive affordance for an action that applies to the topic as
+a whole rather than to the row it was clicked from. One control, on the
+page about the thing being suppressed, is the right shape.
+
+Visibility comes from the same `_visible_gaps_query()` everything else
+uses, and a suppressed topic 404s here exactly as its gaps vanish
+elsewhere (S4). The page is `noindex` -- see "Search engines" above.
 
 ## Self-service suppression
 

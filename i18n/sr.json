@@ -195,5 +195,18 @@
   "duga-gaps-order-note": "Прво теме које се на овом језику највише читају.",
   "duga-gaps-page-position": "Страница $1 од $2",
   "duga-gaps-add-word-button": "Додај реч за ово",
-  "duga-lang-home-breakdown-title": "Шта недостаје"
+  "duga-lang-home-breakdown-title": "Шта недостаје",
+  "duga-topic-gap-count": "Недостаје $1 ствари, на $2 језика.",
+  "duga-topic-view-language-gaps": "Сви недостаци за $1",
+  "duga-topic-no-gaps": "Тренутно ништа не недостаје за ову тему.",
+  "duga-home-search-label": "Пронађи језик",
+  "duga-home-search-placeholder": "Унесите назив језика",
+  "duga-home-search-submit": "Тражи",
+  "duga-home-search-empty": "Ниједан праћени језик се не поклапа.",
+  "duga-home-search-clear": "Прикажи све језике",
+  "duga-home-suggested-title": "Језици које читате",
+  "duga-home-all-languages-title": "Свих $1 језика",
+  "duga-gaps-meta-description": "Шта недостаје на Викимедијиним пројектима на језику $1 и где се то може исправити.",
+  "duga-lang-home-meta-description": "Квир знање које недостаје на Викимедијиним пројектима на језику $1: шта недостаје, зашто и како помоћи.",
+  "duga-vocab-meta-description": "Квир речник на језику $1: речи, регистри и извори иза њих."
 }

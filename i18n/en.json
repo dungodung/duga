@@ -199,5 +199,18 @@
   "duga-gaps-order-note": "Most-read topics in this language first.",
   "duga-gaps-page-position": "Page $1 of $2",
   "duga-gaps-add-word-button": "Add a word for this",
-  "duga-lang-home-breakdown-title": "What's missing"
+  "duga-lang-home-breakdown-title": "What's missing",
+  "duga-topic-gap-count": "$1 things missing, across $2 language(s).",
+  "duga-topic-view-language-gaps": "All $1 gaps",
+  "duga-topic-no-gaps": "Nothing is missing for this topic right now.",
+  "duga-home-search-label": "Find a language",
+  "duga-home-search-placeholder": "Type a language name",
+  "duga-home-search-submit": "Search",
+  "duga-home-search-empty": "No tracked language matches that.",
+  "duga-home-search-clear": "Show every language",
+  "duga-home-suggested-title": "Languages you read",
+  "duga-home-all-languages-title": "All $1 languages",
+  "duga-gaps-meta-description": "What's missing from Wikimedia projects in $1, and where to fix it.",
+  "duga-lang-home-meta-description": "Queer knowledge missing from Wikimedia projects in $1: what's missing, why, and how to help.",
+  "duga-vocab-meta-description": "Queer vocabulary in $1: words, registers, and the sources behind them."
 }

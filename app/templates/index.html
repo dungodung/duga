@@ -1,15 +1,50 @@
 {% extends "base.html" %}
 {% block title %}{{ _('duga-home-title') }} — {{ _('duga-tagline') }}{% endblock %}
+{% block description %}{{ _('duga-home-intro') }}{% endblock %}
 {% block content %}
 <h1>{{ _('duga-home-title') }}</h1>
 <p class="tagline">{{ _('duga-tagline') }}</p>
 <p>{{ _('duga-home-intro') }}</p>
+
 <h2>{{ _('duga-home-pick-language') }}</h2>
-<ul class="lang-list">
-  {% for language in languages %}
-  {# An autonym is by definition written in its own language, not in the
-     interface language -- see docs/i18n.md on the two being independent. #}
+
+{# Plain GET form: filtering happens server-side, so this works with
+   JavaScript off (SPEC.md section 12). enhance.js only makes it filter as
+   you type, and hides the button it then no longer needs. #}
+<form class="lang-search" method="get" action="{{ url_for('main.home') }}" role="search">
+  <label for="lang-q">{{ _('duga-home-search-label') }}</label>
+  <input type="search" id="lang-q" name="q" value="{{ query }}" autocomplete="off"
+         placeholder="{{ _('duga-home-search-placeholder') }}">
+  <button type="submit">{{ _('duga-home-search-submit') }}</button>
+</form>
+
+{% if suggested and not query %}
+{# A convenience, never a filter: the full list is directly below. No
+   counts and no size ordering anywhere on this page -- SPEC.md S6 rules
+   out any view that ranks languages against each other, including
+   implicitly. #}
+<h3 class="lang-group-heading">{{ _('duga-home-suggested-title') }}</h3>
+<ul class="lang-list lang-list-suggested">
+  {% for language in suggested %}
   <li><a href="{{ url_for('main.lang_home', lang=language.code) }}" lang="{{ language.code }}">{{ language.autonym }}</a></li>
   {% endfor %}
 </ul>
+{% endif %}
+
+{% if languages %}
+<h3 class="lang-group-heading">{{ _('duga-home-all-languages-title', total_languages) }}</h3>
+<ul class="lang-list" id="lang-list">
+  {% for language in languages %}
+  {# An autonym is by definition written in its own language, not in the
+     interface language -- see docs/i18n.md on the two being independent. #}
+  <li data-autonym="{{ language.autonym | lower }}" data-code="{{ language.code }}">
+    <a href="{{ url_for('main.lang_home', lang=language.code) }}" lang="{{ language.code }}">{{ language.autonym }}</a>
+  </li>
+  {% endfor %}
+</ul>
+<p class="lang-empty" id="lang-empty" hidden>{{ _('duga-home-search-empty') }}</p>
+{% else %}
+<p class="lang-empty">{{ _('duga-home-search-empty') }}</p>
+<p><a href="{{ url_for('main.home') }}">{{ _('duga-home-search-clear') }}</a></p>
+{% endif %}
 {% endblock %}
