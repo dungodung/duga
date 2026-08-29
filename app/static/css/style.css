@@ -137,6 +137,52 @@ a {
   margin-bottom: 1rem;
 }
 
+.gap-summary {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.gap-order-note {
+  display: block;
+  font-size: 0.85rem;
+}
+
+.breakdown-list {
+  list-style: none;
+  padding: 0;
+}
+
+.breakdown-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.breakdown-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.gap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+}
+
+.page-position {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.pagination {
+  align-items: baseline;
+}
+
 .gap-list {
   list-style: none;
   padding: 0;
@@ -282,4 +328,64 @@ form textarea {
 
 .evidence-list {
   padding-left: 1.25rem;
+}
+
+/* Phones. SPEC.md section 12 requires the add-a-term flow to be completable
+   on a phone in under 60 seconds, and a logged-in gap row carries a lot:
+   label, meta, two or three links, and an override form with a text input
+   and two buttons. Below this width they stack instead of fighting over
+   one line. */
+@media (max-width: 30rem) {
+  .site-header, .site-footer, main {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .site-header {
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+  }
+
+  .gap-row,
+  .gap-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .gap-label,
+  .gap-meta {
+    flex: none;
+    min-width: 0;
+  }
+
+  /* Full-width tap targets rather than links crammed onto one line. */
+  .gap-override-form {
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+  }
+
+  .gap-override-reason {
+    width: 100%;
+    font-size: 1rem;
+    padding: 0.4rem;
+  }
+
+  .gap-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gap-filters select,
+  .gap-filter {
+    width: 100%;
+  }
+
+  .vocab-add-form {
+    max-width: none;
+  }
+
+  .term-row,
+  .breakdown-list li {
+    flex-wrap: wrap;
+  }
 }

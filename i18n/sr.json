@@ -190,5 +190,10 @@
   "duga-suppress-reason-required": "Разлог је обавезан за сакривање.",
   "duga-suppress-button": "Сакриј",
   "duga-suppress-cancel": "Одустани, остави видљиво",
-  "duga-suppress-success": "$1 је сада сакривено."
+  "duga-suppress-success": "$1 је сада сакривено.",
+  "duga-gaps-showing": "Приказано $1–$2 од $3.",
+  "duga-gaps-order-note": "Прво теме које се на овом језику највише читају.",
+  "duga-gaps-page-position": "Страница $1 од $2",
+  "duga-gaps-add-word-button": "Додај реч за ово",
+  "duga-lang-home-breakdown-title": "Шта недостаје"
 }

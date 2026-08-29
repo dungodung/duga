@@ -49,7 +49,10 @@ def compute_gaps_for_language(app, language_code, qids):
         )
         for qid, info in data.items():
             if not info["description_language"]:
-                missing[qid] = {"label": info["label_language"] or info["label_en"]}
+                missing[qid] = {
+                    "label": info["label_language"] or info["label_en"],
+                    "label_lang": language_code if info["label_language"] else "en",
+                }
     return missing
 
 

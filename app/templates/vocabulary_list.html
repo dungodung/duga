@@ -8,7 +8,7 @@
   <h2>{{ _('duga-vocab-add-title') }}</h2>
   <p>
     <label for="concept_label">{{ _('duga-vocab-add-concept-label') }}</label><br>
-    <input type="text" id="concept_label" name="concept_label" list="concept-suggestions" required>
+    <input type="text" id="concept_label" name="concept_label" list="concept-suggestions" value="{{ prefill_concept }}" required>
     <datalist id="concept-suggestions">
       {% for label in concept_labels %}
       <option value="{{ label }}">
@@ -17,7 +17,7 @@
   </p>
   <p>
     <label for="written_form">{{ _('duga-vocab-add-word-label', language.autonym) }}</label><br>
-    <input type="text" id="written_form" name="written_form" required>
+    <input type="text" id="written_form" name="written_form" lang="{{ language.code }}" required>
   </p>
   <p>
     <label for="register">{{ _('duga-vocab-register-label') }}</label><br>
@@ -42,7 +42,7 @@
 <ul class="term-list">
   {% for term in terms %}
   <li class="term-row">
-    <a href="{{ url_for('vocab.term_detail', lang=language.code, term_id=term.id) }}">{{ term.written_form }}</a>
+    <a href="{{ url_for('vocab.term_detail', lang=language.code, term_id=term.id) }}" lang="{{ term.language_code }}">{{ term.written_form }}</a>
     <span class="term-meta">
       {{ _('duga-vocab-register-' ~ term.register) }}
       · {{ _('duga-vocab-grade-' ~ term.evidence_grade) }}

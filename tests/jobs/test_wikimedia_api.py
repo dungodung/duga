@@ -245,7 +245,7 @@ def test_get_claims_batch_true_when_property_present():
         status=200,
     )
     result = get_claims_batch(API_URL, ["Q1"], ["P18"], "sr", "test-agent")
-    assert result["Q1"] == {"claims": {"P18": True}, "label": "Has an image"}
+    assert result["Q1"] == {"claims": {"P18": True}, "label": "Has an image", "label_lang": "en"}
 
 
 @responses.activate
@@ -265,7 +265,7 @@ def test_get_claims_batch_false_when_property_absent():
         status=200,
     )
     result = get_claims_batch(API_URL, ["Q1"], ["P18"], "sr", "test-agent")
-    assert result["Q1"] == {"claims": {"P18": False}, "label": None}
+    assert result["Q1"] == {"claims": {"P18": False}, "label": None, "label_lang": None}
 
 
 @responses.activate
@@ -289,4 +289,29 @@ def test_get_claims_batch_handles_missing_entity():
         status=200,
     )
     result = get_claims_batch(API_URL, ["Q999"], ["P18", "P373"], "sr", "test-agent")
-    assert result["Q999"] == {"claims": {"P18": False, "P373": False}, "label": None}
+    assert result["Q999"] == {"claims": {"P18": False, "P373": False}, "label": None, "label_lang": None}
+
+
+@responses.activate
+def test_get_entities_batch_reports_the_language_the_label_came_back_in():
+    """The requested language is not necessarily what comes back --
+    languagefallback can answer an `sr` request from another language, and
+    there is an explicit English fallback besides. The UI needs to know
+    which, so it can mark the text with a correct `lang` attribute instead
+    of asserting Serbian over an English string."""
+    responses.add(
+        responses.GET,
+        API_URL,
+        json={
+            "entities": {
+                "Q1": {"id": "Q1", "sitelinks": {}, "labels": {"sr": {"value": "Пример", "language": "sr"}}},
+                "Q2": {"id": "Q2", "sitelinks": {}, "labels": {"en": {"value": "Example", "language": "en"}}},
+                "Q3": {"id": "Q3", "sitelinks": {}, "labels": {}},
+            }
+        },
+        status=200,
+    )
+    result = get_entities_batch(API_URL, ["Q1", "Q2", "Q3"], "sr", "test-agent")
+    assert result["Q1"]["label_lang"] == "sr"
+    assert result["Q2"]["label_lang"] == "en"
+    assert result["Q3"]["label_lang"] is None

@@ -26,7 +26,7 @@ def make_compute_fn(property_id: str):
             )
             for qid, info in entities.items():
                 if not info["claims"][property_id]:
-                    missing[qid] = {"label": info["label"]}
+                    missing[qid] = {"label": info["label"], "label_lang": info["label_lang"]}
         return missing
 
     return compute_gaps_for_language

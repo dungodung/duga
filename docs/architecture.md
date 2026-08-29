@@ -276,6 +276,25 @@ active scope_version_id; `gap` per detector_key + language_code), while
 never touched by a job) and `gap_override` rows are never touched by a
 detector at all.
 
+## Connecting the two halves
+
+Duga is a gap engine and a vocabulary tool, and for a long time nothing
+linked them: 60,000 gaps on one side, a handful of terms on the other. A
+missing Wikidata **label** or **description** is precisely the moment
+someone knows the local word, so those rows carry an "add a word for this"
+link into `/<lang>/vocabulary` with the topic's name prefilled
+(`prefill_concept`, display-only -- `add_term` still reads the submitted
+field).
+
+Two deliberate limits on where that link appears:
+
+- Only `no_label`/`no_description` gaps (`VOCABULARY_INVITING_GAP_TYPES`).
+  On a *missing article*, adding a local word is not the fix.
+- Never on a person. `gaps()` looks up which of the page's topics are
+  `is_human` and suppresses the link for them: "add a word for this
+  person" is not a coherent request, and inviting people to coin words for
+  named individuals is not something this tool should do.
+
 ## Self-service gap overrides
 
 SPEC.md section 12's `POST /gap/override` (`app/blueprints/main/routes.py:
@@ -536,6 +555,48 @@ doesn't get its own gap until the first one gets a citation.
 
 Their `project` row (`vocabulary`, family `duga` since it isn't a real
 Wikimedia sister project) is seeded by migration `c2669d54cd43`.
+
+## Reading a long list: position, ordering, and language
+
+Three details of the gap list that are easy to get wrong and were, for a
+while:
+
+**Position.** The list is 50 rows out of tens of thousands, so a page with
+only prev/next links gives no way to tell how many results exist, where you
+are, or -- most importantly -- whether the filter you just applied did
+anything at all. `showing_from`/`showing_to`/`total`/`page_count` are passed
+to the template and rendered above the list and in the pagination.
+
+**Ordering.** Rows are ordered by `impact_score`, which SPEC.md S6 and
+guardrail 12 keep off the screen as a number (see "Impact scoring" below
+for why a bare score beside a real person's name was rejected). But an
+unexplained order reads as an arbitrary one, so the page states the
+*principle* in words -- "most-read topics in this language first" --
+which gives the reader the model without giving them the number.
+
+**Language.** `<html lang>` is the *interface* language, and gap labels are
+not necessarily in it: SPEC.md section 13 keeps interface and content
+language independent on purpose. A label is therefore marked with its own
+`lang` attribute -- but only when its language is actually known, which is
+subtler than it looks:
+
+- `get_entities_batch`/`get_claims_batch` request the content language with
+  `languagefallback=1` plus an explicit English fallback, so a request for
+  `sr` can come back in English. They now return `label_lang` alongside
+  `label`, taken from the API's own report of what it answered with.
+- `wd_no_label`'s label is English **by construction** -- the gap is that
+  there is no label in the tracked language -- so it records `"en"`.
+- `wd_no_description` records whichever branch it took.
+- `vocab_no_evidence` is the one detector that knows exactly: its label is
+  Duga's own term, in that term's language.
+
+Gap rows written before detectors recorded this have no `label_lang`, and
+the template then emits no attribute rather than guessing. Detectors rewrite
+their rows nightly, so the data self-heals within a day of deploying.
+
+The same reasoning puts `lang` on autonyms in the language picker and the
+interface switcher, and on term written forms throughout the vocabulary
+views.
 
 ## Gap list filters and staleness
 

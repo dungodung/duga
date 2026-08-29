@@ -41,7 +41,7 @@
     <label for="uselang">{{ _('duga-home-interface-language') }}</label>
     <select name="uselang" id="uselang">
       {% for code in available_languages %}
-      <option value="{{ code }}"{% if code == interface_lang %} selected{% endif %}>{{ autonym(code) }}</option>
+      <option value="{{ code }}" lang="{{ code }}"{% if code == interface_lang %} selected{% endif %}>{{ autonym(code) }}</option>
       {% endfor %}
     </select>
     <button type="submit">{{ _('duga-home-interface-language-submit') }}</button>

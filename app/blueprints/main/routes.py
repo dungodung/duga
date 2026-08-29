@@ -22,6 +22,11 @@ GAP_MATURITIES = ("stable", "beta", "experimental")
 # maturity filter has to agree with the label the row visibly carries, or
 # filtering by what you can read on screen would silently drop rows.
 UNREGISTERED_MATURITY = "experimental"
+# Gap types where inviting a local word makes sense: the topic has no name
+# in this language yet, which is the one thing a speaker of it can supply
+# from their own head. Not offered on people (see human_qids below) -- "add
+# a word for this person" is not a coherent request.
+VOCABULARY_INVITING_GAP_TYPES = {"no_label", "no_description"}
 
 
 def _t(key, *args):
@@ -92,11 +97,24 @@ def lang_home(lang):
     )
     total_gaps = sum(count for *_rest, count in gap_counts)
 
+    # The GROUP BY above used to be collapsed straight into that sum and
+    # discarded. Passing it through turns this page into the way into the
+    # gap list: every row links to itself, pre-filtered, which is also how
+    # the ?project=/?type= filters get discovered at all.
+    breakdown = sorted(
+        (
+            {"project_code": project_code, "gap_type": gap_type, "count": count}
+            for project_code, gap_type, count in gap_counts
+        ),
+        key=lambda row: -row["count"],
+    )
+
     return render_template(
         "lang_home.html",
         language=language,
         detectors=detectors,
         total_gaps=total_gaps,
+        breakdown=breakdown,
         has_any_detector_run=any(d.last_run_at for d in detectors),
     )
 
@@ -188,6 +206,16 @@ def gaps(lang):
             rule_labels.get((tr.scope_version_id, tr.rule_key), tr.rule_key)
         )
 
+    # Which of these topics are people. A local word for a *concept* is a
+    # useful thing to invite; "add a word for this person" is not, so the
+    # vocabulary cross-link below is offered only for non-human topics.
+    human_qids = {
+        qid
+        for (qid,) in Topic.query.with_entities(Topic.qid)
+        .filter(Topic.qid.in_(topic_qids), Topic.is_human.is_(True))
+        .all()
+    } if topic_qids else set()
+
     items = []
     for row in rows:
         evidence = json.loads(row.evidence_json) if row.evidence_json else {}
@@ -196,12 +224,29 @@ def gaps(lang):
                 "id": row.id,
                 "qid": row.topic_qid,
                 "label": evidence.get("label") or row.topic_qid,
+                # Which language that label is actually in -- detectors
+                # record it because a request for `sr` can come back in
+                # English, and wd_no_label's label is English by
+                # construction. Absent on rows written before detectors
+                # started storing it; the template then emits no `lang`
+                # attribute rather than guessing.
+                "label_lang": evidence.get("label_lang"),
+                "is_human": row.topic_qid in human_qids,
                 "project_code": row.project_code,
                 "gap_type": row.gap_type,
                 "maturity": detector_maturity.get(row.detector_key, UNREGISTERED_MATURITY),
                 "action_url": row.action_url,
                 "why_in_scope": rules_by_topic.get((row.scope_version_id, row.topic_qid), []),
                 "editable": row.project_code == "wikidata" and row.gap_type in EDITABLE_GAP_TYPES,
+                "vocabulary_url": (
+                    url_for(
+                        "vocab.list_terms",
+                        lang=row.language_code,
+                        concept=evidence.get("label") or row.topic_qid,
+                    )
+                    if row.gap_type in VOCABULARY_INVITING_GAP_TYPES and row.topic_qid not in human_qids
+                    else None
+                ),
             }
         )
 
@@ -212,6 +257,9 @@ def gaps(lang):
         page=page,
         total=total,
         page_size=GAPS_PAGE_SIZE,
+        showing_from=(page - 1) * GAPS_PAGE_SIZE + 1 if items else 0,
+        showing_to=(page - 1) * GAPS_PAGE_SIZE + len(items),
+        page_count=max(-(-total // GAPS_PAGE_SIZE), 1),
         has_next=page * GAPS_PAGE_SIZE < total,
         project_filter=project_filter,
         type_filter=type_filter,

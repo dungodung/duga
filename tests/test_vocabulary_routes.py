@@ -291,3 +291,38 @@ def test_concept_detail_excludes_suppressed_terms(client, db, seed_languages):
     resp = client.get(f"/concept/{concept.id}?uselang=en")
     assert "видљиво".encode() in resp.data
     assert b"cach\xc3\xa9" not in resp.data
+
+
+def test_add_term_form_prefills_the_concept_from_the_gap_list_link(client, db, seed_languages, logged_in):
+    """The gap list's "add a word for this" link carries the topic name
+    through, so nobody retypes it -- SPEC.md section 12 puts a 60-second
+    phone budget on this flow."""
+    resp = client.get("/sr/vocabulary?concept=genderqueer&uselang=en")
+    assert resp.status_code == 200
+    assert b'id="concept_label"' in resp.data
+    assert b'value="genderqueer"' in resp.data
+
+
+def test_add_term_form_is_empty_without_the_prefill(client, db, seed_languages, logged_in):
+    resp = client.get("/sr/vocabulary?uselang=en")
+    assert b'value=""' in resp.data or b'name="concept_label" list="concept-suggestions" value=""' in resp.data
+
+
+def test_prefill_is_display_only_and_does_not_create_anything(client, db, seed_languages, logged_in):
+    """Visiting the prefilled URL must not create a concept -- only the
+    POST does."""
+    client.get("/sr/vocabulary?concept=genderqueer")
+    assert Concept.query.count() == 0
+
+
+def test_term_written_form_is_marked_with_its_own_language(client, db, seed_languages):
+    """Interface and content language are independent (SPEC.md section 13),
+    so a screen reader needs to be told which language the word is in."""
+    concept = make_concept()
+    term = make_term(concept, lang="sr", written_form="родно квир")
+
+    body = client.get("/sr/vocabulary?uselang=en").data.decode()
+    assert f'lang="sr">родно квир</a>' in body
+
+    detail = client.get(f"/sr/vocabulary/{term.id}?uselang=en").data.decode()
+    assert '<h1 lang="sr">родно квир</h1>' in detail

@@ -79,6 +79,10 @@ def compute_gaps_for_language(app, language_code, qids):
             continue  # keep the lowest-id under-evidenced term per (topic, language)
         missing[qid] = {
             "label": written_form,
+            # Unlike every other detector, the label here is Duga's own
+            # term, so its language is known exactly rather than inferred
+            # from what Wikidata happened to return.
+            "label_lang": language_code,
             "_action_url": f"/{language_code}/vocabulary/{term_id}#add-evidence-form",
         }
     return missing

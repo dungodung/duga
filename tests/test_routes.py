@@ -557,6 +557,112 @@ def test_gaps_page_does_not_warn_about_a_failed_but_disabled_detector(client, db
     assert b"may be out of date" not in resp.data
 
 
+def _topic_row(qid, is_human=False):
+    now = datetime.now(timezone.utc)
+    return Topic(qid=qid, entity_class="human" if is_human else "concept", is_human=is_human,
+                 is_living=False, first_seen=now, last_seen=now)
+
+
+def test_gaps_page_says_where_you_are_in_a_long_list(client, db, seed_languages):
+    """50 rows out of tens of thousands, with only prev/next, gave no way
+    to tell how many results there were or whether a filter did anything."""
+    db.session.add_all(_gap(f"Q{i}", f"Topic {i}") for i in range(60))
+    db.session.commit()
+
+    page1 = client.get("/sr/gaps?uselang=en")
+    assert b"Showing 1\xe2\x80\x9350 of 60." in page1.data.replace(b"\xe2\x80\x93", b"\xe2\x80\x93")
+    assert b"Page 1 of 2" in page1.data
+
+    page2 = client.get("/sr/gaps?page=2&uselang=en")
+    assert b"of 60." in page2.data
+    assert b"Page 2 of 2" in page2.data
+
+
+def test_gaps_page_count_reflects_the_active_filter(client, db, seed_languages):
+    db.session.add_all([_gap("Q1", "Article Topic"), _gap("Q2", "Label Topic", project="wikidata", gap_type="no_label")])
+    db.session.commit()
+
+    assert b"of 2." in client.get("/sr/gaps?uselang=en").data
+    assert b"of 1." in client.get("/sr/gaps?project=wikidata&uselang=en").data
+
+
+def test_gaps_page_marks_the_label_with_the_language_it_is_actually_in(client, db, seed_languages):
+    """A label requested in sr can come back in English, and wd_no_label's
+    label is English by construction -- so the detectors record which, and
+    the page must not assert the content language over an English string."""
+    now = datetime.now(timezone.utc)
+    db.session.add_all(
+        [
+            Gap(topic_qid="Q1", language_code="sr", project_code="wikidata", gap_type="no_label",
+                detector_key="wd_no_label", scope_version_id=1,
+                evidence_json='{"label": "Marsha P. Johnson", "label_lang": "en"}',
+                action_url="https://example.org/1", computed_at=now),
+            Gap(topic_qid="Q2", language_code="sr", project_code="wikipedia", gap_type="no_article",
+                detector_key="wp_no_article", scope_version_id=1,
+                evidence_json='{"label": "\u0440\u043e\u0434\u043d\u043e \u043a\u0432\u0438\u0440", "label_lang": "sr"}',
+                action_url="https://example.org/2", computed_at=now),
+        ]
+    )
+    db.session.commit()
+
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    assert '<div class="gap-label" lang="en">Marsha P. Johnson</div>' in body
+    assert '<div class="gap-label" lang="sr">родно квир</div>' in body
+
+
+def test_gaps_page_omits_the_lang_attribute_when_the_label_language_is_unknown(client, db, seed_languages):
+    """Rows written before detectors recorded label_lang: guess nothing."""
+    db.session.add(_gap("Q1", "Unknown Provenance"))
+    db.session.commit()
+
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    assert '<div class="gap-label">Unknown Provenance</div>' in body
+
+
+def test_gaps_page_invites_a_local_word_only_where_it_makes_sense(client, db, seed_languages):
+    """A missing label on a concept is an invitation to supply the local
+    word. On a person it is not a coherent request, and on a missing
+    article it is the wrong fix."""
+    db.session.add_all(
+        [
+            _topic_row("Q1", is_human=False),
+            _topic_row("Q2", is_human=True),
+            _gap("Q1", "genderqueer", project="wikidata", gap_type="no_label", detector_key="wd_no_label"),
+            _gap("Q2", "A Person", project="wikidata", gap_type="no_label", detector_key="wd_no_label"),
+            _gap("Q1", "genderqueer"),  # no_article on the same concept
+        ]
+    )
+    db.session.commit()
+
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    assert "/sr/vocabulary?concept=genderqueer" in body
+    assert "concept=A+Person" not in body
+    # Exactly one invitation: the label gap, not the article gap.
+    assert body.count("Add a word for this") == 1
+
+
+def test_lang_home_breaks_the_count_down_by_project_and_type(client, db, seed_languages):
+    """The GROUP BY was already being run and thrown into a sum."""
+    db.session.add_all(
+        [
+            # The overview only shows anything once a detector has run.
+            Detector(detector_key="wp_no_article", project_code="wikipedia", gap_type="no_article",
+                     maturity="stable", last_run_at=datetime.now(timezone.utc), last_status="ok"),
+            _gap("Q1", "A"), _gap("Q2", "B"),
+            _gap("Q3", "C", project="wikidata", gap_type="no_label", detector_key="wd_no_label"),
+        ]
+    )
+    db.session.commit()
+
+    body = client.get("/sr/?uselang=en").data.decode()
+    assert "What&#39;s missing" in body
+    # Each row links into the gap list, pre-filtered to itself.
+    assert "/sr/gaps?project=wikipedia&amp;type=no_article" in body
+    assert "/sr/gaps?project=wikidata&amp;type=no_label" in body
+    # Ordered by count, biggest first.
+    assert body.index("project=wikipedia") < body.index("project=wikidata")
+
+
 def test_about_page_renders(client):
     resp = client.get("/about")
     assert resp.status_code == 200

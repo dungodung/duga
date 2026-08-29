@@ -15,6 +15,18 @@
   {% if total_gaps > 0 %}
   <p>{{ _('duga-lang-home-gap-count', total_gaps) }}</p>
   <p><a href="{{ url_for('main.gaps', lang=language.code) }}">{{ _('duga-lang-home-view-gaps') }}</a></p>
+
+  {# Every row is the same query the gap list runs, pre-filtered -- this is
+     also where the ?project=/?type= filters become discoverable at all. #}
+  <h2>{{ _('duga-lang-home-breakdown-title') }}</h2>
+  <ul class="breakdown-list">
+    {% for row in breakdown %}
+    <li>
+      <a href="{{ url_for('main.gaps', lang=language.code, project=row.project_code, type=row.gap_type) }}">{{ _('duga-gaps-what', _('duga-gaps-project-' ~ row.project_code), _('duga-gaps-type-' ~ row.gap_type)) }}</a>
+      <span class="breakdown-count">{{ row.count }}</span>
+    </li>
+    {% endfor %}
+  </ul>
   {% else %}
   <p>{{ _('duga-lang-home-no-gaps') }}</p>
   {% endif %}

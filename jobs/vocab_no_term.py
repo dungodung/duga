@@ -71,7 +71,7 @@ def compute_gaps_for_language(app, language_code, qids):
             app.config["DUGA_WIKIDATA_API"], chunk, language_code, app.config["DUGA_USER_AGENT"]
         )
         for qid, info in entities.items():
-            missing[qid] = {"label": info["label"]}
+            missing[qid] = {"label": info["label"], "label_lang": info["label_lang"]}
     return missing
 
 

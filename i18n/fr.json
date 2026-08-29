@@ -190,5 +190,10 @@
   "duga-suppress-reason-required": "Un motif est obligatoire pour masquer un élément.",
   "duga-suppress-button": "Masquer",
   "duga-suppress-cancel": "Annuler, laisser visible",
-  "duga-suppress-success": "$1 est désormais masqué."
+  "duga-suppress-success": "$1 est désormais masqué.",
+  "duga-gaps-showing": "Affichage de $1 à $2 sur $3.",
+  "duga-gaps-order-note": "Les sujets les plus consultés dans cette langue en premier.",
+  "duga-gaps-page-position": "Page $1 sur $2",
+  "duga-gaps-add-word-button": "Ajouter un mot pour ceci",
+  "duga-lang-home-breakdown-title": "Ce qui manque"
 }

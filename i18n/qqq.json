@@ -190,5 +190,10 @@
   "duga-suppress-reason-required": "Error shown when the suppression form is submitted with an empty reason.",
   "duga-suppress-button": "Button that carries out the suppression.",
   "duga-suppress-cancel": "Link that abandons the suppression and leaves the item visible.",
-  "duga-suppress-success": "Confirmation message after something is suppressed. $1 is the name of the topic, concept, or term."
+  "duga-suppress-success": "Confirmation message after something is suppressed. $1 is the name of the topic, concept, or term.",
+  "duga-gaps-showing": "Tells the visitor where they are in a long, paginated gap list. $1 and $2 are the first and last row numbers on this page, $3 is the total number of gaps matching the current filters.",
+  "duga-gaps-order-note": "One-line explanation of the gap list's ordering, shown under the count. The list is sorted by an internal impact score that is deliberately never displayed as a number (SPEC.md S6); this states the principle instead. \"Most-read\" refers to article traffic in the language being browsed.",
+  "duga-gaps-page-position": "Pagination position. $1 is the current page number, $2 is the total number of pages.",
+  "duga-gaps-add-word-button": "Link on a gap row offering to add a word in the local vocabulary for this topic. Shown only for missing-label/description gaps on topics that are not people. Leads to the add-a-term form with the concept name filled in.",
+  "duga-lang-home-breakdown-title": "Heading above the per-project, per-gap-type breakdown on a language's overview page. Each row links to the gap list filtered to that combination."
 }

@@ -75,6 +75,11 @@ def list_terms(lang):
         terms=terms,
         concept_labels=concept_labels,
         registers=sorted(VALID_REGISTERS),
+        # Prefill for the gap list's "add a word for this" link: a
+        # missing-label gap is exactly the moment someone knows the local
+        # word, and retyping the concept is the friction that loses them.
+        # Display-only -- add_term still reads the submitted form field.
+        prefill_concept=(request.args.get("concept") or "").strip(),
     )
 
 

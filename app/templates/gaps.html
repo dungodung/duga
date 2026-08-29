@@ -42,10 +42,18 @@
 {% endif %}
 
 {% if items %}
+<p class="gap-summary">
+  {{ _('duga-gaps-showing', showing_from, showing_to, total) }}
+  {# The list is ordered by impact score, which SPEC.md S6 and guardrail 12
+     keep off the screen as a number. Saying what the ordering *is*, in
+     words, costs nothing and stops the sequence reading as arbitrary. #}
+  <span class="gap-order-note">{{ _('duga-gaps-order-note') }}</span>
+</p>
+
 <ul class="gap-list">
   {% for item in items %}
   <li class="gap-row">
-    <div class="gap-label">{{ item.label }}</div>
+    <div class="gap-label"{% if item.label_lang %} lang="{{ item.label_lang }}"{% endif %}>{{ item.label }}</div>
     <div class="gap-meta">
       {{ _('duga-gaps-what', _('duga-gaps-project-' ~ item.project_code), _('duga-gaps-type-' ~ item.gap_type)) }}
       · {{ _('duga-gaps-maturity-' ~ item.maturity) }}
@@ -53,7 +61,14 @@
       · {{ _('duga-gaps-why-in-scope', item.why_in_scope | join(', ')) }}
       {% endif %}
     </div>
+    <div class="gap-actions">
     <a class="gap-action" href="{{ item.action_url }}">{{ _('duga-gaps-fix-button') }}</a>
+    {% if item.vocabulary_url %}
+    {# A missing label/description on a non-person topic is exactly when
+       someone knows the local word -- the one bridge between the gap
+       engine and the add-a-term flow. #}
+    <a class="gap-action" href="{{ item.vocabulary_url }}">{{ _('duga-gaps-add-word-button') }}</a>
+    {% endif %}
     {% if item.editable and contributor %}
     <a class="gap-action" href="{{ url_for('write.edit_form', gap_id=item.id) }}">{{ _('duga-gaps-edit-here-button') }}</a>
     {% endif %}
@@ -69,6 +84,7 @@
        everyone, not just this row. #}
     <a class="gap-action gap-suppress" href="{{ url_for('main.suppress_topic', qid=item.qid, lang=language.code) }}">{{ _('duga-suppress-link-topic') }}</a>
     {% endif %}
+    </div>
   </li>
   {% endfor %}
 </ul>
@@ -76,6 +92,7 @@
 {# url_for drops None-valued arguments, so an inactive filter simply
    isn't in the link -- and every active one survives paging. #}
 <nav class="pagination">
+  <span class="page-position">{{ _('duga-gaps-page-position', page, page_count) }}</span>
   {% if page > 1 %}
   <a href="{{ url_for('main.gaps', lang=language.code, page=page - 1, project=project_filter or none, type=type_filter or none, maturity=maturity_filter or none) }}">{{ _('duga-gaps-prev-page') }}</a>
   {% endif %}

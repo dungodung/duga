@@ -26,4 +26,4 @@ def test_make_compute_fn_flags_topics_missing_the_property():
     )
     compute = make_compute_fn("P18")
     missing = compute(app, "sr", ["Q1", "Q2"])
-    assert missing == {"Q1": {"label": "No image"}}
+    assert missing == {"Q1": {"label": "No image", "label_lang": "sr"}}

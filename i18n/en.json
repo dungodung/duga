@@ -194,5 +194,10 @@
   "duga-suppress-reason-required": "A reason is required to suppress something.",
   "duga-suppress-button": "Suppress",
   "duga-suppress-cancel": "Cancel, leave it visible",
-  "duga-suppress-success": "$1 is now suppressed."
+  "duga-suppress-success": "$1 is now suppressed.",
+  "duga-gaps-showing": "Showing $1–$2 of $3.",
+  "duga-gaps-order-note": "Most-read topics in this language first.",
+  "duga-gaps-page-position": "Page $1 of $2",
+  "duga-gaps-add-word-button": "Add a word for this",
+  "duga-lang-home-breakdown-title": "What's missing"
 }

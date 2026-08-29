@@ -37,7 +37,7 @@ def make_compute_fn(family: str):
             )
             for qid, info in entities.items():
                 if dbname not in info["sitelinks"]:
-                    missing[qid] = {"label": info["label"]}
+                    missing[qid] = {"label": info["label"], "label_lang": info["label_lang"]}
         return missing
 
     return compute_gaps_for_language

@@ -92,7 +92,16 @@ def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str,
     """Fetches sitelinks + a best-effort label (with MediaWiki's language
     fallback chain, then an explicit English fallback if that chain still
     came up empty) for up to 50 QIDs in one call. Returns
-    {qid: {"sitelinks": {"enwiki": {...}, ...}, "label": str | None}}.
+    {qid: {"sitelinks": {"enwiki": {...}, ...}, "label": str | None,
+    "label_lang": str | None}}.
+
+    `label_lang` is the language the label actually came back in, which is
+    not necessarily the one asked for: with languagefallback on, a request
+    for `sr` can be answered from a fallback chain or from the explicit
+    English fallback below. Callers store it so the UI can mark the text
+    with a correct `lang` attribute instead of asserting the requested
+    language over a value that may be English.
+
     Callers needing more than 50 ids must chunk themselves.
     """
     if len(qids) > MAX_ENTITY_IDS_PER_REQUEST:
@@ -123,13 +132,14 @@ def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str,
     result = {}
     for qid, entity in data.get("entities", {}).items():
         if "missing" in entity:
-            result[qid] = {"sitelinks": {}, "label": None}
+            result[qid] = {"sitelinks": {}, "label": None, "label_lang": None}
             continue
         labels = entity.get("labels", {})
         label_entry = labels.get(language) or labels.get("en")
         result[qid] = {
             "sitelinks": entity.get("sitelinks", {}),
             "label": label_entry["value"] if label_entry else None,
+            "label_lang": label_entry.get("language") if label_entry else None,
         }
     return result
 
@@ -140,7 +150,8 @@ def get_claims_batch(api_url: str, qids: list, properties: list, language: str, 
     up to 50 QIDs in one call -- for "is there a P18/P373/... statement at
     all" checks (commons_no_image, commons_no_category), as opposed to
     get_entities_batch's sitelink-presence check. Returns
-    {qid: {"claims": {property: bool}, "label": str | None}}.
+    {qid: {"claims": {property: bool}, "label": str | None,
+    "label_lang": str | None}} -- see get_entities_batch on `label_lang`.
     """
     if len(qids) > MAX_ENTITY_IDS_PER_REQUEST:
         raise ValueError(f"get_claims_batch takes at most {MAX_ENTITY_IDS_PER_REQUEST} ids at a time")
@@ -170,7 +181,7 @@ def get_claims_batch(api_url: str, qids: list, properties: list, language: str, 
     result = {}
     for qid, entity in data.get("entities", {}).items():
         if "missing" in entity:
-            result[qid] = {"claims": {prop: False for prop in properties}, "label": None}
+            result[qid] = {"claims": {prop: False for prop in properties}, "label": None, "label_lang": None}
             continue
         claims = entity.get("claims", {})
         labels = entity.get("labels", {})
@@ -178,6 +189,7 @@ def get_claims_batch(api_url: str, qids: list, properties: list, language: str, 
         result[qid] = {
             "claims": {prop: bool(claims.get(prop)) for prop in properties},
             "label": label_entry["value"] if label_entry else None,
+            "label_lang": label_entry.get("language") if label_entry else None,
         }
     return result
 

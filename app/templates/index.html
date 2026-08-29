@@ -7,7 +7,9 @@
 <h2>{{ _('duga-home-pick-language') }}</h2>
 <ul class="lang-list">
   {% for language in languages %}
-  <li><a href="{{ url_for('main.lang_home', lang=language.code) }}">{{ language.autonym }}</a></li>
+  {# An autonym is by definition written in its own language, not in the
+     interface language -- see docs/i18n.md on the two being independent. #}
+  <li><a href="{{ url_for('main.lang_home', lang=language.code) }}" lang="{{ language.code }}">{{ language.autonym }}</a></li>
   {% endfor %}
 </ul>
 {% endblock %}
