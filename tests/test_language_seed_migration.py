@@ -33,8 +33,34 @@ def test_new_languages_are_the_measured_top_ten_minus_what_is_already_seeded():
     codes = {row["code"] for row in new.NEW_LANGUAGES}
     # Top ten Wikipedias by article count as measured on 2026-08-29; fr is
     # already seeded, so nine rows are new. Pinned here so that changing the
-    # list is a deliberate edit to a test, not a silent drift.
+    # list is a deliberate edit to a test, not a silent drift. `ceb` is
+    # still in this set because this migration really did seed it -- a
+    # later one (e51d9b3a7c04) removes it again rather than rewriting a
+    # migration that has already run in production.
     assert codes == {"en", "ceb", "de", "sv", "nl", "es", "ru", "it", "pl"}
+
+
+def test_cebuano_is_removed_again_by_a_later_migration():
+    """Article count turned out to be the wrong measure for cebwiki: it is
+    largely bot-generated, so tracking it meant one of the biggest gap
+    lists in the tool with almost nobody there to act on it."""
+    drop = _load("e51d9b3a7c04_drop_cebuano_content_language.py")
+    assert drop.LANGUAGE_CODE == "ceb"
+    assert drop.down_revision == "c8a4d21f6b73"
+
+
+def test_the_cebuano_removal_leaves_human_written_terms_alone():
+    """A term is something a person typed. SPEC.md section 10 treats local
+    vocabulary as the contributor's own work, so it is suppressed by a
+    human decision, never deleted by a migration."""
+    import inspect
+
+    drop = _load("e51d9b3a7c04_drop_cebuano_content_language.py")
+    source = inspect.getsource(drop.upgrade)
+    assert "DELETE FROM term" not in source
+    # It does clear the computed rows, which no view could reach once the
+    # language row is gone and no detector would ever clean up.
+    assert '("gap", "language_code")' in source
 
 
 def test_every_new_language_has_a_non_empty_autonym():

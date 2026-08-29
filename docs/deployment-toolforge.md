@@ -421,7 +421,9 @@ toolforge jobs run migrate --command "flask --app wsgi db upgrade" \
   --image tool-duga/tool-duga:latest --wait 300
 ```
 
-Verify eleven seeded languages (the ten largest Wikipedias plus `sr`):
+Verify the seeded languages (the largest Wikipedias plus `sr`; `ceb` was
+seeded by `b3f1c07a5e92` and removed again by `e51d9b3a7c04`, so expect
+ten, not eleven):
 
 ```
 sql tools "select code, autonym from s58022__duga.language where seeded = 1 order by code"
@@ -457,7 +459,7 @@ python3 scripts/set_detector_enabled.py --list        # current state of all ten
 ```
 
 **Expect the daily job window to grow.** Detectors loop languages × topics,
-so going from two content languages to eleven is roughly a 5.5× increase in
+so going from two content languages to ten is roughly a 5× increase in
 outbound API calls and in `gap` rows. The existing schedule staggers the
 jobs between 03:00 and 08:00 UTC with `impact-score` last; if any job
 starts running into the next one's slot, spread the crontab out before
@@ -527,7 +529,7 @@ toolforge jobs list          # confirm all 13
 how to check for drift.
 
 The detectors were scheduled 20 minutes apart when Duga tracked two
-content languages and the slowest took 3m20s. At eleven they take ~18
+content languages and the slowest took 3m20s. At ten they take ~17
 minutes, so `jobs.yaml` moves everything to 30-minute slots between 02:00
 and 08:00 UTC. `impact-score` stays last: it scores whatever `gap` rows
 exist that day.

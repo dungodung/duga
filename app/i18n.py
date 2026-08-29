@@ -25,11 +25,11 @@ _PLACEHOLDER_RE = re.compile(r"\$(\d+)")
 # `language` table starting at M1. Conflating the two would violate the
 # interface/content independence principle in SPEC.md section 13.
 #
-# The two lists currently overlap heavily but are not identical: `ceb` is a
-# tracked *content* language with no interface translation, so a Cebuano
-# gap list is browsed with chrome in some other language. That asymmetry is
-# the normal state of affairs for a Wikimedia tool, not a bug to fix by
-# machine-translating into a language nobody here can check.
+# The two lists happen to match right now (ten each), which is a
+# coincidence rather than an invariant: `ceb` was briefly a tracked content
+# language with no interface translation, and any future content language
+# will be too until someone translates the chrome. Nothing should be built
+# that assumes the sets are equal.
 AUTONYMS = {
     "en": "English",
     "sr": "Српски",

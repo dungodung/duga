@@ -27,26 +27,40 @@ Two independent language concepts share this codebase (SPEC.md section 13):
   Accept-Language; `app/i18n.py`.
 - **Content languages** (`language` table, `seeded = true`) — which
   Wikimedia languages Duga tracks gaps for. A much larger, separately-grown
-  set; `app/models/reference.py`. Currently eleven: the ten largest
-  Wikipedias by article count (en, ceb, de, fr, sv, nl, es, ru, it, pl —
-  measured against each wiki's own `meta=siteinfo`, seeded by migration
-  `b3f1c07a5e92`) plus sr, which predates them and stays because it is the
-  conference language.
+  set; `app/models/reference.py`. Currently ten: the largest Wikipedias by
+  article count (en, de, fr, sv, nl, es, ru, it, pl — measured against each
+  wiki's own `meta=siteinfo`, seeded by migration `b3f1c07a5e92`) plus sr,
+  which predates them and stays because it is the conference language.
 
 They overlap only partly (en/sr/fr are both), and are read from different
 places on purpose, so adding a content language never requires an interface
 translation to exist first, or vice versa — you can browse German gaps with
 a Serbian interface, and nobody has translated Duga's chrome into German.
 
-Two things worth knowing about that top-ten list. It ranks by **article
-count**, which is not the same as ranking by community: `ceb` (6.1M
-articles, ~230 active users) and to a lesser extent `sv` are largely
-bot-generated, so their gap lists are long and their pool of people to fix
-anything is small. And every added language multiplies detector work —
-each detector loops languages × topics — so the daily job window and the
-`gap` table both grow roughly linearly with this list. Swapping the ranking
-for something community-weighted (active users, or a hand-picked set) is a
-one-line change to a migration, not a code change.
+**Article count is not community size**, and Cebuano is the case that
+proved it. `ceb` was seeded as the second-largest Wikipedia (6.1M
+articles) and dropped again a few hours later by migration
+`e51d9b3a7c04`: cebwiki is overwhelmingly bot-generated and has ~230
+active editors, so tracking it meant one of the largest gap lists in the
+tool with almost nobody there to act on it, and a nightly cost paid by
+every detector. `sv` is the same shape to a lesser degree and is worth
+watching. If the list is ever revisited, weighting by active editors
+rather than articles is the change to make.
+
+Every added language multiplies detector work — each detector loops
+languages × topics — so the daily job window and the `gap` table both grow
+roughly linearly with this list.
+
+Removing a content language is a **data** decision, so it gets a new
+migration rather than an edit to the one that added it: `b3f1c07a5e92` has
+already run in production, and rewriting it would leave the deployed
+database and the repo disagreeing about what happened. The removal clears
+that language's computed rows (`gap`, `gap_override`, `pageview_cache`),
+which no view could reach and no detector would ever clean up once the
+`language` row is gone — but deliberately leaves `term` rows alone. A term
+is something a person typed; SPEC.md section 10 treats local vocabulary as
+the contributor's own work, so it is suppressed by a human decision, never
+deleted by a migration.
 
 ## The language picker, and why it has no numbers on it
 

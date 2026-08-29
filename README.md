@@ -88,13 +88,14 @@ make vocab-no-evidence       # jobs/vocab_no_evidence.py -- experimental
 make impact-score            # jobs/impact_score.py -- scores gap.impact_score, run last
 ```
 
-Duga tracks eleven content languages: the ten largest Wikipedias by
-article count (en, ceb, de, fr, sv, nl, es, ru, it, pl) plus sr. The
-interface is translated into ten of them — everything but Cebuano, which
-nobody here can check; see `docs/i18n.md` for why the seven newest
-translations are marked unreviewed. SPEC.md section 13 keeps the two sets
-independent, so a missing interface translation never limits which
-languages Duga tracks gaps for.
+Duga tracks ten content languages: the largest Wikipedias by article
+count (en, de, fr, sv, nl, es, ru, it, pl) plus sr. Cebuano was seeded
+alongside them and dropped again — cebwiki is largely bot-generated, so
+tracking it meant a huge gap list with almost nobody there to act on it.
+The interface is translated into the same ten, though SPEC.md section 13
+keeps the two sets independent on purpose: a missing interface translation
+never limits which languages Duga tracks gaps for. See `docs/i18n.md` for
+why the seven newest translations are marked unreviewed.
 
 Operator actions (most of the rest is self-service now — see
 `docs/architecture.md`):
