@@ -462,3 +462,91 @@ outbound API calls and in `gap` rows. The existing schedule staggers the
 jobs between 03:00 and 08:00 UTC with `impact-score` last; if any job
 starts running into the next one's slot, spread the crontab out before
 adding more languages.
+
+## Pageview caching, and re-spacing the job schedule
+
+Impact scoring's traffic signal is one HTTP request per (topic, language)
+pair with no batch endpoint. Going from two content languages to eleven
+took that from ~60,000 requests a night to ~275,000, which does not fit in
+any job window. `pageview_cache` (migration `c8a4d21f6b73`) makes each pair
+a once-a-month fetch instead of a nightly one.
+
+Migrate, then rebuild:
+
+```
+toolforge jobs run migrate-pageview-cache --command "flask --app wsgi db upgrade" \
+  --image tool-duga/tool-duga:latest --wait 300
+toolforge build start https://github.com/<your-username>/duga --ref main
+toolforge webservice buildservice restart
+```
+
+**The first impact-score run of each month still pays full price** — it has
+an empty cache for the new month. Give it room, and expect later runs that
+month to finish in seconds:
+
+```
+toolforge jobs run impact-score --command "python3 jobs/impact_score.py" \
+  --image tool-duga/tool-duga:latest --wait 7200
+```
+
+Its log line now reports the split, e.g.
+`impact_score: pageviews for 2026-07 -- 249831 from cache, 12 fetched, 0 failed`.
+A run reporting almost everything "fetched" on a day that isn't the 1st
+means the cache isn't being hit — check that `month` matches
+`previous_month_key()`.
+
+### Re-spacing the schedule
+
+The detectors were scheduled 20 minutes apart when Duga tracked two
+languages and the slowest job took 3m20s. At eleven languages that job
+takes ~18 minutes, which is inside its slot but with no headroom. Move to
+30-minute slots:
+
+```
+toolforge jobs delete <name>          # one job name per call
+toolforge jobs create <name> --command "python3 jobs/<job>.py" \
+  --image tool-duga/tool-duga:latest --schedule "<min> <hour> * * *"
+```
+
+| job | schedule |
+|---|---|
+| `scope-fetch` | `0 2 * * *` |
+| `topic-refresh` | `30 2 * * *` |
+| `wp-no-article` | `0 3 * * *` |
+| `wd-no-label` | `30 3 * * *` |
+| `wd-no-description` | `0 4 * * *` |
+| `wiktionary-no-entry` | `30 4 * * *` |
+| `wikiquote-no-quotes` | `0 5 * * *` |
+| `wikisource-no-text` | `30 5 * * *` |
+| `commons-no-image` | `0 6 * * *` |
+| `commons-no-category` | `30 6 * * *` |
+| `vocab-no-term` | `0 7 * * *` |
+| `vocab-no-evidence` | `30 7 * * *` |
+| `impact-score` | `0 8 * * *` |
+
+`impact-score` stays last: it scores whatever `gap` rows exist that day.
+
+## Promoting a detector, and seeding vocabulary
+
+Neither is part of a deploy — both are decisions.
+
+```
+# after review with native speakers of at least two affected languages
+toolforge jobs run promote-detector \
+  --command "python3 scripts/promote_detector.py <key> --to beta --reviewer 'A (sr)' --reviewer 'B (fr)' --by <you> --yes" \
+  --image tool-duga/tool-duga:latest --wait 120
+```
+
+It refuses without two reviewers, and prints how many living topics the
+promotion would newly expose before it acts (SPEC.md S7 — see
+docs/architecture.md's "Enabling a detector vs. promoting one").
+
+Seeding vocabulary needs the reviewed file on the tool's filesystem, so
+copy it up first and dry-run before committing to it:
+
+```
+scp seed_concepts.json <you>@login.toolforge.org:/data/project/duga/
+become duga
+python3 scripts/seed_concepts.py /data/project/duga/seed_concepts.json --by <you> --dry-run
+python3 scripts/seed_concepts.py /data/project/duga/seed_concepts.json --by <you>
+```

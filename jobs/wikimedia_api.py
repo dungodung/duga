@@ -258,6 +258,15 @@ def _previous_month_range() -> tuple:
     return start, end
 
 
+def previous_month_key() -> str:
+    """The completed month get_monthly_pageviews() reports on, as
+    'YYYY-MM'. Derived from the same _previous_month_range() the request
+    URL is built from, so a cache keyed on this can never disagree with
+    the window that was actually fetched."""
+    start, _end = _previous_month_range()
+    return f"{start[:4]}-{start[4:6]}"
+
+
 def get_monthly_pageviews(language_code: str, article_title: str, user_agent: str, timeout: int = 15) -> int:
     """Total pageviews for `article_title` on `{language_code}.wikipedia`
     over the most recently completed calendar month (impact scoring,

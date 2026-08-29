@@ -350,6 +350,17 @@ reader to know the data model.
 
 ## Enabling a detector vs. promoting one
 
+`scripts/promote_detector.py` is the other half of this pair, and it is
+gated where the spec asks for a gate: it refuses to promote out of
+`experimental` without at least two named reviewers (SPEC.md section 11's
+"native speakers of at least two affected languages"), prints how many
+living topics the promotion would newly expose, and requires `--yes`
+before proceeding. Demotion back to `experimental` needs neither --
+making the handling of living people stricter never needs a ceremony.
+Reviewers and the S7 consequence are recorded in `audit_log`, so the
+decision is auditable after the fact rather than remembered.
+
+
 `scripts/set_detector_enabled.py` flips `detector.enabled` and nothing
 else. These are two separate switches and conflating them would quietly
 breach S7:
@@ -658,6 +669,70 @@ that one pair's traffic component to 0 and the run continues; the
 closing log line reports how many pairs fell back this way, so a
 systemic pageviews outage is still visible in the job's own output even
 though it doesn't block the run.
+
+**The pageviews cache (`pageview_cache`).** The traffic signal describes
+the most recently *completed* calendar month, so its value cannot change
+until the month rolls over -- but the job runs nightly, and originally
+refetched every pair every night. At two content languages that was
+roughly 60,000 sequential requests and tolerable; at eleven it is roughly
+275,000, which fits in no sane job window. `pageview_cache` keys a count
+by `(topic_qid, language_code, month)`, so each pair is fetched once per
+month and every later run that month is a single indexed read.
+
+Four details worth keeping straight:
+
+- **Failures are never cached.** A 5xx degrades that pair's traffic to 0
+  for the run (as before) but writes nothing, or one bad night would pin
+  the pair at zero until the month turned over. A genuine 404 is a
+  different thing -- `get_monthly_pageviews()` returns 0 rather than
+  raising, because "no data for this article" is a real answer -- and
+  that 0 *is* cached.
+- **A cached value only applies while the article still exists.** Traffic
+  means "this language's article's pageviews, 0 if there's no article
+  yet", so a topic whose sitelink disappeared since last month scores 0,
+  not last month's number.
+- **Cache rows commit separately from the scores**, as they are gathered.
+  They are facts about a finished month rather than results of a run, so
+  a run that dies halfway still leaves the requests it paid for behind for
+  the next attempt.
+- **Keyed by qid, not by article title.** A page can be renamed between
+  runs; the topic is what the score is about, and a completed month's
+  count is close enough either way.
+
+Whatever the cache doesn't cover is fetched through a small
+`ThreadPoolExecutor` (`PAGEVIEW_WORKERS`, default 8, override with
+`DUGA_PAGEVIEW_WORKERS`). Kept modest deliberately: this is a shared, free
+API and Duga is one tool among many on Toolforge. The worker threads touch
+only `requests` -- never the DB session, which is closed before the loop
+for the reason described above.
+
+## Seeding vocabulary in bulk
+
+`scripts/seed_concepts.py` loads concepts and terms from a reviewed JSON
+file. The **mechanism is in the repo; the list deliberately is not**.
+SPEC.md section 16 leaves the seed concept list open precisely because it
+must be "chosen with input from the Wikidata WikiProject LGBT community,
+not unilaterally", so shipping fifty concepts of our own choosing would
+pre-empt the conversation the spec asks for.
+`data/seed_concepts.example.json` documents the format and nothing more.
+
+Two refusals are structural rather than stylistic:
+
+- **No `qid`/`lexeme_id`/`sense_id` fields.** Everything loads as
+  `lifecycle = 'local'`. Linking upstream belongs to M7's promotion path,
+  which verifies live that the target already exists (SPEC.md section 10);
+  a seed file must not become a second, weaker way to claim a Wikidata
+  entity.
+- **No evidence or evidence_grade.** SPEC.md section 8 computes the grade
+  from citations people add, so a seeded term starts at `single_report`
+  exactly like one typed into the add-a-term form and earns its grade the
+  same way.
+
+The whole file is validated before a single row is written, so a typo in
+the last entry can't leave the first half loaded, and `--dry-run` reports
+what would happen without writing. Re-running is a no-op (guardrail 8):
+concepts match on `local_label` case-insensitively -- the same lookup the
+add-a-term route uses -- and terms on (concept, language, written form).
 
 Not applied here: SPEC.md S7's `is_living` exclusion. That constraint is
 specifically about experimental detectors and bulk/batch editing

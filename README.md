@@ -103,6 +103,15 @@ python3 scripts/suppress_vocabulary.py term <id> --unsuppress --by <your-wiki-us
 python3 scripts/set_gap_override.py <QID> <lang> <project> <gap_type> --status done --by <your-wiki-username>
 python3 scripts/set_detector_enabled.py --list
 python3 scripts/set_detector_enabled.py <detector_key> --off --by <your-wiki-username>
+
+# promotion out of 'experimental' -- needs two named reviewers and --yes,
+# because it lifts SPEC.md S7's living-person exclusion for that detector
+python3 scripts/promote_detector.py <detector_key> --to beta \
+    --reviewer "Name (sr)" --reviewer "Name (fr)" --by <your-wiki-username> --yes
+
+# bulk-load reviewed vocabulary; the concept list itself is a community
+# decision and is not in this repo (see data/seed_concepts.example.json)
+python3 scripts/seed_concepts.py <file.json> --by <your-wiki-username> --dry-run
 ```
 
 ## Deployment

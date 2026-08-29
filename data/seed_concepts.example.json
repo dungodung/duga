@@ -1,0 +1,41 @@
+{
+  "_comment": [
+    "Format documentation for scripts/seed_concepts.py. This is an EXAMPLE, not",
+    "the seed list. SPEC.md section 16 lists the real one as an open question:",
+    "'Seed concept list: which ~50 concepts, chosen with input from the Wikidata",
+    "WikiProject LGBT community, not unilaterally.' The list therefore does not",
+    "live in this repo -- write it into your own file after that conversation and",
+    "pass its path to the loader.",
+    "",
+    "Every concept is created local (lifecycle 'local'), never linked to Wikidata.",
+    "Linking a concept or term upstream stays with the M7 promotion path in the",
+    "web UI, which verifies live that the target already exists -- seeding must",
+    "not become a second, weaker way in.",
+    "",
+    "register must be one of: neutral, clinical, outdated, slur, reclaimed,",
+    "regional, unknown. language_code must be a seeded content language.",
+    "Evidence is not seeded: SPEC.md section 8 computes evidence_grade from",
+    "citations that people add, so a seeded term starts at 'single_report' like",
+    "any other new term and earns its grade the same way."
+  ],
+  "concepts": [
+    {
+      "local_label": "genderqueer",
+      "terms": [
+        {"language_code": "sr", "written_form": "родно квир", "register": "neutral"},
+        {"language_code": "fr", "written_form": "genderqueer", "register": "neutral",
+         "usage_note": "Emprunt à l'anglais, courant à l'écrit."}
+      ]
+    },
+    {
+      "local_label": "coming out",
+      "terms": [
+        {"language_code": "sr", "written_form": "камин аут", "register": "regional"}
+      ]
+    },
+    {
+      "local_label": "chosen family",
+      "terms": []
+    }
+  ]
+}
