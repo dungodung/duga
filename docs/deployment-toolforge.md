@@ -495,36 +495,37 @@ A run reporting almost everything "fetched" on a day that isn't the 1st
 means the cache isn't being hit — check that `month` matches
 `previous_month_key()`.
 
-### Re-spacing the schedule
+### The job schedule lives in `jobs.yaml`
+
+**There is no `toolforge jobs create`.** The subcommands are
+`images, run, show, logs, list, delete, flush, load, restart, quota, dump`
+-- a scheduled job is created by `run --schedule`, or, better, declared in
+a YAML file and applied with `load`. `jobs.yaml` in the repo root is that
+file, so the live crontab has a reviewable source instead of living only
+in whatever someone typed months ago.
+
+Apply it (idempotent -- existing jobs are updated in place, missing ones
+created):
+
+```
+scp jobs.yaml <you>@login.toolforge.org:/tmp/duga-jobs.yaml
+become duga
+toolforge jobs load /tmp/duga-jobs.yaml
+toolforge jobs list          # confirm all 13
+```
+
+`toolforge jobs dump` prints the live config in the same format, which is
+how to check for drift.
 
 The detectors were scheduled 20 minutes apart when Duga tracked two
-languages and the slowest job took 3m20s. At eleven languages that job
-takes ~18 minutes, which is inside its slot but with no headroom. Move to
-30-minute slots:
+content languages and the slowest took 3m20s. At eleven they take ~18
+minutes, so `jobs.yaml` moves everything to 30-minute slots between 02:00
+and 08:00 UTC. `impact-score` stays last: it scores whatever `gap` rows
+exist that day.
 
-```
-toolforge jobs delete <name>          # one job name per call
-toolforge jobs create <name> --command "python3 jobs/<job>.py" \
-  --image tool-duga/tool-duga:latest --schedule "<min> <hour> * * *"
-```
-
-| job | schedule |
-|---|---|
-| `scope-fetch` | `0 2 * * *` |
-| `topic-refresh` | `30 2 * * *` |
-| `wp-no-article` | `0 3 * * *` |
-| `wd-no-label` | `30 3 * * *` |
-| `wd-no-description` | `0 4 * * *` |
-| `wiktionary-no-entry` | `30 4 * * *` |
-| `wikiquote-no-quotes` | `0 5 * * *` |
-| `wikisource-no-text` | `30 5 * * *` |
-| `commons-no-image` | `0 6 * * *` |
-| `commons-no-category` | `30 6 * * *` |
-| `vocab-no-term` | `0 7 * * *` |
-| `vocab-no-evidence` | `30 7 * * *` |
-| `impact-score` | `0 8 * * *` |
-
-`impact-score` stays last: it scores whatever `gap` rows exist that day.
+> If you do delete a job by hand, remember `jobs delete` takes one name
+> per call and does not ask for confirmation -- reapply `jobs.yaml`
+> afterwards rather than retyping the definition.
 
 ## Promoting a detector, and seeding vocabulary
 
