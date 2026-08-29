@@ -181,5 +181,18 @@
   "duga-about-body": "Duga is a multilingual hub that shows what queer knowledge is missing from Wikimedia projects in your language, and gives you the words and the tools to add it.",
   "duga-about-license": "Duga is free/open source software, licensed AGPL-3.0.",
   "duga-404-title": "Page not found",
-  "duga-404-body": "That page doesn't exist, or that language isn't set up yet."
+  "duga-404-body": "That page doesn't exist, or that language isn't set up yet.",
+  "duga-suppress-link-topic": "Suppress this topic",
+  "duga-suppress-link-concept": "Suppress this concept",
+  "duga-suppress-link-term": "Suppress this term",
+  "duga-suppress-title": "Suppress $1?",
+  "duga-suppress-explain-topic": "This hides the topic everywhere in Duga: every gap for it, in every language, for everyone.",
+  "duga-suppress-explain-concept": "This hides the concept and every term filed under it, in every language, for everyone.",
+  "duga-suppress-explain-term": "This hides the term everywhere in Duga, for everyone.",
+  "duga-suppress-scope-warning": "Suppression takes effect immediately and changes nothing on Wikidata or any other wiki. You cannot undo it yourself — only an operator can lift it.",
+  "duga-suppress-reason-label": "Why? (recorded, and required)",
+  "duga-suppress-reason-required": "A reason is required to suppress something.",
+  "duga-suppress-button": "Suppress",
+  "duga-suppress-cancel": "Cancel, leave it visible",
+  "duga-suppress-success": "$1 is now suppressed."
 }

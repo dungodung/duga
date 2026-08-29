@@ -177,5 +177,18 @@
   "duga-about-body": "One-paragraph restatement of the project's purpose, shown on the About page.",
   "duga-about-license": "States the software license on the About page.",
   "duga-404-title": "Heading shown on the not-found error page.",
-  "duga-404-body": "Body text on the not-found error page, explaining a link may point to a language that isn't set up yet."
+  "duga-404-body": "Body text on the not-found error page, explaining a link may point to a language that isn't set up yet.",
+  "duga-suppress-link-topic": "Link on a gap row (logged-in visitors only) that opens the confirmation page for suppressing that topic. Suppression hides the topic in every language for every visitor -- see SPEC.md S4.",
+  "duga-suppress-link-concept": "Link on a concept page (logged-in visitors only) that opens the confirmation page for suppressing that concept.",
+  "duga-suppress-link-term": "Link on a term page (logged-in visitors only) that opens the confirmation page for suppressing that term.",
+  "duga-suppress-title": "Heading and page title of the suppression confirmation page. $1 is the name of the topic, concept, or term being suppressed.",
+  "duga-suppress-explain-topic": "Explains, on the confirmation page, what suppressing a topic does. Emphasise that the scope is global, not just the page the visitor came from.",
+  "duga-suppress-explain-concept": "Explains, on the confirmation page, what suppressing a concept does -- it also hides every term under that concept.",
+  "duga-suppress-explain-term": "Explains, on the confirmation page, what suppressing a term does.",
+  "duga-suppress-scope-warning": "Warning on the suppression confirmation page: the effect is immediate, it is local to Duga (no wiki is edited), and the visitor cannot reverse it themselves. Shown for topics, concepts, and terms alike.",
+  "duga-suppress-reason-label": "Label for the required one-line reason field on the suppression confirmation page. SPEC.md S4 asks for a logged reason and nothing more, so the wording should not sound like a request for justification to a reviewer.",
+  "duga-suppress-reason-required": "Error shown when the suppression form is submitted with an empty reason.",
+  "duga-suppress-button": "Button that carries out the suppression.",
+  "duga-suppress-cancel": "Link that abandons the suppression and leaves the item visible.",
+  "duga-suppress-success": "Confirmation message after something is suppressed. $1 is the name of the topic, concept, or term."
 }

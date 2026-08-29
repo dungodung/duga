@@ -123,6 +123,20 @@ a {
   width: auto;
 }
 
+/* Suppression is a safety action, not a call to action -- styled as a
+   quiet link, never as a primary button. */
+.gap-suppress,
+.suppress-link {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.notice-suppress {
+  background: rgba(190, 60, 60, 0.12);
+  border: 1px solid rgba(190, 60, 60, 0.4);
+  margin-bottom: 1rem;
+}
+
 .gap-list {
   list-style: none;
   padding: 0;

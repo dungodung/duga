@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duga-suppress-title', subject) }}{% endblock %}
+{% block content %}
+<h1>{{ _('duga-suppress-title', subject) }}</h1>
+
+<p>{{ _('duga-suppress-explain-' ~ kind) }}</p>
+<p class="notice notice-suppress">{{ _('duga-suppress-scope-warning') }}</p>
+
+<form method="post" action="{{ action_url }}" class="vocab-add-form">
+  {% if lang %}<input type="hidden" name="lang" value="{{ lang }}">{% endif %}
+  <p>
+    <label for="reason">{{ _('duga-suppress-reason-label') }}</label><br>
+    <input type="text" id="reason" name="reason" required>
+  </p>
+  <button type="submit">{{ _('duga-suppress-button') }}</button>
+</form>
+
+<p><a href="{% if lang %}{{ url_for('main.gaps', lang=lang) }}{% else %}{{ url_for('main.home') }}{% endif %}">{{ _('duga-suppress-cancel') }}</a></p>
+{% endblock %}

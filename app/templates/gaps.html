@@ -64,6 +64,10 @@
       <button type="submit" name="status" value="not_applicable">{{ _('duga-gaps-override-not-applicable-button') }}</button>
       <button type="submit" name="status" value="declined">{{ _('duga-gaps-override-declined-button') }}</button>
     </form>
+    {# Suppression is deliberately a link to a confirmation page, not a
+       button in this form: it hides the topic in every language, for
+       everyone, not just this row. #}
+    <a class="gap-action gap-suppress" href="{{ url_for('main.suppress_topic', qid=item.qid, lang=language.code) }}">{{ _('duga-suppress-link-topic') }}</a>
     {% endif %}
   </li>
   {% endfor %}

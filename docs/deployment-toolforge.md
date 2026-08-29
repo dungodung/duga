@@ -406,3 +406,59 @@ topic has at least one sitelink somewhere, and a language's gap list
 (`/sr/gaps`) visibly reorders to put higher-reach topics first -- but
 nowhere on that page prints the number itself (SPEC.md S6 -- the score is
 sort-order-only, by design).
+
+## Self-service suppression, all detectors enabled, top-ten languages
+
+Three changes in one deploy. Only one of them needs a migration, but the
+order matters: migrate first, then rebuild, then flip the detectors.
+
+**1. Seed the nine new content languages** (`b3f1c07a5e92`). This is a
+data-only migration — no schema change — so it is safe to run before the
+new image is live:
+
+```
+toolforge jobs run migrate --command "flask --app wsgi db upgrade" \
+  --image tool-duga/tool-duga:latest --wait 300
+```
+
+Verify eleven seeded languages (the ten largest Wikipedias plus `sr`):
+
+```
+sql tools "select code, autonym from s58022__duga.language where seeded = 1 order by code"
+```
+
+**2. Rebuild and restart** for the suppression UI:
+
+```
+toolforge build start https://github.com/<your-username>/duga --ref main
+toolforge webservice buildservice restart
+```
+
+**3. Make the experimental detectors' gaps visible.** This flips
+`detector.enabled` only — it does **not** promote maturity, so SPEC.md S7
+keeps excluding living people and every row still reads "experimental" in
+the gap list (see docs/architecture.md's "Enabling a detector vs. promoting
+one"):
+
+```
+toolforge jobs run enable-detectors \
+  --command "python3 scripts/set_detector_enabled.py --all-experimental --on --by <your-wiki-username>" \
+  --image tool-duga/tool-duga:latest --wait 300
+toolforge jobs logs enable-detectors
+```
+
+Each line reports `enabled=False -> True` and how many existing gap rows it
+just made visible; the change is recorded in `audit_log` as
+`enable_detector`. To put one back:
+
+```
+python3 scripts/set_detector_enabled.py <detector_key> --off --by <your-wiki-username>
+python3 scripts/set_detector_enabled.py --list        # current state of all ten
+```
+
+**Expect the daily job window to grow.** Detectors loop languages × topics,
+so going from two content languages to eleven is roughly a 5.5× increase in
+outbound API calls and in `gap` rows. The existing schedule staggers the
+jobs between 03:00 and 08:00 UTC with `impact-score` last; if any job
+starts running into the next one's slot, spread the crontab out before
+adding more languages.

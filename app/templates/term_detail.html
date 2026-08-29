@@ -39,6 +39,7 @@
     <a href="{{ url_for('write.add_sense_form', term_id=term.id) }}">{{ _('duga-write-add-sense-button') }}</a>
   </p>
   {% endif %}
+  <p><a class="suppress-link" href="{{ url_for('vocab.suppress_term', term_id=term.id) }}">{{ _('duga-suppress-link-term') }}</a></p>
 {% endif %}
 
 {% if term.usage_note %}

@@ -177,5 +177,18 @@
   "duga-about-body": "Duga est un centre multilingue qui montre quelles connaissances queer manquent aux projets Wikimédia dans votre langue, et vous donne les mots et les outils pour les ajouter.",
   "duga-about-license": "Duga est un logiciel libre, sous licence AGPL-3.0.",
   "duga-404-title": "Page introuvable",
-  "duga-404-body": "Cette page n'existe pas, ou cette langue n'est pas encore configurée."
+  "duga-404-body": "Cette page n'existe pas, ou cette langue n'est pas encore configurée.",
+  "duga-suppress-link-topic": "Masquer ce sujet",
+  "duga-suppress-link-concept": "Masquer ce concept",
+  "duga-suppress-link-term": "Masquer ce terme",
+  "duga-suppress-title": "Masquer $1 ?",
+  "duga-suppress-explain-topic": "Cela masque le sujet partout dans Duga : chaque lacune le concernant, dans toutes les langues, pour tout le monde.",
+  "duga-suppress-explain-concept": "Cela masque le concept et tous les termes qui en dépendent, dans toutes les langues, pour tout le monde.",
+  "duga-suppress-explain-term": "Cela masque le terme partout dans Duga, pour tout le monde.",
+  "duga-suppress-scope-warning": "Le masquage prend effet immédiatement et ne modifie rien sur Wikidata ni sur aucun autre wiki. Vous ne pouvez pas l'annuler vous-même — seul un opérateur peut le lever.",
+  "duga-suppress-reason-label": "Pourquoi ? (enregistré, et obligatoire)",
+  "duga-suppress-reason-required": "Un motif est obligatoire pour masquer un élément.",
+  "duga-suppress-button": "Masquer",
+  "duga-suppress-cancel": "Annuler, laisser visible",
+  "duga-suppress-success": "$1 est désormais masqué."
 }

@@ -25,13 +25,28 @@ Two independent language concepts share this codebase (SPEC.md section 13):
 - **Interface languages** (`i18n/*.json`: en, sr, fr) — which language the
   UI chrome is translated into. Chosen via `?uselang=`, a cookie, or
   Accept-Language; `app/i18n.py`.
-- **Content languages** (`language` table, `seeded = true`: sr, fr) — which
+- **Content languages** (`language` table, `seeded = true`) — which
   Wikimedia languages Duga tracks gaps for. A much larger, separately-grown
-  set; `app/models/reference.py`.
+  set; `app/models/reference.py`. Currently eleven: the ten largest
+  Wikipedias by article count (en, ceb, de, fr, sv, nl, es, ru, it, pl —
+  measured against each wiki's own `meta=siteinfo`, seeded by migration
+  `b3f1c07a5e92`) plus sr, which predates them and stays because it is the
+  conference language.
 
-They happen to overlap right now (both sets include sr/fr) but are read from
-different places on purpose, so adding a content language never requires an
-interface translation to exist first, or vice versa.
+They overlap only partly (en/sr/fr are both), and are read from different
+places on purpose, so adding a content language never requires an interface
+translation to exist first, or vice versa — you can browse German gaps with
+a Serbian interface, and nobody has translated Duga's chrome into German.
+
+Two things worth knowing about that top-ten list. It ranks by **article
+count**, which is not the same as ranking by community: `ceb` (6.1M
+articles, ~230 active users) and to a lesser extent `sv` are largely
+bot-generated, so their gap lists are long and their pool of people to fix
+anything is small. And every added language multiplies detector work —
+each detector loops languages × topics — so the daily job window and the
+`gap` table both grow roughly linearly with this list. Swapping the ranking
+for something community-weighted (active users, or a hand-picked set) is a
+one-line change to a migration, not a code change.
 
 ## Request flow (web app)
 
@@ -285,6 +300,73 @@ be used to fake having fixed something.
   (`scripts/set_gap_override.py --clear`). This is a real, if narrow,
   reversibility gap worth revisiting if it turns out to matter in practice --
   flagged here rather than solved speculatively.
+
+## Self-service suppression
+
+`GET|POST /topic/<qid>/suppress` (`app/blueprints/main/routes.py`),
+`GET|POST /concept/<id>/suppress` and `GET|POST /term/<id>/suppress`
+(`app/blueprints/vocabulary/routes.py`). Any logged-in contributor can
+suppress, the same bar as `POST /gap/override`.
+
+SPEC.md's route list never asked for these, and for a while this was
+deliberately CLI-only. What changed the reasoning is what S4 actually says:
+suppression is "absolute and immediate... requires no upstream edit and no
+justification beyond a logged reason". That is a description of a safety
+valve, and putting an operator round-trip in front of the one action a
+person most needs when something must disappear *now* was friction in the
+wrong place. The CLIs remain (`scripts/suppress_topic.py`,
+`scripts/suppress_vocabulary.py`) and are still the only way to *lift* a
+suppression.
+
+Design points, all of them consequences of it being a safety action rather
+than an editing action:
+
+- **Two steps, not a button.** A link opens a confirmation page
+  (`app/templates/suppress_confirm.html`) that states the real blast radius
+  -- every language, every visitor, not just the row it was clicked from --
+  and only then posts. Same preview/confirm shape as every write path.
+- **A reason is required**, unlike the optional one on gap overrides. S4
+  asks for a logged reason; the confirmation page's wording is deliberately
+  "why? (recorded)" rather than anything that reads like justifying yourself
+  to a reviewer.
+- **One-way.** There is no self-service un-suppress, only
+  `scripts/suppress_*.py --unsuppress`. Making something reappear should
+  cost more than making it disappear -- the same asymmetry the gap-override
+  section above notes, but here it is the intended design rather than a
+  flagged gap.
+- **Where the reason is stored differs by kind.** `topic` has
+  `suppressed_reason`/`_by`/`_at` columns; SPEC.md section 7 gives `concept`
+  and `term` only a bare boolean, so for those the reason and actor live in
+  `audit_log` alone. This mirrors the split `scripts/suppress_vocabulary.py`
+  already made.
+- The redirect target after suppressing is carried as an explicit `lang`
+  field and validated against seeded languages, rather than read from
+  `Referer` -- it can't be turned into an open redirect.
+
+Suppressing a **concept** also hides every term under it, since
+`_visible_terms_query()` joins `Concept` and filters both booleans. The
+confirmation page says so in its own message rather than relying on the
+reader to know the data model.
+
+## Enabling a detector vs. promoting one
+
+`scripts/set_detector_enabled.py` flips `detector.enabled` and nothing
+else. These are two separate switches and conflating them would quietly
+breach S7:
+
+- `enabled` controls **visibility** -- `_visible_gaps_query()` hides gaps
+  whose detector row says `enabled = False`.
+- `maturity` controls **labelling**, and also whether living people are in
+  scope at all: `jobs/detector_common.py` excludes `is_living` topics only
+  while maturity is `experimental`. Promoting a detector to `beta`/`stable`
+  therefore switches living people back on for it, which is exactly what
+  SPEC.md section 11 reserves for a human decision "after review with
+  native speakers of at least two affected languages".
+
+So enabling an experimental detector is the cheap, reversible half: its
+gaps become visible, every row still reads "experimental" in the gap list,
+and S7 keeps holding. The script has no flag that can change maturity --
+promotion needs a different tool and a different conversation.
 
 ## Post-v0.1 detectors (S1+)
 
@@ -608,8 +690,5 @@ adding a Sense to an existing Lexeme; and impact scoring, designed
 together with the tool's operator per SPEC.md section 16's explicit
 instruction to satisfy S6 rather than build ahead of that conversation.
 Handover terms with the Wikimedia LGBT+ User Group
-(SPEC.md section 16) are outside this repo's scope entirely. Suppression
-(topic/concept/term) still has no self-service UI, only the three
-`scripts/suppress_*.py` CLIs -- unlike gap overrides, SPEC.md's v0.1 route
-list never calls for a self-service suppression endpoint, so this isn't a
-gap against the spec, just a possible future extension.
+(SPEC.md section 16) are outside this repo's scope entirely. Suppression now has a self-service UI (see "Self-service suppression"
+above); lifting a suppression is still operator-only, on purpose.

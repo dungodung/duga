@@ -24,6 +24,7 @@
     <button type="submit">{{ _('duga-promote-link-button') }}</button>
   </form>
   {% endif %}
+  <p><a class="suppress-link" href="{{ url_for('vocab.suppress_concept', concept_id=concept.id) }}">{{ _('duga-suppress-link-concept') }}</a></p>
 {% endif %}
 
 <h2>{{ _('duga-vocab-concept-terms-title') }}</h2>

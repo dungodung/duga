@@ -414,3 +414,67 @@ def link_term_upstream(term_id):
     db.session.commit()
     flash(_t("duga-promote-upstream-success"))
     return redirect(url_for("vocab.term_detail", lang=term.language_code, term_id=term.id))
+
+
+# -- Self-service suppression (SPEC.md S4). See the long note on
+# app/blueprints/main/routes.py:suppress_topic() for why this is
+# self-service, two-step, and one-way; concepts and terms follow the same
+# shape. The one difference is where the reason goes: `topic` has
+# suppressed_reason/_by/_at columns, but SPEC.md section 7 gives concept and
+# term only a bare `suppressed` boolean, so the reason and actor are
+# recorded in audit_log instead -- the same split scripts/
+# suppress_vocabulary.py already makes.
+
+
+def _suppress_vocabulary_row(row, kind, subject, action_url, redirect_endpoint, **redirect_args):
+    """Shared GET-confirm / POST-act body for concept and term suppression."""
+    if request.method == "GET":
+        return render_template(
+            "suppress_confirm.html", kind=kind, subject=subject, qid=None,
+            action_url=action_url, lang=redirect_args.get("lang"),
+        )
+
+    reason = (request.form.get("reason") or "").strip()
+    if not reason:
+        flash(_t("duga-suppress-reason-required"))
+        return redirect(action_url)
+
+    contributor = current_contributor()
+    row.suppressed = True
+    audit_log(
+        actor=contributor.wiki_username,
+        action=f"suppress_{kind}",
+        entity_type=kind,
+        entity_id=row.id,
+        before={"suppressed": False},
+        after={"suppressed": True, "reason": reason},
+    )
+    db.session.commit()
+
+    flash(_t("duga-suppress-success", subject))
+    return redirect(url_for(redirect_endpoint, **redirect_args))
+
+
+@vocab_bp.route("/term/<int:term_id>/suppress", methods=["GET", "POST"])
+@login_required
+def suppress_term(term_id):
+    term = _get_visible_term_or_404(term_id)
+    return _suppress_vocabulary_row(
+        term, "term", term.written_form,
+        url_for("vocab.suppress_term", term_id=term.id),
+        "vocab.list_terms", lang=term.language_code,
+    )
+
+
+@vocab_bp.route("/concept/<int:concept_id>/suppress", methods=["GET", "POST"])
+@login_required
+def suppress_concept(concept_id):
+    """Suppressing a concept also hides every term under it --
+    _visible_terms_query() joins Concept and filters on both booleans -- so
+    this is the broader of the two hammers. The confirmation page says so."""
+    concept = _get_visible_concept_or_404(concept_id)
+    return _suppress_vocabulary_row(
+        concept, "concept", concept.local_label or _t("duga-vocab-concept-untitled"),
+        url_for("vocab.suppress_concept", concept_id=concept.id),
+        "main.home",
+    )

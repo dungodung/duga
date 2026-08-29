@@ -286,6 +286,91 @@ def override_gap():
     return redirect(url_for("main.gaps", lang=gap.language_code))
 
 
+def _redirect_lang(default_endpoint="main.home"):
+    """Where to send someone after a suppression. The subject they were
+    looking at is gone from every list by the time we redirect, so we go
+    back to the list they came from -- carried as an explicit `lang` field
+    rather than trusting Referer, and validated as a seeded language so it
+    can't be turned into an open redirect."""
+    lang = request.values.get("lang")
+    if lang and Language.query.filter_by(code=lang, seeded=True).first() is not None:
+        return lang
+    return None
+
+
+def _topic_label(qid):
+    """Best available human-readable name for a topic: detectors already
+    store one in gap.evidence_json, so a suppression confirmation page can
+    say "Marsha P. Johnson" instead of just "Q18916". Falls back to the
+    qid, exactly like the gap list does."""
+    row = Gap.query.filter(Gap.topic_qid == qid, Gap.evidence_json.isnot(None)).first()
+    if row is not None:
+        try:
+            label = json.loads(row.evidence_json).get("label")
+        except ValueError:
+            label = None
+        if label:
+            return label
+    return qid
+
+
+@main_bp.route("/topic/<qid>/suppress", methods=["GET", "POST"])
+@login_required
+def suppress_topic(qid):
+    """Self-service topic suppression (SPEC.md S4). Suppression is the
+    tool's safety valve -- "absolute and immediate... no upstream edit and
+    no justification beyond a logged reason" -- and routing it through an
+    operator's CLI put a human round-trip in front of the one action that
+    most needs to be fast. Any logged-in contributor can do it, the same
+    bar as POST /gap/override.
+
+    Deliberately one-way: there is no self-service un-suppress, only
+    scripts/suppress_topic.py --unsuppress. Making a topic reappear is a
+    decision that should cost more than making it disappear.
+
+    Two steps (GET confirm, POST act) rather than a button in the gap list,
+    because this hides the topic in every language for everyone, not just
+    the row it was clicked from -- that deserves to be read before it is
+    done, and it matches the preview/confirm shape every write path uses."""
+    topic = Topic.query.filter_by(qid=qid, suppressed=False).first()
+    if topic is None:
+        abort(404)
+
+    label = _topic_label(qid)
+    lang = _redirect_lang()
+
+    if request.method == "GET":
+        return render_template(
+            "suppress_confirm.html", kind="topic", subject=label, qid=qid,
+            action_url=url_for("main.suppress_topic", qid=qid), lang=lang,
+        )
+
+    reason = (request.form.get("reason") or "").strip()
+    if not reason:
+        flash(_t("duga-suppress-reason-required"))
+        return redirect(url_for("main.suppress_topic", qid=qid, lang=lang))
+
+    contributor = current_contributor()
+    topic.suppressed = True
+    topic.suppressed_reason = reason
+    topic.suppressed_by = contributor.wiki_username
+    topic.suppressed_at = datetime.now(timezone.utc)
+    audit_log(
+        actor=contributor.wiki_username,
+        action="suppress_topic",
+        entity_type="topic",
+        entity_id=qid,
+        before={"suppressed": False},
+        after={"suppressed": True, "reason": reason},
+    )
+    db.session.commit()
+
+    flash(_t("duga-suppress-success", label))
+    if lang:
+        return redirect(url_for("main.gaps", lang=lang))
+    return redirect(url_for("main.home"))
+
+
 @main_bp.get("/about")
 def about():
     return render_template("about.html")

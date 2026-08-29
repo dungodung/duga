@@ -22,16 +22,21 @@ proposed and then linked to an *existing* Wikidata item or Lexeme (SPEC.md
 section 10) — this never creates anything on Wikidata, only links to
 something a live lookup confirms already exists. Any logged-in visitor can
 also mark a gap `declined`/`not_applicable` directly from the gap list
-(`POST /gap/override`); an operator can additionally mark one `done`, or
-suppress a topic, concept, or term, via `scripts/set_gap_override.py`/
-`scripts/suppress_topic.py`/`scripts/suppress_vocabulary.py` (suppression
-still has no self-service UI — SPEC.md doesn't call for one). All six
+(`POST /gap/override`), and suppress a topic, concept, or term from the
+page they're looking at — a confirmation page states the blast radius, a
+reason is required, and it's one-way (only an operator lifts a
+suppression). An operator can additionally mark a gap `done` via
+`scripts/set_gap_override.py`. All six
 post-v0.1 detectors from SPEC.md section 11 are also in place — Wiktionary,
 Wikiquote, Wikisource sitelink presence; Commons image/category claim
 presence; and `vocab_no_term`/`vocab_no_evidence`, which check Duga's own
-local vocabulary tables instead of Wikidata — shipping
-`maturity = 'experimental'` and disabled by default until an operator
-promotes them. Lexeme write-back is also live: a term already linked to an
+local vocabulary tables instead of Wikidata — all shipping
+`maturity = 'experimental'`. Their gaps are now visible in production:
+`scripts/set_detector_enabled.py` flips visibility *without* touching
+maturity, so the rows still read "experimental" and SPEC.md S7 keeps
+living people out of them. Promotion to `beta`/`stable` is a separate,
+still-unmade human decision (SPEC.md section 11: review with native
+speakers of at least two affected languages). Lexeme write-back is also live: a term already linked to an
 existing Wikidata Lexeme but with no Sense yet can have one added —
 gloss, preview, confirm, same kill switch and rate limits as every other
 write — via "Add a sense to this Lexeme" on the term's page; this never
@@ -73,23 +78,31 @@ make topic-refresh       # jobs/topic_refresh.py against the active scope_versio
 make wp-no-article       # jobs/wp_no_article.py -- missing Wikipedia articles
 make wd-no-label         # jobs/wd_no_label.py -- missing Wikidata labels
 make wd-no-description   # jobs/wd_no_description.py -- missing Wikidata descriptions
-make wiktionary-no-entry     # jobs/wiktionary_no_entry.py -- experimental, disabled by default
-make wikiquote-no-quotes     # jobs/wikiquote_no_quotes.py -- experimental, disabled by default
-make wikisource-no-text      # jobs/wikisource_no_text.py -- experimental, disabled by default
-make commons-no-image        # jobs/commons_no_image.py -- experimental, disabled by default
-make commons-no-category     # jobs/commons_no_category.py -- experimental, disabled by default
-make vocab-no-term           # jobs/vocab_no_term.py -- experimental, disabled by default
-make vocab-no-evidence       # jobs/vocab_no_evidence.py -- experimental, disabled by default
+make wiktionary-no-entry     # jobs/wiktionary_no_entry.py -- experimental
+make wikiquote-no-quotes     # jobs/wikiquote_no_quotes.py -- experimental
+make wikisource-no-text      # jobs/wikisource_no_text.py -- experimental
+make commons-no-image        # jobs/commons_no_image.py -- experimental
+make commons-no-category     # jobs/commons_no_category.py -- experimental
+make vocab-no-term           # jobs/vocab_no_term.py -- experimental
+make vocab-no-evidence       # jobs/vocab_no_evidence.py -- experimental
 make impact-score            # jobs/impact_score.py -- scores gap.impact_score, run last
 ```
 
-Operator actions (no auth'd UI yet -- see `docs/architecture.md`):
+Duga tracks eleven content languages: the ten largest Wikipedias by
+article count (en, ceb, de, fr, sv, nl, es, ru, it, pl) plus sr. These are
+content languages only — the interface is still translated into en/sr/fr,
+and SPEC.md section 13 keeps the two independent.
+
+Operator actions (most of the rest is self-service now — see
+`docs/architecture.md`):
 
 ```bash
-python3 scripts/suppress_topic.py <QID> --reason "..." --by <your-wiki-username>
-python3 scripts/suppress_vocabulary.py concept <id> --reason "..." --by <your-wiki-username>
-python3 scripts/suppress_vocabulary.py term <id> --reason "..." --by <your-wiki-username>
+# setting a suppression is in the UI; lifting one stays operator-only
+python3 scripts/suppress_topic.py <QID> --unsuppress --by <your-wiki-username>
+python3 scripts/suppress_vocabulary.py term <id> --unsuppress --by <your-wiki-username>
 python3 scripts/set_gap_override.py <QID> <lang> <project> <gap_type> --status done --by <your-wiki-username>
+python3 scripts/set_detector_enabled.py --list
+python3 scripts/set_detector_enabled.py <detector_key> --off --by <your-wiki-username>
 ```
 
 ## Deployment
