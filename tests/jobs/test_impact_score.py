@@ -295,3 +295,32 @@ def test_multiple_pairs_are_fetched_through_the_thread_pool(app):
         month = wikimedia_api.previous_month_key()
         assert _cached_rows() == {(f"Q{i}", "sr", month): 100 for i in range(1, 6)}
         assert Gap.query.filter(Gap.impact_score.is_(None)).count() == 0
+
+
+@responses.activate
+def test_pageviews_are_persisted_during_the_fetch_not_only_at_the_end(app, monkeypatch):
+    """The first run of a month can be hours of requests; dying at hour two
+    must not discard hour one."""
+    with app.app_context():
+        monkeypatch.setattr(impact_score, "PAGEVIEW_CACHE_WRITE_CHUNK", 2)
+        for i in range(1, 6):
+            seed_topic(f"Q{i}")
+            make_gap(f"Q{i}", "sr", gap_type="no_label", project_code="wikidata")
+        mock_sitelinks({f"Q{i}": entity(["srwiki"]) for i in range(1, 6)})
+        mock_pageviews(views=7)
+
+        seen = []
+        real_store = impact_score._store_pageviews
+
+        def spy(month, batch):
+            seen.append(len(batch))
+            return real_store(month, batch)
+
+        monkeypatch.setattr(impact_score, "_store_pageviews", spy)
+        impact_score.run(app)
+
+        # Five results at a chunk size of two: two flushes of two during
+        # the loop plus the remainder, not one write of five at the end.
+        assert len(seen) > 1
+        assert sum(seen) == 5
+        assert len(_cached_rows()) == 5

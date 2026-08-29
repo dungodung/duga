@@ -672,12 +672,21 @@ though it doesn't block the run.
 
 **The pageviews cache (`pageview_cache`).** The traffic signal describes
 the most recently *completed* calendar month, so its value cannot change
-until the month rolls over -- but the job runs nightly, and originally
-refetched every pair every night. At two content languages that was
-roughly 60,000 sequential requests and tolerable; at eleven it is roughly
-275,000, which fits in no sane job window. `pageview_cache` keys a count
-by `(topic_qid, language_code, month)`, so each pair is fetched once per
+until the month rolls over -- but the job runs nightly and originally
+refetched everything every night. `pageview_cache` keys a count by
+`(topic_qid, language_code, month)`, so each pair is fetched once per
 month and every later run that month is a single indexed read.
+
+Worth being precise about the size of this problem, because the obvious
+estimate is badly wrong. A (topic, language) pair only costs a request if
+that language *has* an article -- a pair with no sitelink is the
+`no_article` gap itself and is scored 0 without any lookup. Measured on
+2026-08-29 with two content languages: 19,221 pairs, of which **1,562**
+needed a request. So the cost scales with article coverage, not with the
+gap count, and adding a large Wikipedia (en, de, ru) costs far more per
+language than adding a small one. The cache still earns its place -- it
+takes the recurring nightly cost to near zero -- but the first run of each
+month is the only expensive one, and it is minutes, not hours.
 
 Four details worth keeping straight:
 

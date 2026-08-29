@@ -466,10 +466,15 @@ adding more languages.
 ## Pageview caching, and re-spacing the job schedule
 
 Impact scoring's traffic signal is one HTTP request per (topic, language)
-pair with no batch endpoint. Going from two content languages to eleven
-took that from ~60,000 requests a night to ~275,000, which does not fit in
-any job window. `pageview_cache` (migration `c8a4d21f6b73`) makes each pair
-a once-a-month fetch instead of a nightly one.
+pair *that has an article in that language* -- a pair with no sitelink is
+the `no_article` gap itself and costs nothing. `pageview_cache` (migration
+`c8a4d21f6b73`) makes each of those a once-a-month fetch instead of a
+nightly one.
+
+Measured baseline, two content languages, 2026-08-29: 19,221 pairs scored,
+1,562 of them fetched, whole run under three minutes. The cost scales with
+article coverage rather than with the gap count, so adding en/de/ru costs
+much more per language than sr/fr did.
 
 Migrate, then rebuild:
 
@@ -481,13 +486,17 @@ toolforge webservice buildservice restart
 ```
 
 **The first impact-score run of each month still pays full price** — it has
-an empty cache for the new month. Give it room, and expect later runs that
-month to finish in seconds:
+an empty cache for the new month. Later runs that month finish in seconds.
+To force one by hand, give it room:
 
 ```
-toolforge jobs run impact-score --command "python3 jobs/impact_score.py" \
+toolforge jobs run impact-warm --command "python3 jobs/impact_score.py" \
   --image tool-duga/tool-duga:latest --wait 7200
+toolforge jobs delete impact-warm
 ```
+
+(Use a name other than `impact-score`; that one is the scheduled job in
+`jobs.yaml`.)
 
 Its log line now reports the split, e.g.
 `impact_score: pageviews for 2026-07 -- 249831 from cache, 12 fetched, 0 failed`.

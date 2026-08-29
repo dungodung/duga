@@ -89,16 +89,17 @@ def _load_cached_pageviews(month):
 
 
 def _store_pageviews(month, fetched):
-    """Persists newly fetched counts. Committed here, separately from the
-    scores, because these are facts about a finished month rather than
-    results of this run -- a run that dies later shouldn't throw away the
-    requests it already paid for.
+    """Persists newly fetched counts. Called repeatedly *during* the fetch
+    loop (see _fetch_pageviews' on_batch) and committed as it goes,
+    separately from the scores, because these are facts about a finished
+    month rather than results of this run -- a run that dies partway
+    shouldn't throw away the requests it already paid for.
 
     Guardrail 8 (assume concurrent re-runs): a parallel run may have
     inserted the same pair between our read and our write, so a chunk that
     collides is retried row by row, skipping what is already there."""
     now = datetime.now(timezone.utc)
-    for chunk in chunks(list(fetched.items()), PAGEVIEW_CACHE_WRITE_CHUNK):
+    for chunk in chunks(list(fetched.items()), PAGEVIEW_CACHE_WRITE_CHUNK):  # noqa: E501 -- a caller may still hand over more than one chunk's worth
         rows = [
             PageviewCache(topic_qid=qid, language_code=lang, month=month, views=views, fetched_at=now)
             for (qid, lang), views in chunk
@@ -117,7 +118,7 @@ def _store_pageviews(month, fetched):
             db.session.commit()
 
 
-def _fetch_pageviews(app, to_fetch):
+def _fetch_pageviews(app, to_fetch, on_batch=None):
     """Fetches the pairs missing from the cache, PAGEVIEW_WORKERS at a
     time. Returns ({pair: views}, fallback_count).
 
@@ -128,11 +129,16 @@ def _fetch_pageviews(app, to_fetch):
     error -- get_monthly_pageviews() returns 0 for it, and that 0 is a
     real answer worth caching.
 
-    Runs entirely without the DB session (see the db.session.close() in
-    compute_scores): worker threads only touch `requests`.
+    `on_batch` is called from *this* thread every
+    PAGEVIEW_CACHE_WRITE_CHUNK results with what has accumulated since the
+    last call, so a long run persists as it goes instead of holding
+    everything until the end -- the first run of a month can be hours of
+    requests, and dying at hour two should not throw hour one away. Worker
+    threads themselves never touch the DB; they only call `requests`.
     """
     user_agent = app.config["DUGA_USER_AGENT"]
     fetched = {}
+    pending = {}
     fallback_count = 0
 
     def lookup(item):
@@ -153,6 +159,13 @@ def _fetch_pageviews(app, to_fetch):
                 fallback_count += 1
                 continue
             fetched[key] = views
+            pending[key] = views
+            if on_batch is not None and len(pending) >= PAGEVIEW_CACHE_WRITE_CHUNK:
+                on_batch(pending)
+                pending = {}
+
+    if on_batch is not None and pending:
+        on_batch(pending)
 
     return fetched, fallback_count
 
@@ -224,14 +237,13 @@ def compute_scores(app):
     traffic_by_pair.update({pair: cached[pair] for pair in titles_by_pair if pair in cached})
     to_fetch = {pair: title for pair, title in titles_by_pair.items() if pair not in cached}
 
-    fetched, fallback_count = _fetch_pageviews(app, to_fetch)
+    fetched, fallback_count = _fetch_pageviews(
+        app, to_fetch, on_batch=lambda batch: _store_pageviews(month, batch)
+    )
     traffic_by_pair.update(fetched)
     # Anything still missing errored out; 0 for this run, uncached.
     for pair in to_fetch:
         traffic_by_pair.setdefault(pair, 0)
-
-    if fetched:
-        _store_pageviews(month, fetched)
 
     print(
         f"{JOB_KEY}: pageviews for {month} -- "
