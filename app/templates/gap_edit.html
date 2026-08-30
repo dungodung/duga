@@ -5,6 +5,16 @@
 {% block content %}
 <h1>{{ _('duga-write-title-' ~ edit_kind, label) }}</h1>
 
+{% if english %}
+{# What Wikidata already says in English -- the thing you translate from.
+   Recorded by the detector, so drawing this page still makes no API call. #}
+<div class="english-reference">
+  <span class="english-reference-heading">{{ _('duga-write-english-reference') }}</span>
+  {% if english.label %}<span lang="en" class="english-reference-label">{{ english.label }}</span>{% endif %}
+  {% if english.description %}<span lang="en">{{ english.description }}</span>{% endif %}
+</div>
+{% endif %}
+
 {% if confirming %}
 <div class="notice">
   <p>{{ _('duga-write-preview-' ~ edit_kind, gap.language_code, gap.topic_qid, value) }}</p>

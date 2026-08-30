@@ -199,3 +199,82 @@ def test_confirmed_submit_without_stored_token_prompts_relogin(client, db, seed_
     assert resp.status_code == 302
     assert "/login" in resp.location
     assert WikiEdit.query.count() == 0
+
+
+# -- the English reference on the edit form ----------------------------------
+#
+# Someone writing a Serbian description is translating from the English
+# one; without it they are guessing which "Mercury" the item is. Both
+# strings are recorded by the detector, so showing them costs no API call
+# at render time.
+
+
+def _wikidata_gap(db, gap_type="no_description", evidence=None):
+    from datetime import datetime, timezone
+
+    from app.models import Gap
+
+    gap = Gap(
+        topic_qid="Q1", language_code="sr", project_code="wikidata", gap_type=gap_type,
+        detector_key=f"wd_{gap_type}", scope_version_id=1,
+        evidence_json=json.dumps(evidence or {}),
+        action_url="https://www.wikidata.org/wiki/Q1", computed_at=datetime.now(timezone.utc),
+    )
+    db.session.add(gap)
+    db.session.commit()
+    return gap
+
+
+def test_edit_form_shows_the_english_label_and_description(client, db, seed_languages, logged_in_with_token):
+    gap = _wikidata_gap(db, evidence={
+        "label": "Живa", "label_lang": "sr",
+        "label_en": "Mercury", "description_en": "chemical element with symbol Hg",
+    })
+
+    body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
+    assert "On Wikidata in English:" in body
+    assert "Mercury" in body
+    assert "chemical element with symbol Hg" in body
+
+
+def test_edit_form_does_not_repeat_the_label_it_already_shows(client, db, seed_languages, logged_in_with_token):
+    """For a missing *label* the heading is already the English one, so
+    repeating it in the reference block adds nothing."""
+    gap = _wikidata_gap(db, gap_type="no_label", evidence={
+        "label": "Mercury", "label_lang": "en", "description_en": "chemical element",
+    })
+
+    body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
+    reference = body.split('class="english-reference"')[1].split("</div>")[0]
+    assert "chemical element" in reference
+    assert "Mercury" not in reference
+
+
+def test_edit_form_omits_the_block_entirely_when_nothing_was_recorded(client, db, seed_languages, logged_in_with_token):
+    """Gap rows written before the detectors recorded this -- show nothing
+    rather than an empty box. Detectors rewrite nightly, so it fills in."""
+    gap = _wikidata_gap(db, evidence={"label": "Живa", "label_lang": "sr"})
+
+    body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
+    assert "english-reference" not in body
+
+
+def test_the_english_reference_survives_to_the_confirm_step(client, db, seed_languages, logged_in_with_token):
+    gap = _wikidata_gap(db, evidence={
+        "label": "Живa", "label_lang": "sr", "label_en": "Mercury",
+        "description_en": "chemical element with symbol Hg",
+    })
+
+    body = client.post(f"/gap/{gap.id}/edit", data={"value": "хемијски елемент"}).data.decode()
+    assert "chemical element with symbol Hg" in body
+
+
+def test_the_english_text_is_marked_as_english(client, db, seed_languages, logged_in_with_token):
+    """The page is being read in Serbian; the reference is not."""
+    gap = _wikidata_gap(db, evidence={
+        "label": "Живa", "label_lang": "sr", "label_en": "Mercury", "description_en": "chemical element",
+    })
+
+    body = client.get(f"/gap/{gap.id}/edit").data.decode()
+    assert '<span lang="en" class="english-reference-label">Mercury</span>' in body
+    assert '<span lang="en">chemical element</span>' in body

@@ -425,6 +425,30 @@ Two deliberate limits on where that link appears:
   person" is not a coherent request, and inviting people to coin words for
   named individuals is not something this tool should do.
 
+## The English reference on the edit form
+
+Writing a Serbian description means translating the English one, and
+writing a Serbian *label* often means knowing which "Mercury" the item is
+— so `/gap/<id>/edit` shows what Wikidata already holds in English,
+marked `lang="en"` since the surrounding page is not.
+
+The point worth preserving is **where the data comes from**.
+`wd_no_label`/`wd_no_description` already call
+`get_raw_labels_and_descriptions`, which returns `label_en` and
+`description_en` alongside the per-language values they test — they simply
+threw the English pair away. Recording it in the gap evidence means the
+edit form renders with no Wikidata API call at all, keeping the rule that
+the web side never talks to an external API to draw a page (see "Request
+flow"). Adding a live lookup here would have been the obvious
+implementation and the wrong one.
+
+`_english_reference()` drops the label when it is the same string already
+in the heading — the normal case for a missing label, where the English
+one is all there was to display — so the block adds information instead of
+repeating it. Gaps detected before this was recorded have neither key and
+the block is omitted entirely; detectors rewrite their rows nightly, so it
+fills in on its own.
+
 ## Self-service gap overrides
 
 SPEC.md section 12's `POST /gap/override` (`app/blueprints/main/routes.py:

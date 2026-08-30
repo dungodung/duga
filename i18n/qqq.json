@@ -208,5 +208,6 @@
   "duga-home-all-languages-title": "Heading over the complete language list. $1 is how many languages Duga tracks. Deliberately just a count of languages -- never a ranking or a size comparison between them (SPEC.md S6).",
   "duga-gaps-meta-description": "HTML meta description for a language's gap list. $1 is the language autonym. Not shown on the page itself.",
   "duga-lang-home-meta-description": "HTML meta description for a language's overview page. $1 is the language autonym. This page IS indexed by search engines, so this is the sentence that shows up in results.",
-  "duga-vocab-meta-description": "HTML meta description for a language's vocabulary page. $1 is the language autonym."
+  "duga-vocab-meta-description": "HTML meta description for a language's vocabulary page. $1 is the language autonym.",
+  "duga-write-english-reference": "Heading of the small reference block on the edit form showing what Wikidata already holds in English for this item -- the label and/or description the contributor is translating from. Shown only when Duga recorded them."
 }

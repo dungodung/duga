@@ -229,6 +229,26 @@ a {
   align-items: baseline;
 }
 
+.english-reference {
+  border-left: 3px solid var(--border);
+  padding: 0.5rem 0 0.5rem 0.9rem;
+  margin: 1rem 0 1.5rem;
+  font-size: 0.95rem;
+}
+
+.english-reference-heading {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.english-reference-label {
+  font-weight: 600;
+  margin-right: 0.4rem;
+}
+
 .gap-list {
   list-style: none;
   padding: 0;

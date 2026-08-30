@@ -68,6 +68,33 @@ def _gap_evidence_label(gap):
     return evidence.get("label") or gap.topic_qid
 
 
+def _english_reference(gap):
+    """The English label/description Wikidata already holds, for someone
+    writing the missing one in another language. Both are recorded by
+    wd_no_label/wd_no_description at detection time, so rendering this
+    costs no API call -- the web side never talks to the Wikidata API to
+    draw a page.
+
+    The label is dropped when it is the same string already shown as the
+    heading (which is the normal case for a missing *label*, where the
+    English one is all we had to display in the first place), so the
+    reference block adds information rather than repeating it.
+
+    Returns {} for gaps detected before this was recorded; the template
+    then shows nothing rather than a half-empty box. Detectors rewrite
+    their rows nightly, so it fills in on its own."""
+    evidence = json.loads(gap.evidence_json) if gap.evidence_json else {}
+    label = evidence.get("label_en") or (
+        evidence.get("label") if evidence.get("label_lang") == "en" else None
+    )
+    if label == _gap_evidence_label(gap):
+        label = None
+    description = evidence.get("description_en")
+    if not label and not description:
+        return {}
+    return {"label": label, "description": description}
+
+
 def _term_awaiting_sense_or_404(term_id):
     """Lexeme write-back (SPEC.md section 9: "Wikidata Lexemes, Forms,
     Senses (post-v0.1)") is only offered for a term that M7's promotion
@@ -100,6 +127,7 @@ def edit_form(gap_id):
         gap=gap,
         edit_kind=EDITABLE_GAP_TYPES[gap.gap_type],
         label=_gap_evidence_label(gap),
+        english=_english_reference(gap),
         value="",
         confirming=False,
     )
@@ -126,6 +154,7 @@ def edit_submit(gap_id):
             gap=gap,
             edit_kind=edit_kind,
             label=_gap_evidence_label(gap),
+            english=_english_reference(gap),
             value=value,
             confirming=True,
         )

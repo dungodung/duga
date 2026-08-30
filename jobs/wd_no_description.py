@@ -52,6 +52,13 @@ def compute_gaps_for_language(app, language_code, qids):
                 missing[qid] = {
                     "label": info["label_language"] or info["label_en"],
                     "label_lang": language_code if info["label_language"] else "en",
+                    # The English pair is the reference someone writes the
+                    # missing description *from*, so keep both -- `label`
+                    # above may already be the local-language one. Already
+                    # fetched; no extra request, and no request-path API
+                    # call on the web side.
+                    "label_en": info["label_en"],
+                    "description_en": info["description_en"],
                 }
     return missing
 

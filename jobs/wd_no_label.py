@@ -48,7 +48,18 @@ def compute_gaps_for_language(app, language_code, qids):
         )
         for qid, info in data.items():
             if not info["label_language"]:
-                missing[qid] = {"label": info["label_en"], "label_lang": "en"}
+                missing[qid] = {
+                    "label": info["label_en"],
+                    "label_lang": "en",
+                    # Kept for the edit form: when you are writing a label
+                    # in another language, the English description is often
+                    # the only thing that disambiguates which "Mercury"
+                    # this is. get_raw_labels_and_descriptions already
+                    # fetched it, so this costs no extra request -- and the
+                    # web side must not call the Wikidata API to render a
+                    # page (docs/architecture.md, "Request flow").
+                    "description_en": info["description_en"],
+                }
     return missing
 
 
