@@ -315,3 +315,44 @@ def test_get_entities_batch_reports_the_language_the_label_came_back_in():
     assert result["Q1"]["label_lang"] == "sr"
     assert result["Q2"]["label_lang"] == "en"
     assert result["Q3"]["label_lang"] is None
+
+
+# -- network failures are typed, not leaked ----------------------------------
+
+
+@responses.activate
+def test_a_connection_error_becomes_a_wikimedia_api_error():
+    """The 2026-08-30 wp_no_article failure: requests raised a plain
+    ConnectionError, which is not WikimediaApiError, so it slipped past the
+    detector's handler and the detector row was never marked errored --
+    leaving the UI serving the previous day's gaps as current."""
+    import requests
+
+    responses.add(responses.GET, API_URL, body=requests.exceptions.ConnectionError("reset by peer"))
+
+    with pytest.raises(WikimediaApiError) as exc:
+        get_entities_batch(API_URL, ["Q1"], "sr", "test-agent")
+    assert "ConnectionError" in str(exc.value)
+
+
+@responses.activate
+def test_a_read_timeout_becomes_a_wikimedia_api_error():
+    import requests
+
+    responses.add(responses.GET, API_URL, body=requests.exceptions.ReadTimeout("too slow"))
+
+    with pytest.raises(WikimediaApiError):
+        get_entities_batch(API_URL, ["Q1"], "sr", "test-agent")
+
+
+@responses.activate
+def test_a_pageviews_connection_error_is_typed_too():
+    import re
+
+    import requests
+
+    pageviews = re.compile(r"https://wikimedia\.org/api/rest_v1/metrics/pageviews/.*")
+    responses.add(responses.GET, pageviews, body=requests.exceptions.ConnectionError("reset"))
+
+    with pytest.raises(WikimediaApiError):
+        get_monthly_pageviews("sr", "Some Title", "test-agent")

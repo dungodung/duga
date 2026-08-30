@@ -5,74 +5,92 @@
 # nothing in the repo recorded. Keeping it here means the live crontab has
 # a reviewable source, and restoring a job someone deleted is one command.
 #
+# filelog: true on every job. Without it a failed run leaves nothing behind
+# but an exit code -- which is exactly what happened to wp-no-article on
+# 2026-08-30: the failure email says "if you requested 'filelog'... check
+# the log files", and nobody had. Logs land in /data/project/duga/logs/.
+#
 # Spacing: 30 minutes. The stable detectors took ~3m20s each when Duga
-# tracked two content languages; at eleven they take ~18 minutes, so the
+# tracked two content languages; at ten they take ~13-17 minutes, so the
 # original 20-minute slots had no headroom left. impact-score runs last
 # because it scores whatever gap rows exist that day -- its first run each
 # month is the slow one (empty pageview_cache for the new month), the rest
 # are near-instant.
 - command: python3 jobs/scope_fetch.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: scope-fetch
   schedule: 0 2 * * *
 - command: python3 jobs/topic_refresh.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: topic-refresh
   schedule: 30 2 * * *
 - command: python3 jobs/wp_no_article.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: wp-no-article
   schedule: 0 3 * * *
 - command: python3 jobs/wd_no_label.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: wd-no-label
   schedule: 30 3 * * *
 - command: python3 jobs/wd_no_description.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: wd-no-description
   schedule: 0 4 * * *
 - command: python3 jobs/wiktionary_no_entry.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: wiktionary-no-entry
   schedule: 30 4 * * *
 - command: python3 jobs/wikiquote_no_quotes.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: wikiquote-no-quotes
   schedule: 0 5 * * *
 - command: python3 jobs/wikisource_no_text.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: wikisource-no-text
   schedule: 30 5 * * *
 - command: python3 jobs/commons_no_image.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: commons-no-image
   schedule: 0 6 * * *
 - command: python3 jobs/commons_no_category.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: commons-no-category
   schedule: 30 6 * * *
 - command: python3 jobs/vocab_no_term.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: vocab-no-term
   schedule: 0 7 * * *
 - command: python3 jobs/vocab_no_evidence.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: vocab-no-evidence
   schedule: 30 7 * * *
 - command: python3 jobs/impact_score.py
   emails: onfailure
+  filelog: true
   image: tool-duga/tool-duga:latest
   name: impact-score
   schedule: 0 8 * * *

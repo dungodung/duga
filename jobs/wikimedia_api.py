@@ -4,21 +4,76 @@ scope rules to topics), and the Wikimedia pageviews REST API (impact
 scoring, S1+). No writes happen from here -- see SPEC.md section 9 for the
 (separate, M6+) write path.
 """
+import threading
 from datetime import date, timedelta
 from urllib.parse import quote
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 class WikimediaApiError(RuntimeError):
     """Raised on anything that should fail a job loudly (SPEC.md guardrail 9)."""
 
 
+# A detector sweeps ~2,200 requests across ten languages, so a single
+# connection reset roughly thirteen minutes in used to kill the whole run --
+# which is exactly what happened to wp_no_article on 2026-08-30. Retry the
+# transient cases before giving up.
+#
+# 404 is deliberately NOT retried: get_monthly_pageviews() treats it as a
+# real answer ("no data for this article") rather than a failure.
+_RETRY = Retry(
+    total=3,
+    connect=3,
+    read=3,
+    status=3,
+    backoff_factor=0.5,
+    status_forcelist=(429, 500, 502, 503, 504),
+    allowed_methods=("GET",),
+    respect_retry_after_header=True,
+    raise_on_status=True,
+)
+
+# requests.Session is not documented as thread-safe, and impact_score fetches
+# pageviews from a thread pool, so each thread gets its own.
+_local = threading.local()
+
+
+def _session() -> requests.Session:
+    session = getattr(_local, "session", None)
+    if session is None:
+        session = requests.Session()
+        adapter = HTTPAdapter(max_retries=_RETRY)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        _local.session = session
+    return session
+
+
+def _get(url, **kwargs):
+    """Every outbound GET goes through here so that network-level failures
+    become WikimediaApiError like every other failure.
+
+    Without this, a connection reset or read timeout raised
+    requests.RequestException, which is not WikimediaApiError -- so it slipped
+    past jobs/detector_common.py's handler, the detector row was never marked
+    'error', and the UI went on presenting the previous day's gaps as current.
+    That is precisely the failure SPEC.md guardrail 9 forbids, and it is how
+    wp_no_article failed silently on 2026-08-30.
+    """
+    try:
+        return _session().get(url, **kwargs)
+    except requests.RequestException as exc:
+        raise WikimediaApiError(f"request to {url} failed: {exc.__class__.__name__}: {exc}") from exc
+
+
 def fetch_page_wikitext(api_url: str, title: str, user_agent: str, timeout: int = 30):
     """Returns (revision_id, wikitext) for the current revision of `title`.
     Raises WikimediaApiError if the page doesn't exist or the API errors.
     """
-    resp = requests.get(
+    resp = _get(
         api_url,
         params={
             "action": "query",
@@ -54,7 +109,7 @@ def run_sparql(endpoint: str, query: str, user_agent: str, timeout: int = 55):
     (plus any other requested bindings) as a list of dicts of plain values.
     A 55s timeout stays under WDQS's public 60s cutoff (SPEC.md section 4).
     """
-    resp = requests.get(
+    resp = _get(
         endpoint,
         params={"query": query},
         headers={
@@ -109,7 +164,7 @@ def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str,
 
     languages = language if language == "en" else f"{language}|en"
 
-    resp = requests.get(
+    resp = _get(
         api_url,
         params={
             "action": "wbgetentities",
@@ -158,7 +213,7 @@ def get_claims_batch(api_url: str, qids: list, properties: list, language: str, 
 
     languages = language if language == "en" else f"{language}|en"
 
-    resp = requests.get(
+    resp = _get(
         api_url,
         params={
             "action": "wbgetentities",
@@ -214,7 +269,7 @@ def get_raw_labels_and_descriptions(api_url: str, qids: list, language: str, use
 
     languages = language if language == "en" else f"{language}|en"
 
-    resp = requests.get(
+    resp = _get(
         api_url,
         params={
             "action": "wbgetentities",
@@ -292,7 +347,7 @@ def get_monthly_pageviews(language_code: str, article_title: str, user_agent: st
     encoded_title = quote(article_title.replace(" ", "_"), safe="")
     url = f"{PAGEVIEWS_API}/{project}/all-access/all-agents/{encoded_title}/monthly/{start}/{end}"
 
-    resp = requests.get(url, headers={"User-Agent": user_agent}, timeout=timeout)
+    resp = _get(url, headers={"User-Agent": user_agent}, timeout=timeout)
     if resp.status_code == 404:
         return 0
     if resp.status_code != 200:

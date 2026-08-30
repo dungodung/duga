@@ -285,6 +285,55 @@ descriptions/aliases now, lexeme senses/forms "post-v0.1"; item/Lexeme
   linking something still `local`, is rejected with a flash message rather
   than silently no-opping.
 
+## How a detector fails
+
+Rewritten after a real incident: `wp_no_article` died about thirteen
+minutes into its first ten-language sweep on 2026-08-30, exit code 1, and
+Duga went on showing the previous day's "no article yet" rows for `sr` and
+`fr` as if they were current, with no gap data at all for the eight newer
+languages. The stale banner did not fire. Three separate things were
+wrong, and all three are worth keeping in mind when adding a job:
+
+**1. Only `WikimediaApiError` was caught.** `jobs/wikimedia_api.py` raised
+that for an HTTP error, but a *network*-level failure -- a connection
+reset, a read timeout -- surfaced as `requests.RequestException`, which is
+not a `WikimediaApiError`. It sailed past the runner's handler into the
+bare `except Exception` in `__main__`, which prints and exits 1 **without
+touching the detector row**. So `last_status` stayed `ok` from the previous
+day, and the UI dutifully believed it. That is the exact failure guardrail
+9 exists to prevent, and it is why the banner shipped the day before could
+not save us: the banner is only as honest as the row it reads.
+
+Every outbound GET now goes through `wikimedia_api._get()`, which converts
+`requests.RequestException` into `WikimediaApiError`. The runner's handler
+is *also* deliberately broad (`except Exception`) -- typing the network
+errors is the fix, but the handler should not depend on having anticipated
+every exception class either.
+
+**2. The status write could itself be skipped.** Marking the detector now
+happens in its own transaction after a `db.session.rollback()`, so a run
+that died mid-write still records what happened rather than trying to
+commit a half-written batch alongside the status.
+
+**3. The run was all-or-nothing.** One failed request discarded nine
+languages' completed work. Detectors now iterate **one language at a
+time**, committing each before starting the next. Atomicity is kept where
+it matters -- `replace_gaps()` deletes and reinserts a single (detector,
+language) pair, so a language's list is never half-written -- but a bad
+language no longer costs the good ones. The run still exits non-zero and
+still marks the detector `error` if any language failed.
+
+Alongside that: transient failures are retried (three attempts, backoff,
+on connect/read errors and 429/5xx) before counting as a failure at all,
+and `--languages de,en` re-runs a subset, so recovering from one bad
+language doesn't mean redoing the other nine.
+
+**Logs.** `jobs.yaml` sets `filelog: true` on every job. It did not
+before, which is why the post-mortem above had to be reconstructed from
+the detector table rather than read off a stack trace: the failure email
+says "if you requested 'filelog'... check the log files", and nobody had.
+Logs land in `/data/project/duga/logs/`.
+
 ## Jobs (M1 + M2 + M3)
 
 Standalone scripts, run via Toolforge's jobs framework, never via a web
