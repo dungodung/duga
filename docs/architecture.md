@@ -328,11 +328,21 @@ on connect/read errors and 429/5xx) before counting as a failure at all,
 and `--languages de,en` re-runs a subset, so recovering from one bad
 language doesn't mean redoing the other nine.
 
-**Logs.** `jobs.yaml` sets `filelog: true` on every job. It did not
-before, which is why the post-mortem above had to be reconstructed from
-the detector table rather than read off a stack trace: the failure email
-says "if you requested 'filelog'... check the log files", and nobody had.
-Logs land in `/data/project/duga/logs/`.
+**Logs.** `jobs.yaml` sets `filelog: true` (which requires `mount: all`)
+and runs each job under `python3 -u`. Neither was set before, which is why
+the post-mortem above had to be reconstructed from the `detector` table
+rather than read off a stack trace: the failure email's "if you requested
+'filelog'... check the log files" is conditional, and nobody had.
+
+Two details that cost time to discover:
+
+- Logs are written to `/data/project/duga/<job-name>.out` and `.err` --
+  the tool's **home directory**, not the `logs/` subdirectory sitting
+  right next to it, which stays empty.
+- `-u` matters for killed jobs specifically. A job that exits normally
+  flushes its buffer either way; one that is OOM-killed or evicted loses
+  whatever was still buffered, which is precisely the run you want the
+  output from.
 
 ## Jobs (M1 + M2 + M3)
 
