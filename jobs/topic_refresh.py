@@ -3,7 +3,8 @@ WDQS and writes the `topic`/`topic_rule` tables (SPEC.md section 4, 7, 11).
 
 Run via: python3 jobs/topic_refresh.py
 Idempotent (SPEC.md guardrail 8): for the active scope_version, topic_rule
-rows are fully replaced each run to reflect exactly what WDQS returns now;
+rows are replaced each run -- per rule, and only for rules that actually
+resolved -- to reflect exactly what WDQS returns now;
 `topic` rows persist across runs (first_seen never moves, last_seen does),
 and this job never touches `suppressed`/`suppressed_*` -- those are set only
 by an operator/contributor action, never by re-detection.
@@ -139,7 +140,19 @@ def run(app=None):
             topic.is_living = info["is_living"]
             topic.last_seen = now
 
-        TopicRule.query.filter_by(scope_version_id=active_version_id).delete()
+        # Replace topic_rule rows only for the rules that actually resolved.
+        # A blanket delete would let one rule's transient WDQS failure wipe
+        # that rule's associations -- ~7,000 rows for
+        # person_orientation_sourced -- and the gap and topic pages read this
+        # table to explain why a topic is in scope, so the damage is visible.
+        # Guardrail 12: a rule we could not check keeps yesterday's answer
+        # rather than silently becoming "matches nothing".
+        resolved_rule_keys = [rule.rule_key for rule in rules if rule.rule_key not in failures]
+        if resolved_rule_keys:
+            TopicRule.query.filter(
+                TopicRule.scope_version_id == active_version_id,
+                TopicRule.rule_key.in_(resolved_rule_keys),
+            ).delete(synchronize_session=False)
         for qid, info in topics.items():
             for rule_key in info["rule_keys"]:
                 db.session.add(

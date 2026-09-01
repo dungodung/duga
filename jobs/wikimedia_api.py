@@ -4,6 +4,7 @@ scope rules to topics), and the Wikimedia pageviews REST API (impact
 scoring, S1+). No writes happen from here -- see SPEC.md section 9 for the
 (separate, M6+) write path.
 """
+import sys
 import threading
 from datetime import date, timedelta
 from urllib.parse import quote
@@ -69,6 +70,28 @@ def _get(url, **kwargs):
         raise WikimediaApiError(f"request to {url} failed: {exc.__class__.__name__}: {exc}") from exc
 
 
+def _json(resp, context: str):
+    """Every response body is decoded through here so that a malformed or
+    truncated body becomes WikimediaApiError like every other failure.
+
+    This is the same lesson as _get() above, one layer up. On 2026-08-30 the
+    transport layer was wrapped, but resp.json() was left bare -- and
+    json.JSONDecodeError subclasses ValueError, not WikimediaApiError. So
+    when WDQS returned a truncated 865KB body on 2026-09-01, the error blew
+    straight past topic_refresh's per-rule handler and killed the whole run.
+    A body that arrives cut in half is a transport failure wearing a
+    different exception type; it is typed as one here.
+    """
+    try:
+        return resp.json()
+    except ValueError as exc:
+        body = resp.text or ""
+        raise WikimediaApiError(
+            f"could not decode the JSON response for {context}: {exc} "
+            f"(received {len(body)} bytes, ending {body[-120:]!r})"
+        ) from exc
+
+
 def fetch_page_wikitext(api_url: str, title: str, user_agent: str, timeout: int = 30):
     """Returns (revision_id, wikitext) for the current revision of `title`.
     Raises WikimediaApiError if the page doesn't exist or the API errors.
@@ -88,7 +111,7 @@ def fetch_page_wikitext(api_url: str, title: str, user_agent: str, timeout: int 
         timeout=timeout,
     )
     resp.raise_for_status()
-    data = resp.json()
+    data = _json(resp, f"the wikitext of {title!r}")
 
     pages = data.get("query", {}).get("pages", [])
     if not pages or pages[0].get("missing"):
@@ -104,25 +127,42 @@ def fetch_page_wikitext(api_url: str, title: str, user_agent: str, timeout: int 
     return revision["revid"], wikitext
 
 
-def run_sparql(endpoint: str, query: str, user_agent: str, timeout: int = 55):
+def run_sparql(endpoint: str, query: str, user_agent: str, timeout: int = 55, attempts: int = 2):
     """Runs a SPARQL query against WDQS and returns the list of ?item QIDs
     (plus any other requested bindings) as a list of dicts of plain values.
     A 55s timeout stays under WDQS's public 60s cutoff (SPEC.md section 4).
+
+    A truncated body gets one more try before giving up. _RETRY cannot see
+    this case -- the response was a clean HTTP 200 and the connection died
+    partway through the body -- yet it is transient in exactly the same way,
+    and the cost of not retrying is losing a whole scope rule's topics for
+    the day (person_orientation_sourced alone is ~7,000 people).
     """
-    resp = _get(
-        endpoint,
-        params={"query": query},
-        headers={
-            "User-Agent": user_agent,
-            "Accept": "application/sparql-results+json",
-        },
-        timeout=timeout,
-    )
-    if resp.status_code != 200:
-        raise WikimediaApiError(
-            f"WDQS returned HTTP {resp.status_code} for a scope_rule query: {resp.text[:500]}"
+    for attempt in range(1, attempts + 1):
+        resp = _get(
+            endpoint,
+            params={"query": query},
+            headers={
+                "User-Agent": user_agent,
+                "Accept": "application/sparql-results+json",
+            },
+            timeout=timeout,
         )
-    data = resp.json()
+        if resp.status_code != 200:
+            raise WikimediaApiError(
+                f"WDQS returned HTTP {resp.status_code} for a scope_rule query: {resp.text[:500]}"
+            )
+        try:
+            data = _json(resp, "a scope_rule WDQS query")
+            break
+        except WikimediaApiError as exc:
+            if attempt == attempts:
+                raise
+            print(
+                f"run_sparql: attempt {attempt}/{attempts} came back undecodable "
+                f"({exc}); retrying",
+                file=sys.stderr,
+            )
 
     variables = data["head"]["vars"]
     rows = []
@@ -182,7 +222,7 @@ def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str,
         raise WikimediaApiError(
             f"wbgetentities returned HTTP {resp.status_code} for {len(qids)} ids: {resp.text[:500]}"
         )
-    data = resp.json()
+    data = _json(resp, f"wbgetentities sitelinks/labels for {len(qids)} ids in {language!r}")
 
     result = {}
     for qid, entity in data.get("entities", {}).items():
@@ -231,7 +271,7 @@ def get_claims_batch(api_url: str, qids: list, properties: list, language: str, 
         raise WikimediaApiError(
             f"wbgetentities returned HTTP {resp.status_code} for {len(qids)} ids: {resp.text[:500]}"
         )
-    data = resp.json()
+    data = _json(resp, f"wbgetentities claims for {len(qids)} ids in {language!r}")
 
     result = {}
     for qid, entity in data.get("entities", {}).items():
@@ -286,7 +326,7 @@ def get_raw_labels_and_descriptions(api_url: str, qids: list, language: str, use
         raise WikimediaApiError(
             f"wbgetentities returned HTTP {resp.status_code} for {len(qids)} ids: {resp.text[:500]}"
         )
-    data = resp.json()
+    data = _json(resp, f"wbgetentities labels/descriptions for {len(qids)} ids in {language!r}")
 
     result = {}
     for qid, entity in data.get("entities", {}).items():
@@ -354,5 +394,5 @@ def get_monthly_pageviews(language_code: str, article_title: str, user_agent: st
         raise WikimediaApiError(
             f"pageviews API returned HTTP {resp.status_code} for {project}/{article_title}: {resp.text[:300]}"
         )
-    data = resp.json()
+    data = _json(resp, f"pageviews for {project}/{article_title}")
     return sum(item.get("views", 0) for item in data.get("items", []))

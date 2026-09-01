@@ -181,3 +181,95 @@ def test_run_never_unsuppresses_a_suppressed_topic(app):
     topic = db.session.get(Topic, "Q1")
     assert topic.suppressed is True
     assert topic.suppressed_reason == "operator decision"
+
+
+# -- partial failure: a rule that could not be checked keeps its rows -------
+#
+# From the 2026-09-01 incident: WDQS returned a truncated 865KB body,
+# json.JSONDecodeError escaped every handler, and the job died before
+# touching the database. Typing that error as WikimediaApiError (so the
+# per-rule handler catches it) is only safe if a skipped rule's topic_rule
+# rows survive -- otherwise the fix would trade a loud crash for the silent
+# deletion of ~7,000 associations the UI reads to explain scope.
+
+
+@responses.activate
+def test_a_failed_rule_keeps_its_previous_topic_rule_rows(app):
+    concept = ScopeRule(
+        rule_key="lgbt_concept",
+        label="Concepts",
+        entity_class="concept",
+        requires_reference=False,
+        risk_level="low",
+        sparql_fragment="?item wdt:P31 wd:Q17884.",
+    )
+    people = ScopeRule(
+        rule_key="person_orientation_sourced",
+        label="Sourced orientation",
+        entity_class="human",
+        requires_reference=True,
+        risk_level="high",
+        sparql_fragment="?item wdt:P31 wd:Q5 . ?item p:P91 ?st . ?st prov:wasDerivedFrom ?ref .",
+    )
+    make_active_scope_version(concept, people)
+
+    # First run: both rules resolve.
+    responses.add(responses.GET, WDQS_URL, json=sparql_json(("Q1", False)), status=200)
+    responses.add(responses.GET, WDQS_URL, json=sparql_json(("Q2", True)), status=200)
+    topic_refresh.run(app)
+    assert TopicRule.query.filter_by(rule_key="person_orientation_sourced").count() == 1
+
+    # Second run: the people rule comes back truncated.
+    responses.reset()
+    responses.add(responses.GET, WDQS_URL, json=sparql_json(("Q1", False)), status=200)
+    responses.add(responses.GET, WDQS_URL, body='{"head": {"vars": ["item"', status=200)
+    responses.add(responses.GET, WDQS_URL, body='{"head": {"vars": ["item"', status=200)
+
+    with pytest.raises(SystemExit) as exc:
+        topic_refresh.run(app)
+    assert exc.value.code == 1
+
+    # The rule that worked is rewritten; the one that failed keeps yesterday's
+    # answer rather than silently becoming "matches nothing".
+    assert TopicRule.query.filter_by(rule_key="lgbt_concept").count() == 1
+    assert TopicRule.query.filter_by(rule_key="person_orientation_sourced").count() == 1
+    assert db.session.get(Topic, "Q2") is not None
+
+
+@responses.activate
+def test_a_truncated_wdqs_body_is_a_skipped_rule_not_a_crash(app):
+    """The exact 2026-09-01 shape: a clean HTTP 200 whose body stops
+    mid-string. It must reach the per-rule handler as a WikimediaApiError."""
+    rule = ScopeRule(
+        rule_key="lgbt_concept",
+        label="Concepts",
+        entity_class="concept",
+        requires_reference=False,
+        risk_level="low",
+        sparql_fragment="?item wdt:P31 wd:Q17884.",
+    )
+    make_active_scope_version(rule)
+    for _ in range(2):  # both attempts truncated
+        responses.add(responses.GET, WDQS_URL, body='{"head": {"vars": ["item"', status=200)
+
+    with pytest.raises(SystemExit) as exc:
+        topic_refresh.run(app)
+    assert exc.value.code == 1
+
+
+@responses.activate
+def test_a_truncated_body_is_retried_once_and_can_succeed(app):
+    rule = ScopeRule(
+        rule_key="lgbt_concept",
+        label="Concepts",
+        entity_class="concept",
+        requires_reference=False,
+        risk_level="low",
+        sparql_fragment="?item wdt:P31 wd:Q17884.",
+    )
+    make_active_scope_version(rule)
+    responses.add(responses.GET, WDQS_URL, body='{"head": {"vars": ["item"', status=200)
+    responses.add(responses.GET, WDQS_URL, json=sparql_json(("Q1", False)), status=200)
+
+    topic_refresh.run(app)  # no SystemExit: the retry carried it
+    assert TopicRule.query.filter_by(rule_key="lgbt_concept").count() == 1

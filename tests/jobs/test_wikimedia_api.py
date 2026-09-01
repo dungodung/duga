@@ -9,6 +9,7 @@ from jobs.wikimedia_api import (
     get_entities_batch,
     get_monthly_pageviews,
     get_raw_labels_and_descriptions,
+    run_sparql,
 )
 
 API_URL = "https://www.wikidata.org/w/api.php"
@@ -356,3 +357,40 @@ def test_a_pageviews_connection_error_is_typed_too():
 
     with pytest.raises(WikimediaApiError):
         get_monthly_pageviews("sr", "Some Title", "test-agent")
+
+
+# -- malformed/truncated bodies are WikimediaApiError, not ValueError ------
+
+
+@responses.activate
+def test_a_truncated_body_raises_wikimedia_api_error():
+    """json.JSONDecodeError subclasses ValueError, not WikimediaApiError, so
+    an unwrapped resp.json() escapes every job's handler. That is how
+    topic_refresh died on 2026-09-01."""
+    responses.add(
+        responses.GET,
+        "https://query.wikidata.org/sparql",
+        body='{"head": {"vars": ["item"',
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        "https://query.wikidata.org/sparql",
+        body='{"head": {"vars": ["item"',
+        status=200,
+    )
+    with pytest.raises(WikimediaApiError) as exc:
+        run_sparql("https://query.wikidata.org/sparql", "SELECT * {}", "duga-test")
+    assert "could not decode" in str(exc.value)
+
+
+@responses.activate
+def test_a_truncated_entity_batch_raises_wikimedia_api_error():
+    responses.add(
+        responses.GET,
+        "https://www.wikidata.org/w/api.php",
+        body='{"entities": {"Q1": {"labels',
+        status=200,
+    )
+    with pytest.raises(WikimediaApiError):
+        get_entities_batch("https://www.wikidata.org/w/api.php", ["Q1"], "sr", "duga-test")
