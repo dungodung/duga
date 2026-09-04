@@ -142,13 +142,18 @@ def run_sparql(endpoint: str, query: str, user_agent: str, timeout: int = 55, at
     (plus any other requested bindings) as a list of dicts of plain values.
     A 55s timeout stays under WDQS's public 60s cutoff (SPEC.md section 4).
 
-    WDQS keeps cutting the ~865KB person_orientation_sourced body off
-    mid-stream: 2026-09-01 and again 2026-09-04. Both are the same event and
-    it surfaces two different ways, depending on whether the chunked-transfer
-    layer notices the premature end -- as a JSONDecodeError from the parse, or
-    as a ChunkedEncodingError from the read. So the whole fetch retries, not
-    just the parse: the first version of this guarded only the decode, and the
+    WDQS keeps cutting the person_orientation_sourced body off mid-stream:
+    2026-09-01 and again 2026-09-04. Both are the same event and it surfaces
+    two different ways, depending on whether the chunked-transfer layer
+    notices the premature end -- as a JSONDecodeError from the parse, or as a
+    ChunkedEncodingError from the read. So the whole fetch retries, not just
+    the parse: the first version of this guarded only the decode, and the
     2026-09-04 failure walked straight past it.
+
+    Measured 2026-09-04: that response is ~1.0MB over 7,119 rows, and a cold
+    (uncached) run of the query takes ~15s at WDQS before the first byte --
+    which is the shape of the job's 02:30 slot. A megabyte streamed over a
+    15-second window is simply a wide opening for the connection to drop.
 
     _RETRY cannot cover either case. requests reads the body in Session.send,
     after urllib3 has already handed back a clean HTTP 200, so a body that
