@@ -6,6 +6,7 @@ scoring, S1+). No writes happen from here -- see SPEC.md section 9 for the
 """
 import sys
 import threading
+import time
 from datetime import date, timedelta
 from urllib.parse import quote
 
@@ -16,6 +17,15 @@ from urllib3.util.retry import Retry
 
 class WikimediaApiError(RuntimeError):
     """Raised on anything that should fail a job loudly (SPEC.md guardrail 9)."""
+
+
+class RetryableApiError(WikimediaApiError):
+    """A transport-level failure worth another attempt: the connection died,
+    or the body arrived incomplete. Subclasses WikimediaApiError so every
+    existing handler treats it identically -- only retry loops care about the
+    distinction, so that a genuinely bad request (a malformed SPARQL query,
+    say) is never retried.
+    """
 
 
 # A detector sweeps ~2,200 requests across ten languages, so a single
@@ -67,7 +77,7 @@ def _get(url, **kwargs):
     try:
         return _session().get(url, **kwargs)
     except requests.RequestException as exc:
-        raise WikimediaApiError(f"request to {url} failed: {exc.__class__.__name__}: {exc}") from exc
+        raise RetryableApiError(f"request to {url} failed: {exc.__class__.__name__}: {exc}") from exc
 
 
 def _json(resp, context: str):
@@ -86,7 +96,7 @@ def _json(resp, context: str):
         return resp.json()
     except ValueError as exc:
         body = resp.text or ""
-        raise WikimediaApiError(
+        raise RetryableApiError(
             f"could not decode the JSON response for {context}: {exc} "
             f"(received {len(body)} bytes, ending {body[-120:]!r})"
         ) from exc
@@ -127,42 +137,54 @@ def fetch_page_wikitext(api_url: str, title: str, user_agent: str, timeout: int 
     return revision["revid"], wikitext
 
 
-def run_sparql(endpoint: str, query: str, user_agent: str, timeout: int = 55, attempts: int = 2):
+def run_sparql(endpoint: str, query: str, user_agent: str, timeout: int = 55, attempts: int = 3):
     """Runs a SPARQL query against WDQS and returns the list of ?item QIDs
     (plus any other requested bindings) as a list of dicts of plain values.
     A 55s timeout stays under WDQS's public 60s cutoff (SPEC.md section 4).
 
-    A truncated body gets one more try before giving up. _RETRY cannot see
-    this case -- the response was a clean HTTP 200 and the connection died
-    partway through the body -- yet it is transient in exactly the same way,
-    and the cost of not retrying is losing a whole scope rule's topics for
-    the day (person_orientation_sourced alone is ~7,000 people).
+    WDQS keeps cutting the ~865KB person_orientation_sourced body off
+    mid-stream: 2026-09-01 and again 2026-09-04. Both are the same event and
+    it surfaces two different ways, depending on whether the chunked-transfer
+    layer notices the premature end -- as a JSONDecodeError from the parse, or
+    as a ChunkedEncodingError from the read. So the whole fetch retries, not
+    just the parse: the first version of this guarded only the decode, and the
+    2026-09-04 failure walked straight past it.
+
+    _RETRY cannot cover either case. requests reads the body in Session.send,
+    after urllib3 has already handed back a clean HTTP 200, so a body that
+    dies mid-read is outside the adapter's retry scope entirely.
+
+    A non-200 is NOT retried here -- _RETRY has already exhausted its attempts
+    on 429/5xx by this point, and retrying a rejected query just repeats it.
     """
+    delay = 2.0
     for attempt in range(1, attempts + 1):
-        resp = _get(
-            endpoint,
-            params={"query": query},
-            headers={
-                "User-Agent": user_agent,
-                "Accept": "application/sparql-results+json",
-            },
-            timeout=timeout,
-        )
-        if resp.status_code != 200:
-            raise WikimediaApiError(
-                f"WDQS returned HTTP {resp.status_code} for a scope_rule query: {resp.text[:500]}"
-            )
         try:
+            resp = _get(
+                endpoint,
+                params={"query": query},
+                headers={
+                    "User-Agent": user_agent,
+                    "Accept": "application/sparql-results+json",
+                },
+                timeout=timeout,
+            )
+            if resp.status_code != 200:
+                raise WikimediaApiError(
+                    f"WDQS returned HTTP {resp.status_code} for a scope_rule query: {resp.text[:500]}"
+                )
             data = _json(resp, "a scope_rule WDQS query")
             break
-        except WikimediaApiError as exc:
+        except RetryableApiError as exc:
             if attempt == attempts:
                 raise
             print(
-                f"run_sparql: attempt {attempt}/{attempts} came back undecodable "
-                f"({exc}); retrying",
+                f"run_sparql: attempt {attempt}/{attempts} did not complete "
+                f"({exc}); retrying in {delay:.0f}s",
                 file=sys.stderr,
             )
+            time.sleep(delay)
+            delay *= 2
 
     variables = data["head"]["vars"]
     rows = []

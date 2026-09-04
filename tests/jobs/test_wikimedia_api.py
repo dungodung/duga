@@ -1,9 +1,11 @@
 import re
 
 import pytest
+import requests
 import responses
 
 from jobs.wikimedia_api import (
+    RetryableApiError,
     WikimediaApiError,
     get_claims_batch,
     get_entities_batch,
@@ -394,3 +396,60 @@ def test_a_truncated_entity_batch_raises_wikimedia_api_error():
     )
     with pytest.raises(WikimediaApiError):
         get_entities_batch("https://www.wikidata.org/w/api.php", ["Q1"], "sr", "duga-test")
+
+
+# -- the retry must cover the fetch, not just the parse --------------------
+#
+# 2026-09-04: WDQS cut the person_orientation_sourced body off mid-stream
+# again, but this time the chunked-transfer layer noticed and requests raised
+# ChunkedEncodingError from inside _get -- outside the retry, which only
+# wrapped the decode. Same event as 2026-09-01, different exception, no retry.
+
+
+@responses.activate
+def test_a_connection_dying_mid_body_is_retried(monkeypatch):
+    monkeypatch.setattr("jobs.wikimedia_api.time.sleep", lambda _s: None)
+    responses.add(
+        responses.GET,
+        "https://query.wikidata.org/sparql",
+        body=requests.exceptions.ChunkedEncodingError("Response ended prematurely"),
+    )
+    responses.add(
+        responses.GET,
+        "https://query.wikidata.org/sparql",
+        json={"head": {"vars": ["item"]}, "results": {"bindings": []}},
+        status=200,
+    )
+    assert run_sparql("https://query.wikidata.org/sparql", "SELECT * {}", "duga-test") == []
+
+
+@responses.activate
+def test_a_connection_dying_every_time_still_fails_loudly(monkeypatch):
+    monkeypatch.setattr("jobs.wikimedia_api.time.sleep", lambda _s: None)
+    for _ in range(3):
+        responses.add(
+            responses.GET,
+            "https://query.wikidata.org/sparql",
+            body=requests.exceptions.ChunkedEncodingError("Response ended prematurely"),
+        )
+    with pytest.raises(WikimediaApiError):
+        run_sparql("https://query.wikidata.org/sparql", "SELECT * {}", "duga-test")
+
+
+@responses.activate
+def test_a_rejected_query_is_not_retried(monkeypatch):
+    """A malformed SPARQL query is a real answer, not a transport hiccup:
+    retrying it just asks WDQS the same bad question three times."""
+    monkeypatch.setattr("jobs.wikimedia_api.time.sleep", lambda _s: None)
+    responses.add(
+        responses.GET, "https://query.wikidata.org/sparql", body="malformed query", status=400
+    )
+    with pytest.raises(WikimediaApiError):
+        run_sparql("https://query.wikidata.org/sparql", "SELECT bogus", "duga-test")
+    assert len(responses.calls) == 1
+
+
+def test_retryable_errors_are_still_wikimedia_api_errors():
+    """Every existing handler catches WikimediaApiError; the retryable
+    subclass must not slip past any of them."""
+    assert issubclass(RetryableApiError, WikimediaApiError)
