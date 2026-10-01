@@ -1140,3 +1140,58 @@ def test_an_rtl_interface_language_would_flip_the_document(client, seed_language
     stylesheet -- a full RTL pass is a separate piece of work."""
     monkeypatch.setattr("app.i18n.RTL_LANGS", frozenset({"en"}))
     assert b'dir="rtl"' in client.get("/?uselang=en").data
+
+
+def test_a_gap_row_names_its_project_as_well_as_colouring_it(client, db, seed_languages):
+    """The spectrum edge on a gap row is reinforcement, never the only
+    signal -- so the project has to stay readable as a word. (It colours
+    projects, not languages: S6 is about ranking languages, and nothing
+    here touches one.)"""
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Gap(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wikipedia",
+            gap_type="no_article",
+            detector_key="wp_no_article",
+            scope_version_id=1,
+            evidence_json='{"label": "Marsha P. Johnson"}',
+            action_url="https://www.wikidata.org/wiki/Q1",
+            computed_at=now,
+        )
+    )
+    db.session.commit()
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    assert 'data-project="wikipedia"' in body
+    assert "Wikipedia" in body
+
+
+def test_the_gap_list_stays_noindex(client, db, seed_languages):
+    """SPEC.md S7 and guardrail 12: a crawlable, paginated index of real
+    people's names under a queer-topics heading is a concentration this tool
+    must not create. A visual pass has no business near that."""
+    assert b'content="noindex, follow"' in client.get("/sr/gaps").data
+
+
+def test_a_gap_label_keeps_its_own_language_tag(client, db, seed_languages):
+    """Detectors record label_lang because a request for `sr` can answer in
+    English. The template emits it only when known, never guessed -- and
+    restyling a row is exactly how that gets dropped."""
+    now = datetime.now(timezone.utc)
+    db.session.add(
+        Gap(
+            topic_qid="Q1",
+            language_code="sr",
+            project_code="wikipedia",
+            gap_type="no_article",
+            detector_key="wp_no_article",
+            scope_version_id=1,
+            evidence_json='{"label": "Marsha P. Johnson", "label_lang": "en"}',
+            action_url="https://www.wikidata.org/wiki/Q1",
+            computed_at=now,
+        )
+    )
+    db.session.commit()
+    body = client.get("/sr/gaps").data.decode()
+    assert 'class="gap-label" lang="en"' in body
