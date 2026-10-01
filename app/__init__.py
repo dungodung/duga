@@ -1,8 +1,41 @@
+import os
+
 from flask import Flask, g, render_template, request
 
 from . import i18n
 from .config import CONFIG_BY_NAME
 from .extensions import db, migrate
+
+# The hand-written assets, in the order they appear in base.html. Both are
+# served straight from disk with no build step, so their mtimes are the only
+# version information that exists.
+VERSIONED_ASSETS = ("css/style.css", "js/enhance.js")
+
+
+def asset_version(static_folder):
+    """A cache-busting token for the stylesheet and the enhancement script.
+
+    url_for('static', ...) emits a bare path with nothing to invalidate on,
+    so without this a returning visitor gets the new markup applied to
+    whichever stylesheet their browser already had cached. For a small
+    tweak that is a stale detail; for a layout change it is a broken page,
+    and there is no way for them to know a reload would fix it.
+
+    Computed once at startup rather than per request -- the files cannot
+    change under a running process without a redeploy, which restarts it.
+    One token for both files, because they change together and a single
+    query parameter is simpler to reason about than two.
+    """
+    newest = 0.0
+    for name in VERSIONED_ASSETS:
+        try:
+            newest = max(newest, os.stat(os.path.join(static_folder, name)).st_mtime)
+        except OSError:
+            # A missing asset is not this function's problem to report: the
+            # 404 on the asset itself says it far more clearly than a
+            # startup crash would.
+            continue
+    return str(int(newest))
 
 
 def create_app(config_name: str = "production") -> Flask:
@@ -81,6 +114,12 @@ def create_app(config_name: str = "production") -> Flask:
     @app.context_processor
     def inject_contributor():
         return {"contributor": current_contributor()}
+
+    app.config.setdefault("DUGA_ASSET_VERSION", asset_version(app.static_folder))
+
+    @app.context_processor
+    def inject_asset_version():
+        return {"asset_version": app.config["DUGA_ASSET_VERSION"]}
 
     @app.context_processor
     def inject_current_path():

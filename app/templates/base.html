@@ -24,7 +24,7 @@
 <meta property="og:url" content="{{ request.base_url }}">
 <meta property="og:locale" content="{{ interface_lang }}">
 <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=asset_version) }}">
 </head>
 <body>
 <header class="site-header">
@@ -78,6 +78,6 @@
     <button type="submit">{{ _('duga-home-interface-language-submit') }}</button>
   </form>
 </footer>
-<script src="{{ url_for('static', filename='js/enhance.js') }}"></script>
+<script src="{{ url_for('static', filename='js/enhance.js', v=asset_version) }}"></script>
 </body>
 </html>
