@@ -74,16 +74,45 @@ grows. The only number on the page is how many languages exist in total.
 A flat list stops being readable somewhere past a couple of dozen entries,
 which the top-ten-Wikipedias seed already pushes towards, so:
 
-- **A search box** (`?q=`) filtering on autonym and language code. It is a
-  plain GET form handled server-side, because SPEC.md section 12 requires
-  every page to work without JavaScript; `enhance.js` then filters the
-  already-rendered list as you type and hides the submit button it no
-  longer needs, the same pattern the interface-language switcher uses.
+- **A search box** (`?q=`) filtering on a single `data-search` haystack per
+  row: the autonym, the language code, the language's name in the interface
+  language, and its English name. It is a plain GET form handled
+  server-side, because SPEC.md section 12 requires every page to work
+  without JavaScript; `enhance.js` then filters the already-rendered list as
+  you type and hides the submit button it no longer needs, the same pattern
+  the interface-language switcher uses. Both filters read that one
+  attribute, so they are the same predicate by construction rather than two
+  implementations that happen to agree — see docs/i18n.md.
+- **A `<details>` disclosure** holding the full list. Chosen over a
+  JavaScript combobox because it expands, collapses and takes keyboard focus
+  natively, so it costs a visitor without JS nothing and needs no ARIA. Which
+  means `open` has to be decided server-side: `_picker_starts_open()` forces
+  it for any `?q=`, because with JS off the only way to reach a filtered
+  result is that page load, and a match inside a closed panel would make the
+  no-JS search path broken rather than merely plainer. It also opens when
+  there is nothing to suggest, and below `PICKER_COLLAPSE_MIN` languages,
+  where collapsing a list that already fits is friction for nothing.
+
+  The known cost: find-in-page will not reach a language inside a closed
+  disclosure in Safari or Firefox. The search box is the advertised path and
+  sits above it; if this turns out to annoy people, the escalation is
+  `hidden="until-found"` for Chromium, which would *replace* `<details>`
+  rather than supplement it.
 - **"Languages you read"**, a short list lifted to the top from the
   visitor's own `Accept-Language` plus a `duga_recent_langs` cookie
   recording which language overviews they have opened. It is a shortcut,
   never a filter -- the complete list is always directly underneath, and
   a test enforces that.
+
+Note what the summary deliberately does *not* do: while the live filter is
+hiding rows it still reads "All 10 languages", describing the set rather
+than the screen. A live "3 shown" counter would put a second, *changing*
+number beside a list of languages, which is the exact shape S6 exists to
+prevent. The no-match state is announced via `role="status"` instead.
+
+There are no JavaScript tests, and that is a decision rather than a gap:
+every behaviour `enhance.js` adds is asserted server-side in its no-JS
+form, which is the property SPEC.md section 12 actually cares about.
 
 The recent-languages cookie is deliberately client-side only and separate
 from `duga_uselang`: which language you read *about* and which language

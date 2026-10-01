@@ -178,3 +178,44 @@ def test_unreviewed_translations_say_so():
         with open(os.path.join(i18n.I18N_DIR, f"{code}.json"), encoding="utf-8") as fh:
             metadata = json.load(fh).get("@metadata", {})
         assert "not reviewed" in metadata.get("note", "").lower(), code
+
+
+# -- language names ----------------------------------------------------------
+
+
+def test_a_language_name_is_given_in_the_interface_language():
+    """SPEC.md section 13: interface and content language are independent.
+    The name beside an autonym is in whichever chrome you are reading, so
+    "German" is only right while that chrome happens to be English."""
+    assert i18n.language_name("de", "en") == "German"
+    assert i18n.language_name("de", "es") == "alemán"
+    assert i18n.language_name("de", "ru") == "немецкий"
+
+
+def test_a_missing_language_name_resolves_to_empty_not_to_the_message_key():
+    """A content language can be seeded before anyone names it. The picker
+    then shows its autonym alone, rather than printing "duga-langname-zz" at
+    a visitor."""
+    assert i18n.language_name("zz", "en") == ""
+
+
+def test_every_interface_language_has_a_name_in_every_interface_language():
+    """A missing name degrades quietly, which is correct but silent -- so the
+    check has to live here. Adding an interface language means adding its
+    duga-langname-* to all of them, and giving it names for all of them;
+    docs/i18n.md's "Adding a language" lists it as a step."""
+    for subject in i18n.available_languages():
+        for reader in i18n.available_languages():
+            assert i18n.language_name(subject, reader), (
+                f"{subject} has no name in {reader}"
+            )
+
+
+def test_every_rtl_language_code_is_lowercase_and_plausible():
+    """RTL_LANGS is matched against resolve_interface_lang()'s output, which
+    is a filename stem from i18n/ -- so an uppercased or stray entry would
+    simply never fire, silently."""
+    for code in i18n.RTL_LANGS:
+        assert code == code.lower()
+        assert i18n.is_rtl(code)
+    assert not i18n.is_rtl("en")
