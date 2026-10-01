@@ -223,5 +223,10 @@
   "duga-langname-pl": "Polnisch",
   "duga-langname-ru": "Russisch",
   "duga-langname-sr": "Serbisch",
-  "duga-langname-sv": "Schwedisch"
+  "duga-langname-sv": "Schwedisch",
+  "duga-skip-to-content": "Zum Inhalt springen",
+  "duga-nav-label": "Website-Navigation",
+  "duga-nav-interface-language-short": "Oberfläche",
+  "duga-footer-label": "Über dieses Werkzeug",
+  "duga-footer-source": "Quellcode"
 }

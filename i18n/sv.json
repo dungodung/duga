@@ -223,5 +223,10 @@
   "duga-langname-pl": "polska",
   "duga-langname-ru": "ryska",
   "duga-langname-sr": "serbiska",
-  "duga-langname-sv": "svenska"
+  "duga-langname-sv": "svenska",
+  "duga-skip-to-content": "Hoppa till innehållet",
+  "duga-nav-label": "Webbplatsnavigering",
+  "duga-nav-interface-language-short": "Gränssnitt",
+  "duga-footer-label": "Om det här verktyget",
+  "duga-footer-source": "Källkod"
 }

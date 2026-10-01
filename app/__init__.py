@@ -109,6 +109,7 @@ def create_app(config_name: str = "production") -> Flask:
             "interface_lang": lang,
             "available_languages": i18n.available_languages(),
             "autonym": i18n.autonym,
+            "interface_dir": "rtl" if i18n.is_rtl(lang) else "ltr",
         }
 
     @app.context_processor

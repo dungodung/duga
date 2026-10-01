@@ -220,5 +220,10 @@
   "duga-langname-pl": "пољски",
   "duga-langname-ru": "руски",
   "duga-langname-sr": "српски",
-  "duga-langname-sv": "шведски"
+  "duga-langname-sv": "шведски",
+  "duga-skip-to-content": "Пређи на садржај",
+  "duga-nav-label": "Навигација сајта",
+  "duga-nav-interface-language-short": "Интерфејс",
+  "duga-footer-label": "О овој алатки",
+  "duga-footer-source": "Изворни код"
 }
