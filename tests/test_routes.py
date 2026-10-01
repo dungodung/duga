@@ -782,11 +782,24 @@ def test_home_never_shows_gap_counts(client, db, seed_languages):
 
 
 def _main(response):
-    """Just the page body -- the footer carries an interface-language
-    switcher listing every translated language, which is a different thing
-    from the content-language picker being tested here."""
+    """Just the page body.
+
+    The chrome outside it lists every translated interface language twice
+    over -- the header's switcher, and the hreflang alternates in <head> --
+    which is a different thing from the content-language picker these tests
+    are about. Slicing <main> excludes both, and the footer's links too.
+
+    Matched on the opening tag rather than the literal "<main>" so that
+    adding an attribute to it (it carries id="content" for the skip link)
+    doesn't silently break every caller.
+
+    Note for anyone adding markup inside <main>: a couple of tests assert
+    that no digit appears in here beyond the language count, so a stray
+    data-index or similar will fail them in a confusing place.
+    """
     body = response.data.decode()
-    return body[body.index("<main>"):body.index("</main>")]
+    start = body.index(">", body.index("<main")) + 1
+    return body[start:body.index("</main>")]
 
 
 def test_home_search_filters_server_side(client, db, seed_languages):
@@ -1067,3 +1080,63 @@ def test_the_suggested_shortcut_is_filterable_too(client, db, seed_languages):
     main = _main(client.get("/?uselang=en", headers={"Accept-Language": "sr"}))
     suggested = main.split("Languages you read")[1].split("</ul>")[0]
     assert "data-search=" in suggested
+
+
+# -- the header ---------------------------------------------------------------
+
+
+def test_the_interface_switcher_sits_in_the_header_not_the_footer(client, seed_languages):
+    """It belongs with the username and logout it shares a purpose with.
+    Tested by position rather than by markup so it cannot pass just because
+    a stray copy exists somewhere on the page."""
+    body = client.get("/?uselang=en").data.decode()
+    assert body.index('id="uselang"') < body.index("<main")
+
+
+def test_the_switchers_visible_label_is_part_of_its_accessible_name(client, seed_languages):
+    """WCAG 2.5.3, Label in Name: the header has no room for the full
+    wording, so the short visible text has to be contained in the
+    unambiguous accessible name rather than be a different phrase -- or
+    voice control cannot address the control by what it says."""
+    body = client.get("/?uselang=en").data.decode()
+    start = body.index('<select name="uselang"')
+    select = body[start:body.index(">", start)]
+    accessible_name = select.split('aria-label="')[1].split('"')[0]
+    visible = body[body.index('class="lang-switch-text"'):]
+    visible = visible[visible.index(">") + 1:visible.index("</span>")]
+    assert visible, "the label must have visible text, not only an icon"
+    assert visible.lower() in accessible_name.lower()
+
+
+def test_the_page_offers_a_skip_link_before_the_header(client, seed_languages):
+    """The header now carries a language control as well as the nav, so a
+    keyboard visitor would otherwise tab through all of it on every page."""
+    body = client.get("/?uselang=en").data.decode()
+    assert body.index('class="skip-link"') < body.index("<header")
+    assert 'href="#content"' in body
+    assert '<main id="content"' in body
+
+
+def test_the_footer_carries_source_and_about_links(client, seed_languages):
+    """The switcher leaving emptied the footer. A Wikimedia tool needs its
+    source discoverable, and /about was the only place it appeared."""
+    body = client.get("/?uselang=en").data.decode()
+    footer = body[body.index("<footer"):body.index("</footer>")]
+    assert "github.com/dungodung/duga" in footer
+    assert "Source code" in footer
+
+
+def test_the_html_element_declares_a_text_direction(client, seed_languages):
+    """Every one of the ten interface languages is left-to-right today, so
+    this is groundwork: the CSS uses logical properties, which only mirror if
+    something tells the document which way round it is."""
+    assert b'dir="ltr"' in client.get("/?uselang=en").data
+    assert b'dir="ltr"' in client.get("/?uselang=sr").data
+
+
+def test_an_rtl_interface_language_would_flip_the_document(client, seed_languages, monkeypatch):
+    """Exercised by pretending English is right-to-left, since no RTL
+    interface language is translated yet. Guards the wiring, not the
+    stylesheet -- a full RTL pass is a separate piece of work."""
+    monkeypatch.setattr("app.i18n.RTL_LANGS", frozenset({"en"}))
+    assert b'dir="rtl"' in client.get("/?uselang=en").data

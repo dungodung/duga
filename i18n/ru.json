@@ -223,5 +223,10 @@
   "duga-langname-pl": "польский",
   "duga-langname-ru": "русский",
   "duga-langname-sr": "сербский",
-  "duga-langname-sv": "шведский"
+  "duga-langname-sv": "шведский",
+  "duga-skip-to-content": "Перейти к содержанию",
+  "duga-nav-label": "Навигация по сайту",
+  "duga-nav-interface-language-short": "Интерфейс",
+  "duga-footer-label": "Об этом инструменте",
+  "duga-footer-source": "Исходный код"
 }

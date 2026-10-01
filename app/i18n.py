@@ -59,6 +59,23 @@ AUTONYMS = {
 }
 
 
+# Interface languages written right to left. None of them are translated
+# yet, so nothing here is exercised in production -- it exists because the
+# alternative is discovering, the day somebody translates Duga into Arabic or
+# Hebrew, that the whole stylesheet assumed otherwise. The CSS uses logical
+# properties (padding-inline, border-inline-start) so that it mirrors from
+# this one attribute rather than needing a second set of rules.
+#
+# Codes follow Wikimedia's conventions, not ISO's, per SPEC.md section 13.
+RTL_LANGS = frozenset({"ar", "arc", "arz", "azb", "ckb", "dv", "fa", "he", "ks", "ku-arab",
+                       "ps", "sd", "ug", "ur", "yi"})
+
+
+def is_rtl(code):
+    """Whether `code`'s script runs right to left, for <html dir>."""
+    return code in RTL_LANGS
+
+
 def available_languages():
     """Interface languages with a message file -- the source of truth for
     what's translated, not a hardcoded list that could drift from i18n/.

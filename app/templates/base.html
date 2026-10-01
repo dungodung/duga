@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ interface_lang }}" class="no-js">
+<html lang="{{ interface_lang }}" dir="{{ interface_dir }}" class="no-js">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,22 +27,72 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=asset_version) }}">
 </head>
 <body>
+{# First in the tab order, invisible until focused. The header now carries
+   the language control as well as the nav, so a keyboard visitor would
+   otherwise tab through all of it on every page. #}
+<a class="skip-link" href="#content">{{ _('duga-skip-to-content') }}</a>
 <header class="site-header">
-  <a class="brand" href="{{ url_for('main.home') }}">Duga</a>
-  <nav>
-    <a href="{{ url_for('main.home') }}">{{ _('duga-nav-home') }}</a>
-    <a href="{{ url_for('main.about') }}">{{ _('duga-nav-about') }}</a>
-    {% if contributor %}
-    <a href="{{ url_for('auth.account') }}">{{ contributor.wiki_username }}</a>
-    <form class="logout-form" method="post" action="{{ url_for('auth.logout') }}">
-      <button type="submit" class="link-button">{{ _('duga-nav-logout') }}</button>
-    </form>
-    {% else %}
-    <a href="{{ url_for('auth.login', next=current_path) }}">{{ _('duga-nav-login') }}</a>
-    {% endif %}
-  </nav>
+  <div class="site-header-inner">
+    <a class="brand" href="{{ url_for('main.home') }}">
+      {# The rainbow, drawn in CSS rather than fetched: favicon.svg as a
+         background-image would be a second request on a connection SPEC.md
+         section 5 asks us not to spend. Decorative, so hidden from
+         assistive tech -- the brand name beside it is the real label. #}
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Duga</span>
+    </a>
+
+    <nav class="site-nav" aria-label="{{ _('duga-nav-label') }}">
+      <a href="{{ url_for('main.home') }}">{{ _('duga-nav-home') }}</a>
+      <a href="{{ url_for('main.about') }}">{{ _('duga-nav-about') }}</a>
+    </nav>
+
+    {# Interface language sits with the account controls, not with the
+       content-language picker on the home page: SPEC.md section 13 keeps the
+       two independent, and putting them in visually different kinds of place
+       is how a visitor can tell which one they are touching. #}
+    <div class="site-account">
+      <form class="lang-switch" method="get" action="{{ request.path }}">
+        {# A GET form replaces its action's query string with its own
+           serialised fields, so every other parameter has to be
+           re-submitted explicitly or it is silently dropped -- switching
+           interface language used to reset the gap list's
+           project/type/maturity filters and page, and the picker's ?q=.
+           (Pointing `action` at request.full_path does NOT work, for the
+           same reason: the browser discards it.) #}
+        {%- for key, values in request.args.lists() if key != 'uselang' -%}
+          {%- for value in values %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {%- endfor -%}
+        {%- endfor %}
+        {# The visible label is short enough for a phone header; the select's
+           accessible name is the unambiguous full string, and contains the
+           visible text, so WCAG 2.5.3 (Label in Name) is satisfied rather
+           than dodged. #}
+        <label class="lang-switch-label" for="uselang">
+          <span class="lang-switch-icon" aria-hidden="true"></span>
+          <span class="lang-switch-text">{{ _('duga-nav-interface-language-short') }}</span>
+        </label>
+        <select name="uselang" id="uselang" aria-label="{{ _('duga-home-interface-language') }}">
+          {% for code in available_languages %}
+          <option value="{{ code }}" lang="{{ code }}"{% if code == interface_lang %} selected{% endif %}>{{ autonym(code) }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">{{ _('duga-home-interface-language-submit') }}</button>
+      </form>
+
+      {% if contributor %}
+      <a class="site-user" href="{{ url_for('auth.account') }}">{{ contributor.wiki_username }}</a>
+      <form class="logout-form" method="post" action="{{ url_for('auth.logout') }}">
+        <button type="submit" class="link-button">{{ _('duga-nav-logout') }}</button>
+      </form>
+      {% else %}
+      <a href="{{ url_for('auth.login', next=current_path) }}">{{ _('duga-nav-login') }}</a>
+      {% endif %}
+    </div>
+  </div>
 </header>
-<main>
+<main id="content">
 {% with messages = get_flashed_messages() %}
   {% if messages %}
   <ul class="flash-messages">
@@ -55,28 +105,14 @@
 {% block content %}{% endblock %}
 </main>
 <footer class="site-footer">
-  <form class="lang-switch" method="get" action="{{ request.path }}">
-    {# A GET form replaces its action's query string with its own serialised
-       fields, so every other parameter has to be re-submitted explicitly or
-       it is silently dropped -- switching interface language used to reset
-       the gap list's project/type/maturity filters and page, and the
-       picker's ?q=. (Pointing `action` at request.full_path does NOT work,
-       for the same reason: the browser discards it.) SPEC.md section 13:
-       interface and content language are independent, so changing one must
-       not disturb the other's view. #}
-    {%- for key, values in request.args.lists() if key != 'uselang' -%}
-      {%- for value in values %}
-    <input type="hidden" name="{{ key }}" value="{{ value }}">
-      {%- endfor -%}
-    {%- endfor %}
-    <label for="uselang">{{ _('duga-home-interface-language') }}</label>
-    <select name="uselang" id="uselang">
-      {% for code in available_languages %}
-      <option value="{{ code }}" lang="{{ code }}"{% if code == interface_lang %} selected{% endif %}>{{ autonym(code) }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit">{{ _('duga-home-interface-language-submit') }}</button>
-  </form>
+  <div class="site-footer-inner">
+    <p class="site-footer-tagline">{{ _('duga-tagline') }}</p>
+    <nav class="site-footer-nav" aria-label="{{ _('duga-footer-label') }}">
+      <a href="{{ url_for('main.about') }}">{{ _('duga-nav-about') }}</a>
+      {# A URL, not a translatable string. Only the label goes through _(). #}
+      <a href="https://github.com/dungodung/duga">{{ _('duga-footer-source') }}</a>
+    </nav>
+  </div>
 </footer>
 <script src="{{ url_for('static', filename='js/enhance.js', v=asset_version) }}"></script>
 </body>
