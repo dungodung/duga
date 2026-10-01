@@ -1,21 +1,138 @@
+/* Duga's entire stylesheet. One hand-written file, no build step, no
+   framework -- SPEC.md section 5 and guardrail 3.
+
+   It stays one file deliberately. Splitting it would mean either several
+   <link> tags (more round trips) or @import (serialised round trips, since
+   the second file isn't discoverable until the first parses) -- and SPEC.md
+   section 5 names "contributors on low-end Android phones over slow
+   connections" as the users to optimise for.
+
+   Sections, in source order:
+     1. Tokens                  6. Notices
+     2. Reset and base          7. Gap list and filters
+     3. Page chrome             8. Vocabulary
+     4. Focus                   9. Forms
+     5. Language picker        10. Narrow screens
+*/
+
+/* == 1. Tokens ============================================================ */
+
 :root {
   color-scheme: light dark;
-  --fg: #1b1330;
+
+  /* -- ink -- */
+  --fg: #1b1330;              /* 17.76:1 on --bg */
+  --muted: #5a5568;           /*  7.16:1 on --bg */
+  --link: #7a3ea1;            /*  6.93:1 on --bg */
+  --link-hover: #5d2b7e;      /*  9.94:1 on --bg */
+
+  /* -- surfaces -- */
   --bg: #ffffff;
-  --muted: #5a5568;
-  --link: #7a3ea1;
+  --surface: #faf7fd;         /* cards, filter bars, the picker body */
+  --surface-sunken: #f3eef9;  /* inset blocks: english-reference, evidence */
   --border: #ddd6e6;
+  --border-strong: #c4b8d6;   /* a card edge, never text */
+
+  /* -- the spectrum, text/border grade --
+     Duga means rainbow, and favicon.svg already carries six stripes. Those
+     raw hues CANNOT carry text in light mode -- measured against white,
+     yellow is 1.42:1 and four others fail AA too -- so every hue that
+     touches text or a meaningful border is darkened here until it clears
+     4.5:1 on BOTH --bg and --surface. The raw favicon hues survive only in
+     --spectrum-rule below, which carries no contrast duty.
+     Ratios below are (on --bg / on --surface). */
+  --spectrum-red: #c0392b;     /* 5.44 / 5.12   from #e84c3d */
+  --spectrum-orange: #9c5410;  /* 5.69 / 5.36   from #f2994a */
+  --spectrum-yellow: #7a6000;  /* 6.00 / 5.65   from #f2d94e */
+  --spectrum-green: #1f7a46;   /* 5.34 / 5.03   from #4caf6a */
+  --spectrum-blue: #1b63a8;    /* 6.18 / 5.83   from #4a90d9 */
+  --spectrum-violet: #7a3ea1;  /* 6.93 / 6.53   == --link, by design */
+
+  /* -- the decorative rule --
+     The rainbow lives in exactly one token so there is one place to change
+     it. These stops sit between the favicon's hues and the ink grade: each
+     clears 3:1 on white so a 3px rule is actually visible, without the raw
+     yellow vanishing. Decoration only -- never text, never a sole signal. */
+  --spectrum-rule: linear-gradient(90deg,
+    #e0402f 0%, #d07b1e 20%, #ab8c00 40%,
+    #2f9456 60%, #2b7fc9 80%, #9b59b6 100%);
+
+  /* -- semantic tints --
+     These replace three rgba() literals that sat outside the token system
+     and so never adapted to dark mode: amber at 0.15 alpha over #14101f was
+     all but invisible. Each pair is a fill and a border. */
+  --tint-info: rgba(122, 62, 161, 0.10);
+  --tint-info-edge: rgba(122, 62, 161, 0.35);
+  --tint-warn: rgba(156, 84, 16, 0.12);
+  --tint-warn-edge: rgba(156, 84, 16, 0.45);
+  --tint-danger: rgba(192, 57, 43, 0.10);
+  --tint-danger-edge: rgba(192, 57, 43, 0.40);
+
+  /* -- geometry -- */
+  --measure: 40rem;
+  --radius-sm: 0.3rem;
+  --radius: 0.5rem;
+  --radius-lg: 0.85rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --shadow: 0 1px 2px rgba(27, 19, 48, 0.06), 0 2px 8px rgba(27, 19, 48, 0.05);
+  /* Minimum comfortable touch target. WCAG 2.2 SC 2.5.8 asks for 24px;
+     44px is the size a thumb actually hits. Duga expects a lot of mobile
+     contributions, so controls get the larger one. */
+  --tap: 2.75rem;
+
+  /* -- focus -- */
+  --focus: #1b63a8;           /* 6.18 on --bg, 5.83 on --surface */
+  --focus-width: 3px;
+  --focus-offset: 2px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --fg: #f2eefb;
-    --bg: #14101f;
     --muted: #b6adc9;
     --link: #c99bf0;
+    --link-hover: #dcb4fb;
+    --bg: #14101f;
+    --surface: #1c1730;
+    --surface-sunken: #221b38;
     --border: #322a44;
+    --border-strong: #4a3f63;
+
+    /* Lightened rather than darkened; each ≥7.1:1 on --bg and --surface. */
+    --spectrum-red: #f08a7e;     /* 7.69 / 7.11 */
+    --spectrum-orange: #f0a85c;  /* 9.31 / 8.61 */
+    --spectrum-yellow: #e8d45c;  /* 12.46 / 11.53 */
+    --spectrum-green: #5ecb8c;   /* 9.25 / 8.56 */
+    --spectrum-blue: #79b8f5;    /* 8.89 / 8.22 */
+    --spectrum-violet: #c99bf0;  /* 8.39 / 7.76 */
+
+    /* The raw favicon hues are all ≥4.9:1 against this background, so the
+       decorative rule can be the real rainbow here. */
+    --spectrum-rule: linear-gradient(90deg,
+      #e84c3d 0%, #f2994a 20%, #f2d94e 40%,
+      #4caf6a 60%, #4a90d9 80%, #9b59b6 100%);
+
+    /* Re-derived, not reused: the light tints are dark hues at low alpha
+       and composite to nearly nothing over #14101f. These use the light
+       mode's *text* hue at a higher alpha instead. */
+    --tint-info: rgba(201, 155, 240, 0.16);
+    --tint-info-edge: rgba(201, 155, 240, 0.45);
+    --tint-warn: rgba(240, 168, 92, 0.16);
+    --tint-warn-edge: rgba(240, 168, 92, 0.45);
+    --tint-danger: rgba(240, 138, 126, 0.14);
+    --tint-danger-edge: rgba(240, 138, 126, 0.45);
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 10px rgba(0, 0, 0, 0.35);
+    --focus: #8ec4f7;           /* 10.14 on --bg */
   }
 }
+
+/* == 2. Reset and base ==================================================== */
 
 * {
   box-sizing: border-box;
@@ -25,21 +142,34 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
+  /* No web font. It is a render-blocking download on exactly the slow
+     connections SPEC.md section 5 names, to replace a face the device
+     already has. */
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 1.05rem;
   line-height: 1.5;
 }
 
+a {
+  color: var(--link);
+}
+
+a:hover {
+  color: var(--link-hover);
+}
+
+/* == 3. Page chrome ======================================================= */
+
 .site-header, .site-footer, main {
-  max-width: 40rem;
+  max-width: var(--measure);
   margin: 0 auto;
-  padding: 1rem 1.25rem;
+  padding: var(--space-4) 1.25rem;
 }
 
 .site-header {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: var(--space-5);
   border-bottom: 1px solid var(--border);
 }
 
@@ -51,9 +181,89 @@ body {
 }
 
 .site-header nav a {
-  margin-right: 1rem;
+  margin-inline-end: var(--space-4);
   color: var(--link);
 }
+
+.site-footer {
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lang-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* Once enhance.js runs, the select auto-submits on change, so the explicit
+   submit button is only needed with JavaScript disabled. */
+.js .lang-switch button {
+  display: none;
+}
+
+.logout-form {
+  display: inline;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-inline-end: var(--space-4);
+  font: inherit;
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.flash-messages {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-4);
+}
+
+.flash-messages .notice {
+  margin-bottom: var(--space-2);
+}
+
+/* == 4. Focus ============================================================= */
+
+/* There were no focus styles here at all until now, so keyboard users were
+   relying on browser defaults -- which the surface colours above would have
+   made harder to see.
+
+   Order matters: :focus is declared first and unconditionally, then the
+   ring is withdrawn for pointer input. An engine that does not understand
+   :focus-visible discards only that second rule and keeps showing the ring,
+   which is the safe side to fail on. */
+a:focus,
+button:focus,
+select:focus,
+input:focus,
+textarea:focus,
+summary:focus {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
+}
+
+a:focus:not(:focus-visible),
+button:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible),
+summary:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* == 5. Language picker =================================================== */
 
 .tagline {
   color: var(--muted);
@@ -64,15 +274,15 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  margin: 1rem 0;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
 }
 
 .lang-search input {
   flex: 1 1 12rem;
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 0.3rem;
+  border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--fg);
   font: inherit;
@@ -92,69 +302,61 @@ body {
   margin-bottom: 0.4rem;
 }
 
-.lang-list {
-  padding-left: 1.25rem;
-}
-
 /* Many languages, short names: columns beat a single tall list. */
 .lang-list {
+  padding-inline-start: 1.25rem;
   columns: 2;
-  column-gap: 2rem;
+  column-gap: var(--space-6);
 }
 
 .lang-list-suggested {
   columns: 1;
 }
 
-.lang-empty {
-  color: var(--muted);
-}
-
 .lang-list li {
   margin-bottom: 0.4rem;
 }
 
-a {
-  color: var(--link);
-}
-
-.site-footer {
-  margin-top: 2rem;
-  border-top: 1px solid var(--border);
+.lang-empty {
   color: var(--muted);
-  font-size: 0.9rem;
 }
 
-.lang-switch {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
+/* == 6. Notices =========================================================== */
 
-/* Once enhance.js runs, the select auto-submits on change, so the explicit
-   submit button is only needed with JavaScript disabled. */
-.js .lang-switch button {
-  display: none;
-}
-
+/* One primitive, three modifiers. The inline-start accent is the spectrum
+   used where it carries meaning -- amber for stale data, red for a
+   destructive confirmation, violet for a neutral one -- and never as the
+   only signal: every notice already says in words what it is. */
 .notice {
   padding: 0.6rem 0.9rem;
-  border-radius: 0.4rem;
+  border: 1px solid var(--tint-info-edge);
+  border-inline-start: 4px solid var(--notice-accent, var(--spectrum-violet));
+  border-radius: var(--radius);
+  background: var(--tint-info);
   font-size: 0.95rem;
 }
 
 .notice-stale {
-  background: rgba(200, 120, 30, 0.15);
-  border: 1px solid rgba(200, 120, 30, 0.4);
+  --notice-accent: var(--spectrum-orange);
+  background: var(--tint-warn);
+  border-color: var(--tint-warn-edge);
 }
+
+.notice-suppress {
+  --notice-accent: var(--spectrum-red);
+  background: var(--tint-danger);
+  border-color: var(--tint-danger-edge);
+  margin-bottom: var(--space-4);
+}
+
+/* == 7. Gap list and filters ============================================== */
 
 .gap-filters {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.75rem;
-  margin: 1rem 0 1.5rem;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 var(--space-5);
 }
 
 .gap-filter {
@@ -177,16 +379,10 @@ a {
   font-size: 0.9rem;
 }
 
-.notice-suppress {
-  background: rgba(190, 60, 60, 0.12);
-  border: 1px solid rgba(190, 60, 60, 0.4);
-  margin-bottom: 1rem;
-}
-
 .gap-summary {
   color: var(--muted);
   font-size: 0.95rem;
-  margin: 0.5rem 0 1rem;
+  margin: var(--space-2) 0 var(--space-4);
 }
 
 .gap-order-note {
@@ -202,7 +398,7 @@ a {
 .breakdown-list li {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-4);
   padding: 0.35rem 0;
   border-bottom: 1px solid var(--border);
 }
@@ -217,7 +413,7 @@ a {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.5rem 1rem;
+  gap: var(--space-2) var(--space-4);
 }
 
 .page-position {
@@ -225,14 +421,12 @@ a {
   font-size: 0.9rem;
 }
 
-.pagination {
-  align-items: baseline;
-}
-
 .english-reference {
-  border-left: 3px solid var(--border);
-  padding: 0.5rem 0 0.5rem 0.9rem;
-  margin: 1rem 0 1.5rem;
+  border-inline-start: 3px solid var(--spectrum-violet);
+  background: var(--surface-sunken);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: var(--space-2) var(--space-3);
+  margin: var(--space-4) 0 var(--space-5);
   font-size: 0.95rem;
 }
 
@@ -246,7 +440,7 @@ a {
 
 .english-reference-label {
   font-weight: 600;
-  margin-right: 0.4rem;
+  margin-inline-end: 0.4rem;
 }
 
 .gap-list {
@@ -255,12 +449,12 @@ a {
 }
 
 .gap-row {
-  padding: 0.75rem 0;
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.5rem 1rem;
+  gap: var(--space-2) var(--space-4);
 }
 
 .gap-label {
@@ -310,46 +504,40 @@ a {
 .pagination {
   display: flex;
   justify-content: space-between;
-  margin-top: 1.5rem;
+  align-items: baseline;
+  margin-top: var(--space-5);
 }
 
-.logout-form {
-  display: inline;
-}
+/* == 8. Vocabulary ======================================================== */
 
-.link-button {
-  background: none;
-  border: none;
-  padding: 0;
-  margin-right: 1rem;
-  font: inherit;
-  color: var(--link);
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.link-button:hover {
-  text-decoration: underline;
-}
-
-.flash-messages {
+.term-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 1rem;
 }
 
-.flash-messages .notice {
-  background: rgba(122, 62, 161, 0.12);
-  border: 1px solid rgba(122, 62, 161, 0.35);
-  margin-bottom: 0.5rem;
+.term-row {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
 }
+
+.term-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.evidence-list {
+  padding-inline-start: 1.25rem;
+}
+
+/* == 9. Forms ============================================================= */
 
 .vocab-add-form,
 .term-detail form {
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
   max-width: 28rem;
 }
 
@@ -371,30 +559,13 @@ form textarea {
   padding: 0.4rem;
   margin-top: 0.2rem;
   border: 1px solid var(--border);
-  border-radius: 0.3rem;
+  border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--fg);
   font: inherit;
 }
 
-.term-list {
-  list-style: none;
-  padding: 0;
-}
-
-.term-row {
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.term-meta {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.evidence-list {
-  padding-left: 1.25rem;
-}
+/* == 10. Narrow screens =================================================== */
 
 /* Phones. SPEC.md section 12 requires the add-a-term flow to be completable
    on a phone in under 60 seconds, and a logged-in gap row carries a lot:
@@ -403,19 +574,19 @@ form textarea {
    one line. */
 @media (max-width: 30rem) {
   .site-header, .site-footer, main {
-    padding: 0.75rem 0.9rem;
+    padding: var(--space-3) 0.9rem;
   }
 
   .site-header {
     flex-wrap: wrap;
-    gap: 0.5rem 1rem;
+    gap: var(--space-2) var(--space-4);
   }
 
   .gap-row,
   .gap-actions {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .gap-label,
@@ -427,11 +598,13 @@ form textarea {
   /* Full-width tap targets rather than links crammed onto one line. */
   .gap-override-form {
     flex-wrap: wrap;
-    gap: 0.5rem 1rem;
+    gap: var(--space-2) var(--space-4);
   }
 
   .gap-override-reason {
     width: 100%;
+    /* 1rem, not smaller: iOS Safari zooms the whole page when a field with
+       a sub-16px font is focused, and the visitor has to pinch back out. */
     font-size: 1rem;
     padding: 0.4rem;
   }
