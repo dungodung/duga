@@ -306,9 +306,11 @@ main {
 .lang-switch select {
   width: auto;
   max-width: 9rem;
-  min-height: 0;
+  /* Keeps the inherited --tap height and 1rem font on a phone. This is a
+     header control, but it is also the one a thumb is most likely to go
+     for, and a sub-16px select is in the range where iOS zooms the page on
+     focus. It shrinks at >=30rem, where there is a cursor. */
   padding: var(--space-1) var(--space-2);
-  font-size: 0.9rem;
 }
 
 .site-footer {
@@ -968,6 +970,13 @@ form button[type="submit"] {
     width: auto;
     height: auto;
     clip-path: none;
+  }
+
+  /* Compact enough to sit on one row with the brand, nav and account links
+     now that a cursor is doing the pointing. */
+  .lang-switch select {
+    min-height: 0;
+    font-size: 0.9rem;
   }
 
   h1 {
