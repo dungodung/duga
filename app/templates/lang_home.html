@@ -14,8 +14,8 @@
   {% endfor %}
 
   {% if total_gaps > 0 %}
-  <p>{{ _('duga-lang-home-gap-count', total_gaps) }}</p>
-  <p><a href="{{ url_for('main.gaps', lang=language.code) }}">{{ _('duga-lang-home-view-gaps') }}</a></p>
+  <p class="lede">{{ _('duga-lang-home-gap-count', total_gaps) }}</p>
+  <p><a class="button" href="{{ url_for('main.gaps', lang=language.code) }}">{{ _('duga-lang-home-view-gaps') }}</a></p>
 
   {# Every row is the same query the gap list runs, pre-filtered -- this is
      also where the ?project=/?type= filters become discoverable at all. #}

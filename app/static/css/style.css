@@ -13,6 +13,8 @@
      3. Page chrome             8. Vocabulary
      4. Focus                   9. Forms
      5. Language picker        10. Wider screens
+     5b. Small primitives      11. Motion
+         (button, badge, lede)
 
    It is mobile-first: the rules outside any media query describe a phone,
    and the min-width blocks in section 10 add back what a bigger screen can
@@ -572,6 +574,47 @@ summary:focus:not(:focus-visible) {
   margin: 0;
 }
 
+/* == 5b. Small primitives ================================================= */
+
+/* The one place on a page where a link should look like the thing to press.
+   Used for a single primary action per page, never for several side by
+   side -- SPEC.md section 12 asks for "a single button that goes to the
+   place where you fix it". */
+.button {
+  display: inline-block;
+  padding: var(--space-2) var(--space-4);
+  min-height: var(--tap);
+  border-radius: var(--radius);
+  background: var(--link);
+  color: var(--bg);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button:hover {
+  background: var(--link-hover);
+  color: var(--bg);
+}
+
+/* A chip for a short classifying word, so it stops reading as prose in the
+   middle of a sentence. No colour coding by value: tinting `experimental`
+   amber would make an honest maturity label look like a malfunction. */
+.badge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 1rem;
+  background: var(--bg);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+/* The lead paragraph: one step up from body text, used once per page. */
+.lede {
+  font-size: 1.1rem;
+  color: var(--fg);
+}
+
 /* == 6. Notices =========================================================== */
 
 /* One primitive, three modifiers. The inline-start accent is the spectrum
@@ -610,6 +653,10 @@ summary:focus:not(:focus-visible) {
   align-items: stretch;
   gap: var(--space-3);
   margin: var(--space-4) 0 var(--space-5);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
 .gap-filter {
@@ -651,8 +698,11 @@ summary:focus:not(:focus-visible) {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-4);
-  padding: 0.35rem 0;
-  border-bottom: 1px solid var(--border);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
 }
 
 .breakdown-count {
@@ -705,15 +755,36 @@ summary:focus:not(:focus-visible) {
    an override form with a text input and two buttons. On a phone they stack
    rather than fight over one line (SPEC.md section 12 -- the contribution
    flows have to work on a handset). They go side by side from 30rem. */
+/* A card with a project-coloured edge, rather than a row in a ruled list.
+   No box-shadow: this list is fifty rows long and a shadow per row is a
+   real paint cost on the devices SPEC.md section 5 names. */
 .gap-row {
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--border);
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid var(--row-accent, var(--border-strong));
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface);
   display: flex;
   flex-direction: column;
   flex-wrap: wrap;
   align-items: stretch;
   gap: var(--space-2);
 }
+
+/* One spectrum hue per Wikimedia project. Six projects, six favicon
+   stripes. This colours projects, NOT languages -- S6 forbids any view that
+   ranks languages against each other, and nothing here touches a language.
+   Decorative reinforcement only: .gap-meta names the project in words, so
+   colour is never the sole signal. An unrecognised project falls through to
+   the neutral --border-strong above. */
+.gap-row[data-project="wikipedia"] { --row-accent: var(--spectrum-blue); }
+.gap-row[data-project="wikidata"] { --row-accent: var(--spectrum-violet); }
+.gap-row[data-project="commons"] { --row-accent: var(--spectrum-green); }
+.gap-row[data-project="wiktionary"] { --row-accent: var(--spectrum-red); }
+.gap-row[data-project="wikiquote"] { --row-accent: var(--spectrum-orange); }
+.gap-row[data-project="wikisource"] { --row-accent: var(--spectrum-yellow); }
+.gap-row[data-project="vocabulary"] { --row-accent: var(--spectrum-violet); }
 
 /* min-width: 0 on both, so a long label wraps instead of forcing the row
    wider than the viewport and giving the whole page a sideways scroll. */
@@ -780,8 +851,12 @@ summary:focus:not(:focus-visible) {
 }
 
 .term-row {
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--border);
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid var(--spectrum-violet);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface);
   flex-wrap: wrap;
 }
 

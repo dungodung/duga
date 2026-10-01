@@ -58,11 +58,16 @@
 
 <ul class="gap-list">
   {% for item in items %}
-  <li class="gap-row">
+  {# data-project drives a spectrum-coloured edge in CSS. There are exactly
+     six Wikimedia project codes and exactly six favicon stripes, which is a
+     coincidence worth using. It colours *projects*, never languages, so S6
+     is untouched -- and never as the only signal: the project is named in
+     words in .gap-meta directly below. #}
+  <li class="gap-row" data-project="{{ item.project_code }}">
     <div class="gap-label"{% if item.label_lang %} lang="{{ item.label_lang }}"{% endif %}><a href="{{ url_for('main.topic_detail', qid=item.qid) }}">{{ item.label }}</a></div>
     <div class="gap-meta">
       {{ _('duga-gaps-what', _('duga-gaps-project-' ~ item.project_code), _('duga-gaps-type-' ~ item.gap_type)) }}
-      · {{ _('duga-gaps-maturity-' ~ item.maturity) }}
+      · <span class="badge badge-maturity">{{ _('duga-gaps-maturity-' ~ item.maturity) }}</span>
       {% if item.why_in_scope %}
       · {{ _('duga-gaps-why-in-scope', item.why_in_scope | join(', ')) }}
       {% endif %}
