@@ -38,7 +38,7 @@
       <button type="submit" class="link-button">{{ _('duga-nav-logout') }}</button>
     </form>
     {% else %}
-    <a href="{{ url_for('auth.login', next=request.path) }}">{{ _('duga-nav-login') }}</a>
+    <a href="{{ url_for('auth.login', next=current_path) }}">{{ _('duga-nav-login') }}</a>
     {% endif %}
   </nav>
 </header>
@@ -56,6 +56,19 @@
 </main>
 <footer class="site-footer">
   <form class="lang-switch" method="get" action="{{ request.path }}">
+    {# A GET form replaces its action's query string with its own serialised
+       fields, so every other parameter has to be re-submitted explicitly or
+       it is silently dropped -- switching interface language used to reset
+       the gap list's project/type/maturity filters and page, and the
+       picker's ?q=. (Pointing `action` at request.full_path does NOT work,
+       for the same reason: the browser discards it.) SPEC.md section 13:
+       interface and content language are independent, so changing one must
+       not disturb the other's view. #}
+    {%- for key, values in request.args.lists() if key != 'uselang' -%}
+      {%- for value in values %}
+    <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {%- endfor -%}
+    {%- endfor %}
     <label for="uselang">{{ _('duga-home-interface-language') }}</label>
     <select name="uselang" id="uselang">
       {% for code in available_languages %}
