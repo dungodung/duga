@@ -204,6 +204,7 @@
   "duga-topic-no-gaps": "Just nu saknas ingenting för det här ämnet.",
   "duga-home-search-label": "Hitta ett språk",
   "duga-home-search-placeholder": "Skriv ett språknamn",
+  "duga-home-search-hint": "Söker på ett språks eget namn, dess namn på ditt språk och dess kod.",
   "duga-home-search-submit": "Sök",
   "duga-home-search-empty": "Inget bevakat språk matchar det.",
   "duga-home-search-clear": "Visa alla språk",
@@ -212,5 +213,15 @@
   "duga-gaps-meta-description": "Vad som saknas i Wikimedias projekt på $1, och var det kan åtgärdas.",
   "duga-lang-home-meta-description": "Queer kunskap som saknas i Wikimedias projekt på $1: vad som saknas, varför, och hur du kan hjälpa till.",
   "duga-vocab-meta-description": "Queer ordförråd på $1: ord, register och källorna bakom dem.",
-  "duga-write-english-reference": "På Wikidata på engelska:"
+  "duga-write-english-reference": "På Wikidata på engelska:",
+  "duga-langname-de": "tyska",
+  "duga-langname-en": "engelska",
+  "duga-langname-es": "spanska",
+  "duga-langname-fr": "franska",
+  "duga-langname-it": "italienska",
+  "duga-langname-nl": "nederländska",
+  "duga-langname-pl": "polska",
+  "duga-langname-ru": "ryska",
+  "duga-langname-sr": "serbiska",
+  "duga-langname-sv": "svenska"
 }

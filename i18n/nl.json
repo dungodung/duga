@@ -204,6 +204,7 @@
   "duga-topic-no-gaps": "Er ontbreekt op dit moment niets voor dit onderwerp.",
   "duga-home-search-label": "Zoek een taal",
   "duga-home-search-placeholder": "Typ een taalnaam",
+  "duga-home-search-hint": "Zoekt op de eigen naam van een taal, de naam in jouw taal en de taalcode.",
   "duga-home-search-submit": "Zoeken",
   "duga-home-search-empty": "Geen gevolgde taal komt daarmee overeen.",
   "duga-home-search-clear": "Alle talen tonen",
@@ -212,5 +213,15 @@
   "duga-gaps-meta-description": "Wat ontbreekt in de Wikimedia-projecten in het $1, en waar je het kunt herstellen.",
   "duga-lang-home-meta-description": "Queer kennis die ontbreekt in de Wikimedia-projecten in het $1: wat ontbreekt, waarom, en hoe je kunt helpen.",
   "duga-vocab-meta-description": "Queer woordenschat in het $1: woorden, registers en de bronnen erachter.",
-  "duga-write-english-reference": "Op Wikidata in het Engels:"
+  "duga-write-english-reference": "Op Wikidata in het Engels:",
+  "duga-langname-de": "Duits",
+  "duga-langname-en": "Engels",
+  "duga-langname-es": "Spaans",
+  "duga-langname-fr": "Frans",
+  "duga-langname-it": "Italiaans",
+  "duga-langname-nl": "Nederlands",
+  "duga-langname-pl": "Pools",
+  "duga-langname-ru": "Russisch",
+  "duga-langname-sr": "Servisch",
+  "duga-langname-sv": "Zweeds"
 }

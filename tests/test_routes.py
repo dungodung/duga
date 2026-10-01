@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from app.extensions import db
+from app.blueprints.main.routes import PICKER_COLLAPSE_MIN
 from app.models import Detector, Gap, GapOverride, Topic
 
 
@@ -899,3 +900,170 @@ def test_the_login_link_has_no_stray_question_mark_without_a_query_string(client
     string at all, so using it unguarded would send every visitor on an
     unfiltered page back to a URL with a dangling "?" on the end."""
     assert _login_next(client.get("/")) == "/"
+
+
+# -- the language picker widget ----------------------------------------------
+
+
+def test_the_picker_shows_a_language_name_beside_its_autonym(client, db, seed_languages):
+    """The autonym stays the primary identifier; its name in the interface
+    language is a secondary label, so somebody who knows a language as
+    "Serbian" rather than "Српски" can recognise it."""
+    main = _main(client.get("/?uselang=en"))
+    assert "Српски" in main
+    assert "Serbian" in main
+
+
+def test_the_secondary_name_follows_the_interface_language(client, db, seed_languages):
+    """SPEC.md section 13: interface and content language are independent.
+    The label is the language's name in whatever chrome you are reading, not
+    English with extra steps."""
+    assert "serbe" in _main(client.get("/?uselang=fr"))
+    assert "сербский" in _main(client.get("/?uselang=ru"))
+
+
+def test_the_autonym_carries_its_own_lang_and_the_secondary_name_does_not(client, db, seed_languages):
+    """docs/i18n.md: <html lang> is the *interface* language, so content-
+    language text needs its own lang attribute or a screen reader announces
+    Serbian with an English voice. The name beside it is in the interface
+    language already, so tagging it would be the same bug inverted."""
+    main = _main(client.get("/?uselang=en"))
+    assert '<span class="lang-autonym" lang="sr" dir="auto">Српски</span>' in main
+    assert '<span class="lang-name">Serbian</span>' in main
+
+
+def test_a_name_identical_to_the_autonym_is_not_shown_twice(client, db, seed_languages):
+    """A Serbian interface listing Serbian would otherwise stutter -- and
+    the autonym is capitalised by hand where the name is not, so this has to
+    compare case-insensitively to catch it."""
+    main = _main(client.get("/?uselang=sr"))
+    row = main[main.index('data-search="српски'):]
+    row = row[:row.index("</li>")]
+    assert "Српски" in row
+    # The row renders the autonym and nothing beside it. (The lowercased
+    # form still appears in data-search, which is what the search matches
+    # on -- that is the attribute, not the label.)
+    assert "lang-name" not in row
+
+
+def test_the_picker_search_matches_the_english_name(client, db, seed_languages):
+    """The whole point of adding names: "serbian" has no substring in common
+    with "Српски", so the old autonym-or-code search could not find it."""
+    main = _main(client.get("/?q=serbian&uselang=en"))
+    assert "Српски" in main
+    assert "Français" not in main
+
+
+def test_the_picker_search_matches_the_name_in_the_interface_language(client, db, seed_languages):
+    main = _main(client.get("/?q=serbe&uselang=fr"))
+    assert "Српски" in main
+    assert "Français" not in main
+
+
+def test_the_picker_search_still_matches_the_english_name_in_other_chrome(client, db, seed_languages):
+    """English stays in the haystack whatever the interface language, so a
+    visitor reading Russian chrome who only knows "Serbian" is not stuck."""
+    main = _main(client.get("/?q=serbian&uselang=ru"))
+    assert "Српски" in main
+
+
+def test_a_language_with_no_translated_name_shows_only_its_autonym(client, db, seed_languages):
+    """A content language can be seeded before anyone names it. It must
+    degrade to the autonym alone, never print a raw message key at a
+    visitor."""
+    from app.models import Language
+
+    db.session.add(Language(code="zz", autonym="Zzish", seeded=True))
+    db.session.commit()
+    main = _main(client.get("/?uselang=en"))
+    assert "Zzish" in main
+    assert "duga-langname-zz" not in main
+
+
+def test_the_search_haystack_does_not_repeat_itself(client, db, seed_languages):
+    """With an English interface the interface name and the English name are
+    the same string. Harmless in a substring search, but no reason to ship
+    it twice."""
+    body = client.get("/?uselang=en").data.decode()
+    start = body.index('data-search="', body.index('lang-list')) + len('data-search="')
+    haystack = body[start:body.index('"', start)].split()
+    assert len(haystack) == len(set(haystack)), haystack
+
+
+def test_a_server_side_search_match_is_never_hidden_inside_a_closed_picker(client, db, seed_languages):
+    """SPEC.md section 12: every page works without JavaScript. With JS off
+    the only way to reach a filtered result is this page load, so a ?q= that
+    matched has to arrive with the disclosure already open -- otherwise the
+    no-JS search path is broken, not merely plainer.
+
+    Set up so that the search is the *only* thing that can open the panel:
+    past the collapse threshold, so a short list doesn't open it, and with
+    an Accept-Language that survives the filter, so a suggestion does exist
+    and the empty-suggestions clause doesn't open it either.
+    """
+    from app.models import Language
+
+    _seed_many_languages(db)
+    for i in range(PICKER_COLLAPSE_MIN):
+        db.session.add(Language(code=f"x{i}", autonym=f"Xx{i}", seeded=True))
+    db.session.commit()
+
+    body = client.get("/?q=deu&uselang=en", headers={"Accept-Language": "de"}).data.decode()
+    assert "Deutsch" in body
+    details = body[body.index("<details"):body.index(">", body.index("<details"))]
+    assert "open" in details, "a ?q= match must not arrive inside a closed disclosure"
+
+
+def test_the_picker_stays_open_while_the_tracked_list_is_short(client, db, seed_languages):
+    """Collapsing a list that already fits on screen is one more tap for
+    nothing."""
+    body = client.get("/?uselang=en").data.decode()
+    details = body[body.index("<details"):body.index(">", body.index("<details"))]
+    assert "open" in details
+
+
+def test_the_picker_collapses_once_the_tracked_list_outgrows_the_threshold(client, db, seed_languages):
+    """The flat list is what stopped working at scale, so past the threshold
+    the disclosure starts shut and the suggested shortcut carries the page."""
+    from app.models import Language
+
+    for i in range(PICKER_COLLAPSE_MIN):
+        db.session.add(Language(code=f"x{i}", autonym=f"Xx{i}", seeded=True))
+    db.session.commit()
+    body = client.get("/?uselang=en", headers={"Accept-Language": "sr"}).data.decode()
+    details = body[body.index("<details"):body.index(">", body.index("<details"))]
+    assert "open" not in details
+
+
+def test_a_collapsed_picker_still_offers_something_to_click(client, db, seed_languages):
+    """The suggested shortcut sits outside the <details> precisely so that a
+    collapsed widget is not a dead end -- on a phone it is often the only
+    thing anyone needs."""
+    from app.models import Language
+
+    for i in range(PICKER_COLLAPSE_MIN):
+        db.session.add(Language(code=f"x{i}", autonym=f"Xx{i}", seeded=True))
+    db.session.commit()
+    main = _main(client.get("/?uselang=en", headers={"Accept-Language": "sr"}))
+    assert main.index("Српски") < main.index("<details")
+
+
+def test_the_picker_opens_when_nothing_could_be_suggested(client, db, seed_languages):
+    """A visitor whose Accept-Language matches nothing tracked would
+    otherwise meet a collapsed box with no clickable language at all."""
+    from app.models import Language
+
+    for i in range(PICKER_COLLAPSE_MIN):
+        db.session.add(Language(code=f"x{i}", autonym=f"Xx{i}", seeded=True))
+    db.session.commit()
+    body = client.get("/?uselang=en", headers={"Accept-Language": "ja"}).data.decode()
+    details = body[body.index("<details"):body.index(">", body.index("<details"))]
+    assert "open" in details
+
+
+def test_the_suggested_shortcut_is_filterable_too(client, db, seed_languages):
+    """Suggested rows used to carry no data attributes at all, so the live
+    filter silently skipped them. One macro renders both lists now."""
+    main = _main(client.get("/?uselang=en", headers={"Accept-Language": "sr"}))
+    suggested = main.split("Languages you read")[1].split("</ul>")[0]
+    assert "data-search=" in suggested

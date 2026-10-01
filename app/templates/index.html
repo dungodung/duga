@@ -1,50 +1,87 @@
 {% extends "base.html" %}
 {% block title %}{{ _('duga-home-title') }} — {{ _('duga-tagline') }}{% endblock %}
 {% block description %}{{ _('duga-home-intro') }}{% endblock %}
+
+{# One macro for both lists, so the suggested shortcut and the full list can
+   never drift apart. (They had: suggested <li>s carried no data attributes,
+   so enhance.js's live filter never touched them.) #}
+{% macro lang_item(language) -%}
+<li class="lang-item" data-search="{{ language.search }}">
+  <a class="lang-link" href="{{ url_for('main.lang_home', lang=language.code) }}">
+    {# An autonym is by definition written in its own language, not in the
+       interface language -- docs/i18n.md. dir=auto so that a future RTL
+       content language still renders correctly inside an LTR page. #}
+    <span class="lang-autonym" lang="{{ language.code }}" dir="auto">{{ language.autonym }}</span>
+    {%- if language.name %}
+    {# The same language's name in the *interface* language, so it gets no
+       lang attribute of its own: it inherits <html lang>, which is already
+       the interface language. Secondary and smaller -- the autonym stays the
+       primary identifier. Not aria-hidden: it is a disambiguator for anyone
+       who does not read the autonym's script, not decoration. #}
+    <span class="lang-name">{{ language.name }}</span>
+    {%- endif %}
+  </a>
+</li>
+{%- endmacro %}
+
 {% block content %}
 <h1>{{ _('duga-home-title') }}</h1>
 <p class="tagline">{{ _('duga-tagline') }}</p>
-<p>{{ _('duga-home-intro') }}</p>
+<p class="lede">{{ _('duga-home-intro') }}</p>
 
-<h2>{{ _('duga-home-pick-language') }}</h2>
+<section class="lang-section" aria-labelledby="pick-language">
+<h2 id="pick-language">{{ _('duga-home-pick-language') }}</h2>
 
 {# Plain GET form: filtering happens server-side, so this works with
    JavaScript off (SPEC.md section 12). enhance.js only makes it filter as
-   you type, and hides the button it then no longer needs. #}
+   you type, opens the disclosure below while you do, and hides the submit
+   button it then no longer needs. #}
 <form class="lang-search" method="get" action="{{ url_for('main.home') }}" role="search">
   <label for="lang-q">{{ _('duga-home-search-label') }}</label>
   <input type="search" id="lang-q" name="q" value="{{ query }}" autocomplete="off"
-         placeholder="{{ _('duga-home-search-placeholder') }}">
+         placeholder="{{ _('duga-home-search-placeholder') }}"
+         aria-describedby="lang-search-hint">
   <button type="submit">{{ _('duga-home-search-submit') }}</button>
+  <p class="lang-search-hint" id="lang-search-hint">{{ _('duga-home-search-hint') }}</p>
 </form>
 
 {% if suggested and not query %}
-{# A convenience, never a filter: the full list is directly below. No
-   counts and no size ordering anywhere on this page -- SPEC.md S6 rules
-   out any view that ranks languages against each other, including
-   implicitly. #}
+{# A convenience, never a filter: the full list is directly below. No counts
+   and no size ordering anywhere on this page -- SPEC.md S6 rules out any
+   view that ranks languages against each other, including implicitly.
+   Deliberately outside the <details>, so a collapsed picker still offers
+   something to tap -- on a phone this is often all anyone needs. #}
 <h3 class="lang-group-heading">{{ _('duga-home-suggested-title') }}</h3>
 <ul class="lang-list lang-list-suggested">
-  {% for language in suggested %}
-  <li><a href="{{ url_for('main.lang_home', lang=language.code) }}" lang="{{ language.code }}">{{ language.autonym }}</a></li>
-  {% endfor %}
+  {% for language in suggested %}{{ lang_item(language) }}{% endfor %}
 </ul>
 {% endif %}
 
 {% if languages %}
-<h3 class="lang-group-heading">{{ _('duga-home-all-languages-title', total_languages) }}</h3>
-<ul class="lang-list" id="lang-list">
-  {% for language in languages %}
-  {# An autonym is by definition written in its own language, not in the
-     interface language -- see docs/i18n.md on the two being independent. #}
-  <li data-autonym="{{ language.autonym | lower }}" data-code="{{ language.code }}">
-    <a href="{{ url_for('main.lang_home', lang=language.code) }}" lang="{{ language.code }}">{{ language.autonym }}</a>
-  </li>
-  {% endfor %}
-</ul>
-<p class="lang-empty" id="lang-empty" hidden>{{ _('duga-home-search-empty') }}</p>
+{# <details> rather than a JavaScript combobox: it expands, collapses and
+   takes keyboard focus natively, so the widget costs nothing to a visitor
+   without JS and needs no ARIA of its own. `open` is decided server-side --
+   see _picker_starts_open() for why a search must force it. #}
+<details class="lang-picker" id="lang-picker"{% if picker_open %} open{% endif %}>
+  {# A heading inside <summary> is allowed (summary takes phrasing *or*
+     heading content) and keeps the document outline the plain <h3> gave us.
+     Note the count describes the set Duga tracks, not how many rows the
+     live filter is currently showing: that is the only number S6 permits
+     near a list of languages, and a changing "3 shown" counter beside one
+     is the exact shape it exists to prevent. #}
+  <summary class="lang-picker-summary">
+    <h3 class="lang-picker-heading">{{ _('duga-home-all-languages-title', total_languages) }}</h3>
+  </summary>
+  <ul class="lang-list" id="lang-list">
+    {% for language in languages %}{{ lang_item(language) }}{% endfor %}
+  </ul>
+  {# role=status so that the live filter finding nothing is announced, not
+     only drawn. #}
+  <p class="lang-empty" id="lang-empty" role="status" hidden>{{ _('duga-home-search-empty') }}</p>
+</details>
 {% else %}
 <p class="lang-empty">{{ _('duga-home-search-empty') }}</p>
 <p><a href="{{ url_for('main.home') }}">{{ _('duga-home-search-clear') }}</a></p>
 {% endif %}
+</section>
 {% endblock %}

@@ -204,6 +204,7 @@
   "duga-topic-no-gaps": "W tej chwili nic nie brakuje dla tego tematu.",
   "duga-home-search-label": "Znajdź język",
   "duga-home-search-placeholder": "Wpisz nazwę języka",
+  "duga-home-search-hint": "Szuka własnej nazwy języka, jego nazwy w Twoim języku oraz jego kodu.",
   "duga-home-search-submit": "Szukaj",
   "duga-home-search-empty": "Żaden śledzony język nie pasuje.",
   "duga-home-search-clear": "Pokaż wszystkie języki",
@@ -212,5 +213,15 @@
   "duga-gaps-meta-description": "Czego brakuje w projektach Wikimedia po $1 i gdzie to poprawić.",
   "duga-lang-home-meta-description": "Wiedza queer, której brakuje w projektach Wikimedia po $1: czego brakuje, dlaczego i jak pomóc.",
   "duga-vocab-meta-description": "Słownictwo queer po $1: słowa, rejestry i źródła, które za nimi stoją.",
-  "duga-write-english-reference": "W Wikidanych po angielsku:"
+  "duga-write-english-reference": "W Wikidanych po angielsku:",
+  "duga-langname-de": "niemiecki",
+  "duga-langname-en": "angielski",
+  "duga-langname-es": "hiszpański",
+  "duga-langname-fr": "francuski",
+  "duga-langname-it": "włoski",
+  "duga-langname-nl": "niderlandzki",
+  "duga-langname-pl": "polski",
+  "duga-langname-ru": "rosyjski",
+  "duga-langname-sr": "serbski",
+  "duga-langname-sv": "szwedzki"
 }

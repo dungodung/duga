@@ -104,24 +104,24 @@ def home():
     The search box is a plain GET form that filters server-side, so it
     works with JavaScript off (SPEC.md section 12); enhance.js only makes
     it filter as you type."""
-    languages = Language.query.filter_by(seeded=True).all()
-    languages.sort(key=lambda language: language.autonym.lower())
+    rows = Language.query.filter_by(seeded=True).all()
+    rows.sort(key=lambda language: language.autonym.lower())
+    languages = [_picker_row(language) for language in rows]
+    # The total, not the filtered count: the heading says "All N languages"
+    # about the set Duga tracks, which does not change when you search.
+    total_languages = len(languages)
 
     query = (request.args.get("q") or "").strip()
     if query:
         needle = query.lower()
-        languages = [
-            language
-            for language in languages
-            if needle in language.autonym.lower() or needle in language.code.lower()
-        ]
+        languages = [row for row in languages if needle in row["search"]]
 
-    seeded_codes = {language.code for language in languages}
+    seeded_codes = {row["code"] for row in languages}
     suggested_codes = []
     for code in _preferred_language_codes():
         if code in seeded_codes and code not in suggested_codes:
             suggested_codes.append(code)
-    by_code = {language.code: language for language in languages}
+    by_code = {row["code"]: row for row in languages}
     suggested = [by_code[code] for code in suggested_codes]
 
     return render_template(
@@ -129,8 +129,66 @@ def home():
         languages=languages,
         suggested=suggested,
         query=query,
-        total_languages=Language.query.filter_by(seeded=True).count(),
+        total_languages=total_languages,
+        picker_open=_picker_starts_open(query, suggested, total_languages),
     )
+
+
+def _picker_row(language):
+    """One language as the picker needs it: the autonym it is known by in
+    its own language, its name in the interface language as a secondary
+    label, and one haystack holding everything the search should match.
+
+    The haystack is built and lowercased here, server-side, for two
+    reasons. It makes `?q=` and enhance.js's live filter provably the same
+    predicate rather than two implementations that happen to agree -- the
+    old pair checked autonym-or-code on each side independently. And
+    Python's str.lower() handles non-ASCII more correctly than JavaScript's
+    toLowerCase(), so the folding is done once, in the better place.
+    """
+    lang = g.get("interface_lang", i18n.FALLBACK_LANG)
+    name = i18n.language_name(language.code, lang)
+    english = i18n.language_name(language.code, i18n.FALLBACK_LANG)
+    # Case-insensitively, because the autonym column is capitalised by hand
+    # while a language's name in its own language often is not -- Serbian
+    # writes "српски" where the autonym reads "Српски", and showing both
+    # would just stutter.
+    duplicate = name.lower() == language.autonym.lower()
+    # Deduplicated in order: with an English interface `name` and `english`
+    # are the same string, and a language whose autonym is its English name
+    # repeats a third time. Nothing breaks if they repeat -- it is a
+    # substring search -- but there is no reason to ship the bytes.
+    haystack = []
+    for part in (language.autonym, language.code, name, english):
+        folded = part.lower()
+        if folded and folded not in haystack:
+            haystack.append(folded)
+    return {
+        "code": language.code,
+        "autonym": language.autonym,
+        "name": "" if duplicate else name,
+        "search": " ".join(haystack),
+    }
+
+
+# Below this many tracked languages, collapsing the picker is friction for
+# nothing: a short list already fits on screen, and the disclosure is one
+# more tap. Above it, the flat list is the thing that stopped working.
+PICKER_COLLAPSE_MIN = 8
+
+
+def _picker_starts_open(query, suggested, total_languages):
+    """Whether the full-language disclosure renders expanded.
+
+    The first clause is not cosmetic. With JavaScript off, the only way to
+    reach a filtered result is this page load, so a search that matched has
+    to arrive with the panel already open -- otherwise the no-JS search path
+    is broken rather than merely plainer, and SPEC.md section 12 requires it
+    to work. The second covers a visitor whose Accept-Language matches
+    nothing tracked, who would otherwise meet a collapsed box with nothing
+    clickable in it at all.
+    """
+    return bool(query) or not suggested or total_languages < PICKER_COLLAPSE_MIN
 
 
 def _remember_language(lang):
