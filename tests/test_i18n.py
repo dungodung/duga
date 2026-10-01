@@ -1,3 +1,8 @@
+import json
+import os
+import time
+from unittest import mock
+
 from app import i18n
 
 
@@ -29,6 +34,79 @@ def test_translate_substitutes_positional_placeholders():
 
 def test_translate_unknown_key_returns_the_key_itself():
     assert i18n.translate("duga-does-not-exist", "en") == "duga-does-not-exist"
+
+
+# -- caching -----------------------------------------------------------------
+
+
+def test_a_message_file_is_parsed_once_however_often_it_is_translated_from():
+    """translate() used to re-read and re-parse a 210-key JSON file on every
+    single call. A page renders dozens of strings, and the language picker
+    renders two per language row, so this was pure waste at ~200us a time."""
+    i18n._MESSAGE_CACHE.clear()
+    parses = []
+    real_load = json.load
+
+    def counting_load(fh):
+        parses.append(1)
+        return real_load(fh)
+
+    with mock.patch.object(i18n.json, "load", counting_load):
+        for _ in range(25):
+            i18n.translate("duga-nav-home", "en")
+
+    assert len(parses) == 1, f"parsed en.json {len(parses)} times, expected once"
+
+
+def test_editing_a_message_file_is_picked_up_without_a_restart(tmp_path, monkeypatch):
+    """The cache is keyed on mtime rather than being a plain dict, so that
+    `flask run --debug` still reflects an edit to a message file. A cache
+    that needed a restart to clear would make translation work miserable."""
+    monkeypatch.setattr(i18n, "I18N_DIR", str(tmp_path))
+    i18n._MESSAGE_CACHE.clear()
+    path = tmp_path / "en.json"
+
+    path.write_text(json.dumps({"duga-test": "first"}), encoding="utf-8")
+    assert i18n.translate("duga-test", "en") == "first"
+
+    # Same path, new content, and an mtime far enough ahead to be visible
+    # on a filesystem with coarse timestamp granularity.
+    path.write_text(json.dumps({"duga-test": "second"}), encoding="utf-8")
+    os.utime(path, (time.time() + 10, time.time() + 10))
+    assert i18n.translate("duga-test", "en") == "second"
+
+
+def test_available_languages_is_not_relisted_on_every_call(tmp_path, monkeypatch):
+    """It is called once per request and then looped in base.html for the
+    hreflang alternates, so an os.listdir per call is wasted work."""
+    monkeypatch.setattr(i18n, "I18N_DIR", str(tmp_path))
+    monkeypatch.setattr(i18n, "_LANGUAGES_CACHE", None)
+    (tmp_path / "en.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "qqq.json").write_text("{}", encoding="utf-8")
+
+    listings = []
+    real_listdir = os.listdir
+
+    def counting_listdir(path):
+        listings.append(path)
+        return real_listdir(path)
+
+    with mock.patch.object(i18n.os, "listdir", counting_listdir):
+        first = i18n.available_languages()
+        for _ in range(10):
+            i18n.available_languages()
+
+    assert first == ["en"]
+    assert len(listings) == 1, f"listed the directory {len(listings)} times, expected once"
+
+
+def test_callers_cannot_corrupt_the_cached_language_list():
+    """available_languages() hands back a list that templates and
+    resolve_interface_lang() both iterate; if one of them sorted it in
+    place, every later request would see the mutation."""
+    first = i18n.available_languages()
+    first.append("zz")
+    assert "zz" not in i18n.available_languages()
 
 
 # -- message file integrity --------------------------------------------------

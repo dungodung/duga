@@ -19,6 +19,21 @@ INTERFACE_LANG_COOKIE_MAX_AGE = 60 * 60 * 24 * 365  # 1 year
 
 _PLACEHOLDER_RE = re.compile(r"\$(\d+)")
 
+# Parsed message files, keyed by language code: {code: (mtime, messages)}.
+# translate() is called once per user-facing string, so a page renders
+# dozens to hundreds of times -- and the language picker calls it twice per
+# language row. Re-reading and re-parsing a 210-key JSON file that often is
+# ~200us of pure waste each time. The mtime check means `flask run --debug`
+# still picks up an edit to a message file without a restart, which is the
+# only reason this isn't a plain dict.
+_MESSAGE_CACHE = {}
+
+# Same idea for the directory listing: available_languages() is called once
+# per request by inject_i18n(), and then looped in base.html to emit an
+# hreflang alternate per interface language. A directory's mtime changes
+# when an entry is added or removed, which is exactly when this is stale.
+_LANGUAGES_CACHE = None
+
 # Autonyms for the languages Duga's own interface chrome is translated into.
 # This is *not* the product's content-language list (Wikimedia languages a
 # gap can be about) -- that much larger, community-relevant set lives in the
@@ -46,12 +61,27 @@ AUTONYMS = {
 
 def available_languages():
     """Interface languages with a message file -- the source of truth for
-    what's translated, not a hardcoded list that could drift from i18n/."""
-    codes = []
-    for name in sorted(os.listdir(I18N_DIR)):
-        if name.endswith(".json") and name != "qqq.json":
-            codes.append(name[:-len(".json")])
-    return codes
+    what's translated, not a hardcoded list that could drift from i18n/.
+
+    Cached against the directory's mtime; see _LANGUAGES_CACHE. Returns a
+    fresh list each call so a caller sorting or filtering it in place can't
+    corrupt what the next request sees.
+    """
+    global _LANGUAGES_CACHE
+
+    try:
+        mtime = os.stat(I18N_DIR).st_mtime
+    except OSError:
+        mtime = None
+
+    if _LANGUAGES_CACHE is None or _LANGUAGES_CACHE[0] != mtime:
+        codes = []
+        for name in sorted(os.listdir(I18N_DIR)):
+            if name.endswith(".json") and name != "qqq.json":
+                codes.append(name[:-len(".json")])
+        _LANGUAGES_CACHE = (mtime, codes)
+
+    return list(_LANGUAGES_CACHE[1])
 
 
 def autonym(code):
@@ -59,12 +89,30 @@ def autonym(code):
 
 
 def _load(lang):
+    """Parsed messages for one language, or {} if it has no file.
+
+    The returned dict is the cached one, not a copy: translate() only ever
+    reads from it, and copying 210 keys per call would hand back most of
+    what the cache just saved. Treat it as read-only.
+    """
     path = os.path.join(I18N_DIR, f"{lang}.json")
-    if not os.path.exists(path):
+    try:
+        mtime = os.stat(path).st_mtime
+    except OSError:
+        # No file for this language. Not cached: resolve_interface_lang()
+        # only ever returns a code that has one, so this is the rare path
+        # and a bare stat is cheaper than reasoning about invalidating a
+        # cached absence once somebody adds the file.
         return {}
+
+    cached = _MESSAGE_CACHE.get(lang)
+    if cached is not None and cached[0] == mtime:
+        return cached[1]
+
     with open(path, encoding="utf-8") as fh:
         data = json.load(fh)
     data.pop("@metadata", None)
+    _MESSAGE_CACHE[lang] = (mtime, data)
     return data
 
 
