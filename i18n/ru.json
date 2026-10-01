@@ -204,6 +204,7 @@
   "duga-topic-no-gaps": "Сейчас по этой теме пробелов нет.",
   "duga-home-search-label": "Найти язык",
   "duga-home-search-placeholder": "Введите название языка",
+  "duga-home-search-hint": "Поиск по собственному названию языка, его названию на вашем языке и его коду.",
   "duga-home-search-submit": "Искать",
   "duga-home-search-empty": "Ни один отслеживаемый язык не подходит.",
   "duga-home-search-clear": "Показать все языки",
@@ -212,5 +213,15 @@
   "duga-gaps-meta-description": "Чего не хватает в проектах Викимедиа на языке $1 и где это исправить.",
   "duga-lang-home-meta-description": "Квир-знание, которого не хватает в проектах Викимедиа на языке $1: чего не хватает, почему и как помочь.",
   "duga-vocab-meta-description": "Квир-словарь на языке $1: слова, регистры и стоящие за ними источники.",
-  "duga-write-english-reference": "В Викиданных на английском:"
+  "duga-write-english-reference": "В Викиданных на английском:",
+  "duga-langname-de": "немецкий",
+  "duga-langname-en": "английский",
+  "duga-langname-es": "испанский",
+  "duga-langname-fr": "французский",
+  "duga-langname-it": "итальянский",
+  "duga-langname-nl": "нидерландский",
+  "duga-langname-pl": "польский",
+  "duga-langname-ru": "русский",
+  "duga-langname-sr": "сербский",
+  "duga-langname-sv": "шведский"
 }

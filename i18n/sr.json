@@ -201,6 +201,7 @@
   "duga-topic-no-gaps": "Тренутно ништа не недостаје за ову тему.",
   "duga-home-search-label": "Пронађи језик",
   "duga-home-search-placeholder": "Унесите назив језика",
+  "duga-home-search-hint": "Претражује сопствено име језика, његово име на вашем језику и његов код.",
   "duga-home-search-submit": "Тражи",
   "duga-home-search-empty": "Ниједан праћени језик се не поклапа.",
   "duga-home-search-clear": "Прикажи све језике",
@@ -209,5 +210,15 @@
   "duga-gaps-meta-description": "Шта недостаје на Викимедијиним пројектима на језику $1 и где се то може исправити.",
   "duga-lang-home-meta-description": "Квир знање које недостаје на Викимедијиним пројектима на језику $1: шта недостаје, зашто и како помоћи.",
   "duga-vocab-meta-description": "Квир речник на језику $1: речи, регистри и извори иза њих.",
-  "duga-write-english-reference": "На Википодацима на енглеском:"
+  "duga-write-english-reference": "На Википодацима на енглеском:",
+  "duga-langname-de": "немачки",
+  "duga-langname-en": "енглески",
+  "duga-langname-es": "шпански",
+  "duga-langname-fr": "француски",
+  "duga-langname-it": "италијански",
+  "duga-langname-nl": "холандски",
+  "duga-langname-pl": "пољски",
+  "duga-langname-ru": "руски",
+  "duga-langname-sr": "српски",
+  "duga-langname-sv": "шведски"
 }

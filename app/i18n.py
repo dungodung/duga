@@ -88,6 +88,29 @@ def autonym(code):
     return AUTONYMS.get(code, code)
 
 
+def language_name(code, lang):
+    """A language's name written in `lang` -- "Serbian" in English chrome,
+    "serbio" in Spanish chrome. The language picker shows it as a small
+    secondary label beside the autonym, and matches it in search, so that
+    somebody who knows a language as "Serbian" rather than "Српски" can
+    still find it.
+
+    Deliberately a message rather than a column on `language` or a dict in
+    Python: this is user-facing text in the *interface* language (SPEC.md
+    guardrail 4 -- no hardcoded user-facing English), and "German" is only
+    the right answer while the interface happens to be English. It is also
+    the same shape MediaWiki's CLDR extension uses.
+
+    Returns "" rather than the message key when nobody has supplied a name,
+    so a content language seeded before anyone translates it degrades to
+    showing its autonym alone instead of printing "duga-langname-xx" at a
+    visitor.
+    """
+    key = f"duga-langname-{code}"
+    text = translate(key, lang)
+    return "" if text == key else text
+
+
 def _load(lang):
     """Parsed messages for one language, or {} if it has no file.
 

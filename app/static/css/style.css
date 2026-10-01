@@ -325,23 +325,118 @@ summary:focus:not(:focus-visible) {
   margin-bottom: 0.4rem;
 }
 
+.lang-search-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Grid, not multicol. Two reasons, and the second is the real one: a
+   two-line cell (autonym over name) breaks across a column boundary in
+   multicol unless every item carries break-inside, and hiding an item with
+   [hidden] forces multicol to rebalance every remaining column on every
+   keystroke of the live filter -- which is a visible stutter on a cheap
+   phone. A hidden grid item simply leaves the flow. auto-fill also reflows
+   continuously instead of snapping at one breakpoint. */
 .lang-list {
-  padding-inline-start: 1.25rem;
-  columns: 1;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-1);
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
 }
 
-.lang-list-suggested {
-  columns: 1;
+.lang-link {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border-inline-start: 3px solid transparent;
+  text-decoration: none;
+  /* A thumb-sized target, and two lines of text need the room anyway. */
+  min-height: var(--tap);
 }
 
-/* 0.4rem left about 6px between two stacked links -- fine for a cursor, a
-   mis-tap generator for a thumb. */
-.lang-list li {
-  margin-bottom: var(--space-2);
+.lang-link:hover,
+.lang-link:focus {
+  background: var(--surface);
+  border-inline-start-color: var(--link);
+}
+
+.lang-autonym {
+  display: block;
+  color: var(--link);
+  font-weight: 600;
+}
+
+.lang-name {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .lang-empty {
   color: var(--muted);
+}
+
+/* -- the disclosure -- */
+
+.lang-picker {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  margin: var(--space-4) 0;
+}
+
+/* list-style for Firefox and Chrome, ::-webkit-details-marker for Safari.
+   Setting any display other than list-item also removes Chromium's native
+   triangle, which is why the chevron below is drawn by hand. Child selector
+   throughout, so a future nested <details> isn't restyled by accident. */
+.lang-picker > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  min-height: var(--tap);
+  list-style: none;
+  cursor: pointer;
+}
+
+.lang-picker > summary::-webkit-details-marker {
+  display: none;
+}
+
+.lang-picker > summary::before {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-inline-end: 2px solid var(--link);
+  border-bottom: 2px solid var(--link);
+  transform: rotate(-45deg);
+}
+
+.lang-picker[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.lang-picker-heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lang-picker > .lang-list {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.lang-picker > .lang-empty {
+  padding: 0 var(--space-4) var(--space-4);
+  margin: 0;
 }
 
 /* == 6. Notices =========================================================== */
@@ -691,13 +786,9 @@ form button[type="submit"] {
 }
 
 @media (min-width: 48rem) {
-  /* Many languages, short names: two columns beat one tall list, once there
-     is room for them without hyphenating anything. */
-  .lang-list {
-    columns: 2;
-    column-gap: var(--space-6);
-  }
-
+  /* The language grid reflows on its own via auto-fill, so there is no
+     column count to set here -- only the search field, which stops being
+     full-width once there is room for the button beside it. */
   .lang-search input {
     flex: 1 1 12rem;
   }
