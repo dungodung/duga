@@ -12,7 +12,20 @@
      2. Reset and base          7. Gap list and filters
      3. Page chrome             8. Vocabulary
      4. Focus                   9. Forms
-     5. Language picker        10. Narrow screens
+     5. Language picker        10. Wider screens
+
+   It is mobile-first: the rules outside any media query describe a phone,
+   and the min-width blocks in section 10 add back what a bigger screen can
+   afford. Duga expects a lot of mobile visits and mobile contributions, so
+   a rule that forgets to account for one or the other should degrade to the
+   phone layout, not to the desktop one. (This file used to be the other way
+   round -- one max-width patch at the end -- which meant every new
+   component had to remember to opt in.)
+
+   Breakpoints, and there are only three:
+     30rem  large phone      -- side-by-side rows become affordable
+     48rem  tablet / phone landscape
+     64rem  desktop
 */
 
 /* == 1. Tokens ============================================================ */
@@ -163,13 +176,14 @@ a:hover {
 .site-header, .site-footer, main {
   max-width: var(--measure);
   margin: 0 auto;
-  padding: var(--space-4) 1.25rem;
+  padding: var(--space-3) 0.9rem;
 }
 
 .site-header {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--border);
 }
 
@@ -209,11 +223,16 @@ a:hover {
   display: inline;
 }
 
+/* Logout, and it used to be declared `padding: 0` -- a hit area exactly as
+   tall as the word, in a header that is about to get denser. Padded to the
+   tap minimum and given a negative inline margin so the text still lines up
+   with its neighbours. */
 .link-button {
   background: none;
   border: none;
-  padding: 0;
-  margin-inline-end: var(--space-4);
+  padding: var(--space-2) var(--space-2);
+  margin-inline: calc(var(--space-2) * -1) var(--space-3);
+  min-height: var(--tap);
   font: inherit;
   color: var(--link);
   cursor: pointer;
@@ -279,13 +298,17 @@ summary:focus:not(:focus-visible) {
 }
 
 .lang-search input {
-  flex: 1 1 12rem;
+  flex: 1 1 100%;
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--fg);
   font: inherit;
+  /* Never below 1rem: iOS Safari zooms the whole page when a field with a
+     sub-16px font is focused, and the visitor has to pinch back out. */
+  font-size: 1rem;
+  min-height: var(--tap);
 }
 
 /* With JS the list filters as you type, so the submit button that makes it
@@ -302,19 +325,19 @@ summary:focus:not(:focus-visible) {
   margin-bottom: 0.4rem;
 }
 
-/* Many languages, short names: columns beat a single tall list. */
 .lang-list {
   padding-inline-start: 1.25rem;
-  columns: 2;
-  column-gap: var(--space-6);
+  columns: 1;
 }
 
 .lang-list-suggested {
   columns: 1;
 }
 
+/* 0.4rem left about 6px between two stacked links -- fine for a cursor, a
+   mis-tap generator for a thumb. */
 .lang-list li {
-  margin-bottom: 0.4rem;
+  margin-bottom: var(--space-2);
 }
 
 .lang-empty {
@@ -351,10 +374,12 @@ summary:focus:not(:focus-visible) {
 
 /* == 7. Gap list and filters ============================================== */
 
+/* Three stacked, full-width controls on a phone; side by side from 30rem. */
 .gap-filters {
   display: flex;
+  flex-direction: column;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: stretch;
   gap: var(--space-3);
   margin: var(--space-4) 0 var(--space-5);
 }
@@ -362,13 +387,11 @@ summary:focus:not(:focus-visible) {
 .gap-filter {
   display: flex;
   flex-direction: column;
-  min-width: 9rem;
+  width: 100%;
 }
 
-/* Overrides the generic `form select { width: 100% }` rule further down:
-   these three sit side by side, sized to their column, not the page. */
 .gap-filters select {
-  width: auto;
+  width: 100%;
 }
 
 /* Suppression is a safety action, not a call to action -- styled as a
@@ -398,6 +421,7 @@ summary:focus:not(:focus-visible) {
 .breakdown-list li {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-4);
   padding: 0.35rem 0;
   border-bottom: 1px solid var(--border);
@@ -411,9 +435,10 @@ summary:focus:not(:focus-visible) {
 
 .gap-actions {
   display: flex;
+  flex-direction: column;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-4);
+  align-items: stretch;
+  gap: var(--space-2);
 }
 
 .page-position {
@@ -448,25 +473,34 @@ summary:focus:not(:focus-visible) {
   padding: 0;
 }
 
+/* A logged-in gap row carries a lot: label, meta, two or three links, and
+   an override form with a text input and two buttons. On a phone they stack
+   rather than fight over one line (SPEC.md section 12 -- the contribution
+   flows have to work on a handset). They go side by side from 30rem. */
 .gap-row {
   padding: var(--space-3) 0;
   border-bottom: 1px solid var(--border);
   display: flex;
+  flex-direction: column;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-4);
+  align-items: stretch;
+  gap: var(--space-2);
 }
 
+/* min-width: 0 on both, so a long label wraps instead of forcing the row
+   wider than the viewport and giving the whole page a sideways scroll. */
 .gap-label {
   font-weight: 600;
-  flex: 1 1 auto;
-  min-width: 10rem;
+  flex: none;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .gap-meta {
   color: var(--muted);
   font-size: 0.9rem;
-  flex: 2 1 auto;
+  flex: none;
+  min-width: 0;
 }
 
 .gap-action {
@@ -476,13 +510,15 @@ summary:focus:not(:focus-visible) {
 .gap-override-form {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
 }
 
 .gap-override-reason {
-  font-size: 0.85rem;
-  padding: 0.15rem 0.4rem;
-  width: 8rem;
+  width: 100%;
+  /* 1rem, not smaller -- see .lang-search input on iOS zoom. */
+  font-size: 1rem;
+  padding: 0.4rem;
 }
 
 .gap-override-form button {
@@ -518,6 +554,7 @@ summary:focus:not(:focus-visible) {
 .term-row {
   padding: 0.6rem 0;
   border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
 .term-meta {
@@ -538,7 +575,7 @@ summary:focus:not(:focus-visible) {
   background: var(--surface);
   padding: var(--space-4);
   margin-bottom: var(--space-5);
-  max-width: 28rem;
+  max-width: none;
 }
 
 .vocab-add-form label,
@@ -563,84 +600,116 @@ form textarea {
   background: var(--bg);
   color: var(--fg);
   font: inherit;
+  /* The iOS zoom floor again, applied to every field rather than leaving it
+     to each form to remember. */
+  font-size: 1rem;
+  min-height: var(--tap);
 }
 
-/* == 10. Narrow screens =================================================== */
+form button[type="submit"] {
+  min-height: var(--tap);
+  padding-inline: var(--space-4);
+  font: inherit;
+}
 
-/* Phones. SPEC.md section 12 requires the add-a-term flow to be completable
-   on a phone in under 60 seconds, and a logged-in gap row carries a lot:
-   label, meta, two or three links, and an override form with a text input
-   and two buttons. Below this width they stack instead of fighting over
-   one line. */
-@media (max-width: 30rem) {
+/* == 10. Wider screens =================================================== */
+
+/* Everything above describes a phone. These blocks add back what a larger
+   viewport can afford -- side-by-side rows, two columns of languages, a
+   roomier page gutter. Nothing here is required for the page to work. */
+
+@media (min-width: 30rem) {
   .site-header, .site-footer, main {
-    padding: var(--space-3) 0.9rem;
+    padding: var(--space-4) 1.25rem;
   }
 
   .site-header {
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-4);
-  }
-
-  .gap-row,
-  .gap-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-2);
-  }
-
-  .gap-label,
-  .gap-meta {
-    flex: none;
-    min-width: 0;
-  }
-
-  /* Full-width tap targets rather than links crammed onto one line. */
-  .gap-override-form {
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-4);
-  }
-
-  .gap-override-reason {
-    width: 100%;
-    /* 1rem, not smaller: iOS Safari zooms the whole page when a field with
-       a sub-16px font is focused, and the visitor has to pinch back out. */
-    font-size: 1rem;
-    padding: 0.4rem;
-  }
-
-  .gap-filters {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .gap-filters select,
-  .gap-filter {
-    width: 100%;
-  }
-
-  .vocab-add-form {
-    max-width: none;
-  }
-
-  .term-row,
-  .breakdown-list li {
-    flex-wrap: wrap;
-  }
-
-  /* One column of languages on a narrow screen, and a search field big
-     enough to tap. */
-  .lang-list {
-    columns: 1;
-  }
-
-  .lang-search input {
-    flex: 1 1 100%;
-    font-size: 1rem;
+    gap: var(--space-5);
   }
 
   h1 {
-    font-size: 1.5rem;
-    overflow-wrap: break-word;
+    font-size: 2rem;
+  }
+
+  /* A gap row's parts fit on one line again. */
+  .gap-row {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .gap-label {
+    flex: 1 1 auto;
+    min-width: 10rem;
+  }
+
+  .gap-meta {
+    flex: 2 1 auto;
+  }
+
+  .gap-actions {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .gap-override-form {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+  }
+
+  .gap-override-reason {
+    width: 8rem;
+    font-size: 0.85rem;
+    padding: 0.15rem 0.4rem;
+    min-height: 0;
+  }
+
+  /* The three filters sit side by side, each sized to its own column rather
+     than to the page. This is why .gap-filters select needs its own rule at
+     all: it overrides the generic `form select { width: 100% }`, and relies
+     on specificity rather than source order to do it. */
+  .gap-filters {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+
+  .gap-filter {
+    width: auto;
+    min-width: 9rem;
+  }
+
+  .gap-filters select {
+    width: auto;
+    min-height: 0;
+  }
+
+  .vocab-add-form,
+  .term-detail form {
+    max-width: 28rem;
+  }
+}
+
+@media (min-width: 48rem) {
+  /* Many languages, short names: two columns beat one tall list, once there
+     is room for them without hyphenating anything. */
+  .lang-list {
+    columns: 2;
+    column-gap: var(--space-6);
+  }
+
+  .lang-search input {
+    flex: 1 1 12rem;
+  }
+}
+
+/* == 11. Motion =========================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
