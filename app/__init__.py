@@ -82,6 +82,20 @@ def create_app(config_name: str = "production") -> Flask:
     def inject_contributor():
         return {"contributor": current_contributor()}
 
+    @app.context_processor
+    def inject_current_path():
+        """The path *including* its query string, for ?next= round trips.
+
+        `request.full_path` would do, except Flask appends a bare "?" when
+        there is no query string at all, so a login link off the home page
+        would read next=/%3F. Templates use this anywhere they need to send
+        someone back to the view they were actually looking at -- a gap list
+        keeps its filters and page, the picker keeps its search.
+        """
+        return {
+            "current_path": request.full_path if request.query_string else request.path,
+        }
+
     @app.errorhandler(404)
     def not_found(_error):
         return render_template("404.html"), 404

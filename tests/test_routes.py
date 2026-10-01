@@ -830,3 +830,72 @@ def test_home_suggestions_never_hide_the_full_list(client, db, seed_languages):
     main = _main(client.get("/?uselang=en", headers={"Accept-Language": "de"}))
     for autonym in ("Deutsch", "Español", "Français", "Русский", "Српски"):
         assert autonym in main.split("All 5 languages")[1]
+
+
+# -- the interface-language switcher keeps the view you were on ---------------
+#
+# SPEC.md section 13: interface and content language are independent. A GET
+# form replaces its action's query string with its own serialised fields, so
+# every other parameter has to be re-submitted as a hidden input or changing
+# one setting silently resets the other's view.
+
+
+def test_switching_interface_language_keeps_the_gap_list_filters(client, db, seed_languages):
+    body = client.get("/sr/gaps?project=wikipedia&type=no_article&page=2&uselang=en").data.decode()
+    switcher = body[body.index('class="lang-switch"'):body.index("</form>", body.index('class="lang-switch"'))]
+    assert 'name="project" value="wikipedia"' in switcher
+    assert 'name="type" value="no_article"' in switcher
+    assert 'name="page" value="2"' in switcher
+
+
+def test_switching_interface_language_keeps_the_picker_search(client, db, seed_languages):
+    body = client.get("/?q=sr&uselang=en").data.decode()
+    switcher = body[body.index('class="lang-switch"'):body.index("</form>", body.index('class="lang-switch"'))]
+    assert 'name="q" value="sr"' in switcher
+
+
+def test_switching_interface_language_does_not_resubmit_the_old_one(client, db, seed_languages):
+    """uselang is what the <select> itself submits. Echoing the current value
+    back as a hidden input too would send two, and which one wins is a
+    browser detail nobody should have to rely on."""
+    body = client.get("/sr/gaps?project=wikipedia&uselang=fr").data.decode()
+    switcher = body[body.index('class="lang-switch"'):body.index("</form>", body.index('class="lang-switch"'))]
+    assert 'type="hidden" name="uselang"' not in switcher
+
+
+def test_a_repeated_query_parameter_is_carried_through_in_full(client, db, seed_languages):
+    """request.args.get() would silently keep only the first value. Werkzeug
+    hands back a MultiDict, so the form has to iterate every value or
+    switching language would quietly drop half a repeated filter."""
+    body = client.get("/sr/gaps?project=wikipedia&project=wikidata&uselang=en").data.decode()
+    switcher = body[body.index('class="lang-switch"'):body.index("</form>", body.index('class="lang-switch"'))]
+    assert 'name="project" value="wikipedia"' in switcher
+    assert 'name="project" value="wikidata"' in switcher
+
+
+def _login_next(response):
+    """The ?next= target the login link would send a visitor back to."""
+    # Parse first, then let parse_qs do the percent-decoding. Unquoting the
+    # whole href up front would turn the %26 inside the next= value into a
+    # real &, splitting one parameter into two.
+    from urllib.parse import parse_qs, urlparse
+
+    body = response.data.decode()
+    start = body.index('href="/login?', 0) + len('href="')
+    href = body[start:body.index('"', start)]
+    return parse_qs(urlparse(href).query)["next"][0]
+
+
+def test_the_login_link_returns_you_to_the_view_you_were_filtering(client, db, seed_languages):
+    """Logging in from a filtered gap list should not throw the filters
+    away. _safe_next() already accepts any same-site relative path, so the
+    only thing missing was the query string."""
+    target = _login_next(client.get("/sr/gaps?project=wikipedia&page=2"))
+    assert target == "/sr/gaps?project=wikipedia&page=2"
+
+
+def test_the_login_link_has_no_stray_question_mark_without_a_query_string(client, seed_languages):
+    """request.full_path appends a bare "?" even when there is no query
+    string at all, so using it unguarded would send every visitor on an
+    unfiltered page back to a URL with a dangling "?" on the end."""
+    assert _login_next(client.get("/")) == "/"
