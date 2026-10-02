@@ -1,3 +1,4 @@
+import hashlib
 import os
 
 from flask import Flask, g, render_template, request
@@ -7,8 +8,8 @@ from .config import CONFIG_BY_NAME
 from .extensions import db, migrate
 
 # The hand-written assets, in the order they appear in base.html. Both are
-# served straight from disk with no build step, so their mtimes are the only
-# version information that exists.
+# served straight from disk with no build step, so nothing upstream stamps a
+# version onto them -- asset_version() below derives one from their contents.
 VERSIONED_ASSETS = ("css/style.css", "js/enhance.js")
 
 
@@ -21,21 +22,30 @@ def asset_version(static_folder):
     tweak that is a stale detail; for a layout change it is a broken page,
     and there is no way for them to know a reload would fix it.
 
-    Computed once at startup rather than per request -- the files cannot
+    A hash of the contents, NOT the mtimes. The first version of this used
+    the newest mtime and was inert in production: Toolforge's build service
+    normalises every file's timestamp to 1980-01-01 for reproducible
+    builds, so the token came out as the same constant on every deploy --
+    precisely the failure it exists to prevent. Contents are the only thing
+    that actually varies.
+
+    Computed once at startup rather than per request: the files cannot
     change under a running process without a redeploy, which restarts it.
     One token for both files, because they change together and a single
     query parameter is simpler to reason about than two.
     """
-    newest = 0.0
+    digest = hashlib.sha256()
     for name in VERSIONED_ASSETS:
         try:
-            newest = max(newest, os.stat(os.path.join(static_folder, name)).st_mtime)
+            with open(os.path.join(static_folder, name), "rb") as fh:
+                digest.update(fh.read())
         except OSError:
             # A missing asset is not this function's problem to report: the
             # 404 on the asset itself says it far more clearly than a
-            # startup crash would.
-            continue
-    return str(int(newest))
+            # startup crash would. Fold the absence in so that a file
+            # appearing later still changes the token.
+            digest.update(b"\0missing\0" + name.encode())
+    return digest.hexdigest()[:12]
 
 
 def create_app(config_name: str = "production") -> Flask:
