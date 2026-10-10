@@ -70,6 +70,44 @@ AUTONYMS = {
 RTL_LANGS = frozenset({"ar", "arc", "arz", "azb", "ckb", "dv", "fa", "he", "ks", "ku-arab",
                        "ps", "sd", "ug", "ur", "yi"})
 
+# How each interface language groups the digits of a count: its separator,
+# and how many digits must sit left of the first group before grouping
+# starts at all. Spanish and Polish write 7714 but 37.714 / 37 714 -- that
+# second number is CLDR's minimumGroupingDigits, and getting it wrong reads
+# as a typo to a native speaker. Values are CLDR's, transcribed rather than
+# pulled from Babel for the reason in this module's docstring. French uses
+# U+202F (narrow no-break space); Polish, Russian and Swedish U+00A0 --
+# either way a count never wraps across a line. A language missing here
+# falls back to English's rule, and tests/test_i18n.py fails if any message
+# file lacks an entry.
+NUMBER_GROUPING = {
+    "en": (",", 1),
+    "sr": (".", 1),
+    "fr": ("\u202f", 1),
+    "de": (".", 1),
+    "es": (".", 2),
+    "it": (".", 1),
+    "nl": (".", 1),
+    "pl": ("\u00a0", 2),
+    "ru": ("\u00a0", 1),
+    "sv": ("\u00a0", 1),
+}
+
+
+def format_number(number, lang):
+    """`number` with `lang`'s thousands separator: 37714 -> "37.714" in
+    Serbian, "37,714" in English. Integers only -- every number Duga shows
+    is a count."""
+    separator, min_grouping = NUMBER_GROUPING.get(lang, NUMBER_GROUPING[FALLBACK_LANG])
+    sign, digits = ("-", str(-number)) if number < 0 else ("", str(number))
+    if len(digits) < 3 + min_grouping:
+        return sign + digits
+    groups = []
+    while len(digits) > 3:
+        groups.insert(0, digits[-3:])
+        digits = digits[:-3]
+    return sign + separator.join([digits] + groups)
+
 
 def is_rtl(code):
     """Whether `code`'s script runs right to left, for <html dir>."""
@@ -164,7 +202,15 @@ def translate(key, lang, *args):
     if args:
         def _sub(match):
             index = int(match.group(1)) - 1
-            return str(args[index]) if 0 <= index < len(args) else match.group(0)
+            if not 0 <= index < len(args):
+                return match.group(0)
+            arg = args[index]
+            # Every integer reaching a message is a count, so it is grouped
+            # for the reader's language here rather than at each call site.
+            # bool is an int subclass; it is never meant as a number.
+            if isinstance(arg, int) and not isinstance(arg, bool):
+                return format_number(arg, lang)
+            return str(arg)
 
         text = _PLACEHOLDER_RE.sub(_sub, text)
     return text

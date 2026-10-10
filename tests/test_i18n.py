@@ -219,3 +219,63 @@ def test_every_rtl_language_code_is_lowercase_and_plausible():
         assert code == code.lower()
         assert i18n.is_rtl(code)
     assert not i18n.is_rtl("en")
+
+
+# -- counts are grouped for the reader's language ----------------------------
+
+
+def test_serbian_groups_thousands_with_a_dot():
+    assert i18n.format_number(37714, "sr") == "37.714"
+
+
+def test_english_groups_thousands_with_a_comma():
+    assert i18n.format_number(1234567, "en") == "1,234,567"
+
+
+def test_short_numbers_are_never_grouped():
+    assert i18n.format_number(999, "de") == "999"
+    assert i18n.format_number(0, "sr") == "0"
+
+
+def test_spanish_and_polish_leave_four_digit_numbers_ungrouped():
+    """CLDR's minimumGroupingDigits: 7714, but 37.714."""
+    assert i18n.format_number(7714, "es") == "7714"
+    assert i18n.format_number(37714, "es") == "37.714"
+    assert i18n.format_number(7714, "pl") == "7714"
+    assert i18n.format_number(37714, "pl") == "37 714"
+
+
+def test_space_separators_are_non_breaking():
+    """A count split across two lines reads as two numbers."""
+    assert i18n.format_number(37714, "fr") == "37 714"
+    assert i18n.format_number(37714, "ru") == "37 714"
+    assert i18n.format_number(37714, "sv") == "37 714"
+
+
+def test_a_language_without_a_rule_falls_back_to_english():
+    assert i18n.format_number(37714, "xx") == "37,714"
+
+
+def test_every_interface_language_has_a_grouping_rule():
+    """Otherwise a newly translated language silently gets English commas."""
+    missing = set(i18n.available_languages()) - set(i18n.NUMBER_GROUPING)
+    assert not missing
+
+
+def test_counts_in_messages_are_grouped():
+    assert i18n.translate("duga-lang-home-gap-count", "sr", 37714) == "Пронађено је 37.714 празнина до сада."
+    assert i18n.translate("duga-lang-home-gap-count", "en", 37714) == "37,714 gaps found so far."
+
+
+def test_only_integers_are_grouped():
+    """Strings that happen to be digits -- a QID's number, a year -- pass
+    through untouched."""
+    assert "12345" in i18n.translate("duga-lang-home-gap-count", "sr", "12345")
+
+
+def test_templates_can_group_a_bare_count(app):
+    from flask import g, render_template_string
+
+    with app.test_request_context():
+        g.interface_lang = "sr"
+        assert render_template_string("{{ number(37714) }}") == "37.714"

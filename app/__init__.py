@@ -124,6 +124,8 @@ def create_app(config_name: str = "production") -> Flask:
         lang = g.get("interface_lang", i18n.FALLBACK_LANG)
         return {
             "_": lambda key, *args: i18n.translate(key, lang, *args),
+            # For a count shown on its own, outside any message.
+            "number": lambda value: i18n.format_number(value, lang),
             "interface_lang": lang,
             "available_languages": i18n.available_languages(),
             "autonym": i18n.autonym,

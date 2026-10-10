@@ -24,7 +24,7 @@
     {% for row in breakdown %}
     <li>
       <a href="{{ url_for('main.gaps', lang=language.code, project=row.project_code, type=row.gap_type) }}">{{ _('duga-gaps-what', _('duga-gaps-project-' ~ row.project_code), _('duga-gaps-type-' ~ row.gap_type)) }}</a>
-      <span class="breakdown-count">{{ row.count }}</span>
+      <span class="breakdown-count">{{ number(row.count) }}</span>
     </li>
     {% endfor %}
   </ul>
