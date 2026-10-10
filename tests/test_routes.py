@@ -432,14 +432,23 @@ def test_gaps_maturity_filter_includes_a_gap_with_no_detector_row(client, db, se
     """A gap whose detector has no row is *displayed* as experimental, so
     filtering for experimental has to return it -- otherwise the filter
     would hide a row by the very label it shows."""
-    db.session.add(_gap("Q1", "No Detector Row Topic"))
+    db.session.add_all(
+        [
+            Detector(detector_key="commons_no_image", project_code="commons", gap_type="no_image", maturity="stable"),
+            _gap("Q1", "No Detector Row Topic"),
+            _gap("Q2", "Stable Topic", project="commons", gap_type="no_image", detector_key="commons_no_image"),
+        ]
+    )
     db.session.commit()
 
     assert b"No Detector Row Topic" in client.get("/sr/gaps?maturity=experimental").data
     assert b"No Detector Row Topic" not in client.get("/sr/gaps?maturity=stable").data
 
 
-def test_gaps_unknown_maturity_filter_matches_nothing(client, db, seed_languages):
+def test_gaps_impossible_maturity_filter_is_dropped(client, db, seed_languages):
+    """Like a type from another project: a maturity no visible gap has --
+    or one that is not a maturity at all -- is a stale or hand-edited
+    choice, so the list ignores it rather than showing nothing."""
     db.session.add_all(
         [
             Detector(detector_key="wp_no_article", project_code="wikipedia", gap_type="no_article", maturity="stable"),
@@ -448,10 +457,38 @@ def test_gaps_unknown_maturity_filter_matches_nothing(client, db, seed_languages
     )
     db.session.commit()
 
-    resp = client.get("/sr/gaps?maturity=nonsense&uselang=en")
-    assert resp.status_code == 200
-    assert b"Stable Topic" not in resp.data
-    assert b"No gaps match" in resp.data
+    for maturity in ("nonsense", "experimental"):
+        resp = client.get(f"/sr/gaps?maturity={maturity}&uselang=en")
+        assert resp.status_code == 200
+        assert b"Stable Topic" in resp.data
+
+
+def _maturity_select(body):
+    start = body.index('id="filter-maturity"')
+    return body[start:body.index("</select>", start)]
+
+
+def test_gaps_maturity_filter_offers_only_what_project_and_type_allow(client, db, seed_languages):
+    db.session.add_all(
+        [
+            Detector(detector_key="wp_no_article", project_code="wikipedia", gap_type="no_article", maturity="stable"),
+            Detector(detector_key="commons_no_image", project_code="commons", gap_type="no_image", maturity="experimental"),
+            _gap("Q1", "Stable Topic"),
+            _gap("Q2", "Experimental Topic", project="commons", gap_type="no_image", detector_key="commons_no_image"),
+        ]
+    )
+    db.session.commit()
+
+    everything = _maturity_select(client.get("/sr/gaps?uselang=en").data.decode())
+    assert 'value="stable"' in everything and 'value="experimental"' in everything
+    # beta is a maturity Duga knows, but no gap here has it.
+    assert 'value="beta"' not in everything
+
+    by_project = _maturity_select(client.get("/sr/gaps?project=wikipedia&uselang=en").data.decode())
+    assert 'value="stable"' in by_project and 'value="experimental"' not in by_project
+
+    by_type = _maturity_select(client.get("/sr/gaps?type=no_image&uselang=en").data.decode())
+    assert 'value="experimental"' in by_type and 'value="stable"' not in by_type
 
 
 def test_gaps_filter_form_offers_present_projects_and_keeps_the_selection(client, db, seed_languages):
@@ -463,9 +500,9 @@ def test_gaps_filter_form_offers_present_projects_and_keeps_the_selection(client
     assert b'<option value="wikipedia">' in resp.data
     # Nothing in this language has a Wiktionary gap, so it isn't offered.
     assert b'value="wiktionary"' not in resp.data
-    # ...but every option stays on screen while a filter is applied, so a
-    # visitor who filters into an empty list can always get back out.
-    assert b'<option value="stable">' in resp.data
+    # ...but every project stays on screen while one is applied, so a
+    # visitor can always switch to another.
+    assert b'<option value="wikipedia">' in resp.data
 
 
 def _type_select(body):
@@ -514,7 +551,10 @@ def test_gaps_type_select_carries_every_choice_for_the_script(client, db, seed_l
     body = client.get("/sr/gaps?project=wikipedia&uselang=en").data.decode()
     start = body.index("data-choices='") + len("data-choices='")
     choices = json.loads(html.unescape(body[start:body.index("'", start)]))
-    assert {c["value"]: c["projects"] for c in choices} == {"no_article": ["wikipedia"], "no_label": ["wikidata"]}
+    assert {c["value"]: c["combos"] for c in choices} == {
+        "no_article": [["wikipedia", "no_article"]],
+        "no_label": [["wikidata", "no_label"]],
+    }
     assert all(c["label"] for c in choices)
 
 

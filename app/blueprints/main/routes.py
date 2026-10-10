@@ -316,37 +316,53 @@ def gaps(lang):
     # and -- more importantly -- filtering into an empty result still
     # leaves every option on screen to get back out with.
     #
-    # Gap types depend on the project -- Wikipedia has no missing labels,
-    # Wikidata no missing articles -- so once a project is chosen, only its
-    # own types are offered, and a type left over from another project is
+    # The three filters cascade: gap types depend on the project
+    # (Wikipedia has no missing labels, Wikidata no missing articles), and
+    # maturity on both, since it belongs to the detector behind each
+    # project/type pair. Each list offers only what the filters before it
+    # leave possible, and a choice left over from an earlier selection is
     # dropped rather than combined into a filter nothing can match. That
-    # is the whole no-JS path; enhance.js narrows the same list as soon as
-    # the project changes, from `type_choices` below.
-    pairs = query.with_entities(Gap.project_code, Gap.gap_type).distinct().all()
-    project_options = sorted({project for project, _type in pairs})
-    projects_by_type = {}
-    for project, gap_type in pairs:
-        projects_by_type.setdefault(gap_type, []).append(project)
+    # is the whole no-JS path; enhance.js narrows the same lists as soon as
+    # a filter changes, from the `*_choices` below.
+    detectors = Detector.query.all()
+    detector_maturity = {d.detector_key: d.maturity for d in detectors}
+    combos = {}  # (project, type) -> the maturities present for that pair
+    for project, gap_type, detector_key in query.with_entities(
+        Gap.project_code, Gap.gap_type, Gap.detector_key
+    ).distinct():
+        maturity = detector_maturity.get(detector_key, UNREGISTERED_MATURITY)
+        combos.setdefault((project, gap_type), set()).add(maturity)
+
+    def _possible(project=None, gap_type=None):
+        return [
+            (p, t) for p, t in combos
+            if (not project or p == project) and (not gap_type or t == gap_type)
+        ]
+
+    project_options = sorted({project for project, _type in combos})
 
     project_filter = request.args.get("project")
     if project_filter:
         query = query.filter(Gap.project_code == project_filter)
-        type_options = sorted(t for t, projects in projects_by_type.items() if project_filter in projects)
-    else:
-        type_options = sorted(projects_by_type)
 
+    type_options = sorted({t for _p, t in _possible(project_filter)})
     type_filter = request.args.get("type")
     if type_filter and type_filter not in type_options:
         type_filter = None
     if type_filter:
         query = query.filter(Gap.gap_type == type_filter)
 
+    possible_maturities = set()
+    for pair in _possible(project_filter, type_filter):
+        possible_maturities |= combos[pair]
+    maturity_options = [m for m in GAP_MATURITIES if m in possible_maturities]
+
     # SPEC.md section 12: the gap list is "filterable by project/type/
     # maturity". Maturity lives on `detector`, not on `gap`, so this is an
-    # EXISTS against the detector row rather than a column comparison. An
-    # unrecognised value matches no detector and so returns nothing, the
-    # same way an unrecognised project or type already does.
+    # EXISTS against the detector row rather than a column comparison.
     maturity_filter = request.args.get("maturity")
+    if maturity_filter and maturity_filter not in maturity_options:
+        maturity_filter = None
     if maturity_filter:
         has_maturity = exists().where(
             and_(Detector.detector_key == Gap.detector_key, Detector.maturity == maturity_filter)
@@ -356,6 +372,22 @@ def gaps(lang):
             query = query.filter(or_(has_maturity, unregistered))
         else:
             query = query.filter(has_maturity)
+
+    # What enhance.js rebuilds the type and maturity lists from: every
+    # choice, with the project/type pairs it is possible for.
+    type_choices = [
+        {"value": t, "label": _t("duga-gaps-type-" + t), "combos": sorted(_possible(gap_type=t))}
+        for t in sorted({t for _p, t in combos})
+    ]
+    maturity_choices = [
+        {
+            "value": m,
+            "label": _t("duga-gaps-maturity-" + m),
+            "combos": sorted(pair for pair, maturities in combos.items() if m in maturities),
+        }
+        for m in GAP_MATURITIES
+        if any(m in maturities for maturities in combos.values())
+    ]
 
     page = max(request.args.get("page", 1, type=int) or 1, 1)
     total = query.count()
@@ -374,9 +406,6 @@ def gaps(lang):
         .limit(GAPS_PAGE_SIZE)
         .all()
     )
-
-    detectors = Detector.query.all()
-    detector_maturity = {d.detector_key: d.maturity for d in detectors}
 
     # SPEC.md section 11's detector contract: "a failed detector shows as
     # stale in the UI rather than silently serving old data as current".
@@ -467,11 +496,9 @@ def gaps(lang):
         maturity_filter=maturity_filter,
         project_options=project_options,
         type_options=type_options,
-        type_choices=[
-            {"value": t, "label": _t("duga-gaps-type-" + t), "projects": sorted(projects)}
-            for t, projects in sorted(projects_by_type.items())
-        ],
-        maturity_options=GAP_MATURITIES,
+        type_choices=type_choices,
+        maturity_choices=maturity_choices,
+        maturity_options=maturity_options,
         stale_detectors=stale_detectors,
     )
 

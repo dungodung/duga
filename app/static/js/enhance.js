@@ -16,35 +16,58 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Narrow the gap list's type filter to the chosen project as soon as it
-  // changes, rather than after the round trip. Without this the server
-  // does the same narrowing on submit (main.gaps), and drops a type that
-  // does not belong to the new project.
+  // Narrow the gap list's filters as soon as one changes, rather than after
+  // the round trip: types to the chosen project, maturities to the chosen
+  // project and type. Without this the server does the same narrowing on
+  // submit (main.gaps), and drops a choice the earlier filters rule out.
   var projectSelect = document.getElementById("filter-project");
   var typeSelect = document.getElementById("filter-type");
-  if (projectSelect && typeSelect && typeSelect.getAttribute("data-choices")) {
+  var maturitySelect = document.getElementById("filter-maturity");
+  if (projectSelect && typeSelect && maturitySelect &&
+      typeSelect.getAttribute("data-choices") &&
+      maturitySelect.getAttribute("data-choices")) {
     var typeChoices = JSON.parse(typeSelect.getAttribute("data-choices"));
-    // The "any" option is the first one the server rendered, already
-    // translated; it is kept and everything after it is rebuilt.
-    var anyOption = typeSelect.options[0];
-    projectSelect.addEventListener("change", function () {
-      var project = projectSelect.value;
-      var current = typeSelect.value;
-      while (typeSelect.options.length > 1) {
-        typeSelect.remove(1);
+    var maturityChoices = JSON.parse(maturitySelect.getAttribute("data-choices"));
+
+    // Each choice lists the [project, type] pairs it is possible for; an
+    // empty filter value matches any.
+    var possible = function (choice, project, type) {
+      for (var i = 0; i < choice.combos.length; i++) {
+        var combo = choice.combos[i];
+        if ((!project || combo[0] === project) && (!type || combo[1] === type)) {
+          return true;
+        }
       }
-      for (var i = 0; i < typeChoices.length; i++) {
-        var choice = typeChoices[i];
-        if (project && choice.projects.indexOf(project) === -1) continue;
+      return false;
+    };
+
+    // Rebuilds everything after the "any" option, which the server
+    // rendered already translated, and keeps the current choice if it is
+    // still possible -- otherwise falls back to "any".
+    var rebuild = function (select, choices, project, type) {
+      var current = select.value;
+      while (select.options.length > 1) {
+        select.remove(1);
+      }
+      for (var i = 0; i < choices.length; i++) {
+        if (!possible(choices[i], project, type)) continue;
         var option = document.createElement("option");
-        option.value = choice.value;
-        option.textContent = choice.label;
-        typeSelect.appendChild(option);
+        option.value = choices[i].value;
+        option.textContent = choices[i].label;
+        select.appendChild(option);
       }
-      // Keep the chosen type if the new project has it; otherwise "any".
-      typeSelect.value = current;
-      if (typeSelect.value !== current) anyOption.selected = true;
+      select.value = current;
+      if (select.value !== current) select.options[0].selected = true;
+    };
+
+    var rebuildMaturity = function () {
+      rebuild(maturitySelect, maturityChoices, projectSelect.value, typeSelect.value);
+    };
+    projectSelect.addEventListener("change", function () {
+      rebuild(typeSelect, typeChoices, projectSelect.value, "");
+      rebuildMaturity();
     });
+    typeSelect.addEventListener("change", rebuildMaturity);
   }
 
   // Filter the language picker as you type. Without this the same search
