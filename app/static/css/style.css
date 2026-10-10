@@ -85,6 +85,10 @@
 
   /* -- geometry -- */
   --measure: 40rem;
+  /* The page column on a wide screen. --measure is a line length for
+     running text; using it as the width of the whole page left two thirds
+     of a desktop window empty and forced the header onto two rows. */
+  --page: 72rem;
   --radius-sm: 0.3rem;
   --radius: 0.5rem;
   --radius-lg: 0.85rem;
@@ -368,7 +372,7 @@ main {
   background: none;
   border: none;
   padding: var(--space-2) var(--space-2);
-  margin-inline: calc(var(--space-2) * -1) var(--space-3);
+  margin-inline: calc(var(--space-2) * -1);
   min-height: var(--tap);
   font: inherit;
   color: var(--link);
@@ -1089,6 +1093,28 @@ form button[type="submit"] {
 }
 
 @media (min-width: 48rem) {
+  /* The chrome and the page widen to --page; only running text keeps the
+     readable --measure. Lists, grids and the gap rows are what use the
+     extra room. */
+  main,
+  .site-header-inner,
+  .site-footer-inner {
+    max-width: var(--page);
+  }
+
+  main p,
+  .lang-search {
+    max-width: var(--measure);
+  }
+
+  /* With the wider column the header fits on one row in every interface
+     language down to about here. Where a long translation still does not
+     fit (Polish, logged in, at 48rem), the account cluster wraps -- and
+     keeps to the right, where it sits on the row above everywhere else. */
+  .site-account {
+    margin-inline-start: auto;
+  }
+
   /* The language grid reflows on its own via auto-fill, so there is no
      column count to set here -- only the search field, which stops being
      full-width once there is room for the button beside it. */
