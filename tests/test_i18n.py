@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 from unittest import mock
 
@@ -148,9 +149,10 @@ def test_no_language_has_keys_english_does_not():
 
 
 def test_placeholders_match_english_in_every_language():
-    """A dropped or renumbered $1 renders the literal "$1" to a visitor."""
-    import re
+    """A dropped or renumbered $1 renders the literal "$1" to a visitor.
 
+    Compared as sets: a {{PLURAL:}} repeats $1 once per form, so how many
+    times a placeholder appears legitimately differs between languages."""
     files = _message_files()
     english = files["en"]
     placeholder = re.compile(r"\$\d")
@@ -158,7 +160,7 @@ def test_placeholders_match_english_in_every_language():
         if code == "qqq":
             continue  # documentation prose, not a translation
         for key, value in messages.items():
-            assert sorted(placeholder.findall(value)) == sorted(placeholder.findall(english[key])), (
+            assert set(placeholder.findall(value)) == set(placeholder.findall(english[key])), (
                 f"{code}.json:{key} placeholders differ from English"
             )
 
@@ -279,3 +281,80 @@ def test_templates_can_group_a_bare_count(app):
     with app.test_request_context():
         g.interface_lang = "sr"
         assert render_template_string("{{ number(37714) }}") == "37.714"
+
+
+# -- {{PLURAL:}} ---------------------------------------------------------------
+
+
+def _gaps(lang, n):
+    return i18n.translate("duga-lang-home-gap-count", lang, n)
+
+
+def test_english_singular_and_plural():
+    assert _gaps("en", 1) == "1 gap found so far."
+    assert _gaps("en", 2) == "2 gaps found so far."
+
+
+def test_serbian_has_three_forms():
+    assert _gaps("sr", 1) == "Пронађена је 1 празнина до сада."
+    assert _gaps("sr", 3) == "Пронађене су 3 празнине до сада."
+    assert _gaps("sr", 5) == "Пронађено је 5 празнина до сада."
+    # The last digit decides, except in the teens.
+    assert _gaps("sr", 21) == "Пронађена је 21 празнина до сада."
+    assert _gaps("sr", 12) == "Пронађено је 12 празнина до сада."
+    assert _gaps("sr", 37714) == "Пронађено је 37.714 празнина до сада."
+
+
+def test_russian_has_three_forms():
+    assert _gaps("ru", 1) == "Найден 1 пробел."
+    assert _gaps("ru", 22) == "Найдено 22 пробела."
+    assert _gaps("ru", 11) == "Найдено 11 пробелов."
+
+
+def test_polish_treats_only_one_itself_as_singular():
+    assert _gaps("pl", 1) == "Znaleziono dotąd 1 brak."
+    assert _gaps("pl", 3) == "Znaleziono dotąd 3 braki."
+    assert _gaps("pl", 21) == "Znaleziono dotąd 21 braków."
+
+
+def test_french_counts_zero_as_singular():
+    assert _gaps("fr", 0) == "0 lacune trouvée jusqu'à présent."
+
+
+def test_an_explicit_form_wins_for_its_number():
+    assert i18n.translate("duga-home-all-languages-title", "sr", 1) == "1 језик"
+    assert i18n.translate("duga-home-all-languages-title", "sr", 21) == "Сви 21 језик"
+    assert i18n.translate("duga-home-all-languages-title", "sr", 11) == "Свих 11 језика"
+
+
+def test_too_few_forms_repeats_the_last():
+    assert i18n.plural_form(["one", "other"], 5, "pl") == "other"
+
+
+def test_a_fallback_message_uses_english_plural_rules(tmp_path, monkeypatch):
+    """Serbian's rule would pick a third form an English message lacks --
+    or, worse, its first form for 21."""
+    (tmp_path / "en.json").write_text(json.dumps({"k": "{{PLURAL:$1|$1 gap|$1 gaps}}"}), encoding="utf-8")
+    (tmp_path / "sr.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(i18n, "I18N_DIR", str(tmp_path))
+    monkeypatch.setattr(i18n, "_MESSAGE_CACHE", {})
+    assert i18n.translate("k", "sr", 21) == "21 gaps"
+
+
+def test_every_interface_language_has_a_plural_rule():
+    missing = set(i18n.available_languages()) - set(i18n.PLURAL_RULES)
+    assert not missing
+
+
+def test_every_plural_names_a_parameter_the_english_message_has():
+    """A {{PLURAL:$2}} in a translation of a one-argument message would
+    silently fall to its last form forever."""
+    english = json.load(open(os.path.join(i18n.I18N_DIR, "en.json"), encoding="utf-8"))
+    for code in i18n.available_languages():
+        messages = json.load(open(os.path.join(i18n.I18N_DIR, f"{code}.json"), encoding="utf-8"))
+        for key, text in messages.items():
+            if not isinstance(text, str):
+                continue  # @metadata
+            allowed = set(re.findall(r"\$(\d+)", english.get(key, "")))
+            for match in re.finditer(r"\{\{PLURAL:\$(\d+)\|", text, re.IGNORECASE):
+                assert match.group(1) in allowed, (code, key)

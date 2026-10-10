@@ -18,6 +18,11 @@ INTERFACE_LANG_COOKIE = "duga_uselang"
 INTERFACE_LANG_COOKIE_MAX_AGE = 60 * 60 * 24 * 365  # 1 year
 
 _PLACEHOLDER_RE = re.compile(r"\$(\d+)")
+# MediaWiki's plural syntax, as translatewiki.net translators already write
+# it: {{PLURAL:$1|one form|another form|...}}. Forms hold no braces, so a
+# flat match is enough; there is no nesting to parse.
+_PLURAL_RE = re.compile(r"\{\{PLURAL:\$(\d+)\|([^{}]*)\}\}", re.IGNORECASE)
+_EXPLICIT_FORM_RE = re.compile(r"^(\d+)=(.*)$", re.DOTALL)
 
 # Parsed message files, keyed by language code: {code: (mtime, messages)}.
 # translate() is called once per user-facing string, so a page renders
@@ -109,6 +114,75 @@ def format_number(number, lang):
     return sign + separator.join([digits] + groups)
 
 
+# Which {{PLURAL:}} form an integer takes, per language: the index into the
+# forms in the order CLDR lists the language's categories, "other" last --
+# the order MediaWiki uses, so a message translated on translatewiki.net
+# means the same thing here. Integers only, since every number Duga shows
+# is a count; CLDR's rules for decimals are not needed.
+def _plural_one_other(n):
+    return 0 if n == 1 else 1
+
+
+def _plural_french(n):
+    # French counts zero as singular: "0 lacune".
+    return 0 if n in (0, 1) else 1
+
+
+def _plural_slavic(n):
+    # Russian and Serbian (and Ukrainian, Croatian, Bosnian): 1, 21, 101 ...
+    # | 2-4, 22-24 ... | everything else, with 11-14 always in the last.
+    if n % 10 == 1 and n % 100 != 11:
+        return 0
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return 1
+    return 2
+
+
+def _plural_polish(n):
+    # Like the rule above except that only 1 itself is singular: 21 takes
+    # the genitive plural ("21 braków").
+    if n == 1:
+        return 0
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return 1
+    return 2
+
+
+PLURAL_RULES = {
+    "en": _plural_one_other,
+    "sr": _plural_slavic,
+    "fr": _plural_french,
+    "de": _plural_one_other,
+    "es": _plural_one_other,
+    "it": _plural_one_other,
+    "nl": _plural_one_other,
+    "pl": _plural_polish,
+    "ru": _plural_slavic,
+    "sv": _plural_one_other,
+}
+
+
+def plural_form(forms, number, lang):
+    """Picks `number`'s form from a {{PLURAL:}}'s `|`-separated forms.
+
+    An explicit "N=" form wins for exactly that N (MediaWiki's "0=no gaps
+    yet"). Otherwise the language's rule picks by position, and a message
+    giving fewer forms than the language has categories repeats its last
+    one -- so an English-style two-form message never breaks in Polish, it
+    is merely less grammatical."""
+    regular = []
+    for form in forms:
+        explicit = _EXPLICIT_FORM_RE.match(form)
+        if explicit is None:
+            regular.append(form)
+        elif int(explicit.group(1)) == number:
+            return explicit.group(2)
+    if not regular:
+        return ""
+    rule = PLURAL_RULES.get(lang, PLURAL_RULES[FALLBACK_LANG])
+    return regular[min(rule(number), len(regular) - 1)]
+
+
 def is_rtl(code):
     """Whether `code`'s script runs right to left, for <html dir>."""
     return code in RTL_LANGS
@@ -196,22 +270,43 @@ def _load(lang):
 
 def translate(key, lang, *args):
     messages = _load(lang)
+    # The language the text actually came out in: a key missing from `lang`
+    # falls back to English, and English forms must be picked by English's
+    # plural rule, not by the rule of the language that lacked the key.
+    message_lang = lang
     if key not in messages and lang != FALLBACK_LANG:
         messages = _load(FALLBACK_LANG)
+        message_lang = FALLBACK_LANG
     text = messages.get(key, key)
     if args:
-        def _sub(match):
+        def _arg(match):
             index = int(match.group(1)) - 1
-            if not 0 <= index < len(args):
+            return args[index] if 0 <= index < len(args) else None
+
+        def _is_count(arg):
+            # bool is an int subclass; it is never meant as a number.
+            return isinstance(arg, int) and not isinstance(arg, bool)
+
+        def _plural(match):
+            arg = _arg(match)
+            forms = match.group(2).split("|")
+            if not _is_count(arg):
+                return forms[-1]
+            return plural_form(forms, arg, message_lang)
+
+        def _sub(match):
+            arg = _arg(match)
+            if arg is None:
                 return match.group(0)
-            arg = args[index]
             # Every integer reaching a message is a count, so it is grouped
             # for the reader's language here rather than at each call site.
-            # bool is an int subclass; it is never meant as a number.
-            if isinstance(arg, int) and not isinstance(arg, bool):
+            if _is_count(arg):
                 return format_number(arg, lang)
             return str(arg)
 
+        # PLURAL first, while its forms still hold their own $N
+        # placeholders, which the second pass then fills in.
+        text = _PLURAL_RE.sub(_plural, text)
         text = _PLACEHOLDER_RE.sub(_sub, text)
     return text
 

@@ -87,7 +87,7 @@ def test_lang_home_shows_gap_count_and_link_after_a_run(client, db, seed_languag
 
     resp = client.get("/sr/?uselang=en")
     assert resp.status_code == 200
-    assert b"1 gaps" in resp.data
+    assert b"1 gap found so far" in resp.data
     assert b'href="/sr/gaps"' in resp.data
 
 
@@ -702,7 +702,7 @@ def test_topic_page_gathers_every_language(client, db, seed_languages):
     resp = client.get("/topic/Q1?uselang=en")
     assert resp.status_code == 200
     body = resp.data.decode()
-    assert "3 things missing, across 2 language(s)." in body
+    assert "3 things missing, across 2 languages." in body
     assert "Српски" in body and "Français" in body
     assert "/sr/gaps" in body and "/fr/gaps" in body
 
@@ -749,7 +749,7 @@ def test_topic_page_hides_overridden_and_disabled_gaps(client, db, seed_language
     db.session.commit()
 
     body = client.get("/topic/Q1?uselang=en").data.decode()
-    assert "1 things missing" in body
+    assert "1 thing missing" in body
     assert "no image yet" not in body
 
 
