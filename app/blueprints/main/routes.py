@@ -315,14 +315,29 @@ def gaps(lang):
     # language, so the form can never offer a choice that returns nothing
     # and -- more importantly -- filtering into an empty result still
     # leaves every option on screen to get back out with.
-    project_options = sorted(row[0] for row in query.with_entities(Gap.project_code).distinct())
-    type_options = sorted(row[0] for row in query.with_entities(Gap.gap_type).distinct())
+    #
+    # Gap types depend on the project -- Wikipedia has no missing labels,
+    # Wikidata no missing articles -- so once a project is chosen, only its
+    # own types are offered, and a type left over from another project is
+    # dropped rather than combined into a filter nothing can match. That
+    # is the whole no-JS path; enhance.js narrows the same list as soon as
+    # the project changes, from `type_choices` below.
+    pairs = query.with_entities(Gap.project_code, Gap.gap_type).distinct().all()
+    project_options = sorted({project for project, _type in pairs})
+    projects_by_type = {}
+    for project, gap_type in pairs:
+        projects_by_type.setdefault(gap_type, []).append(project)
 
     project_filter = request.args.get("project")
     if project_filter:
         query = query.filter(Gap.project_code == project_filter)
+        type_options = sorted(t for t, projects in projects_by_type.items() if project_filter in projects)
+    else:
+        type_options = sorted(projects_by_type)
 
     type_filter = request.args.get("type")
+    if type_filter and type_filter not in type_options:
+        type_filter = None
     if type_filter:
         query = query.filter(Gap.gap_type == type_filter)
 
@@ -452,6 +467,10 @@ def gaps(lang):
         maturity_filter=maturity_filter,
         project_options=project_options,
         type_options=type_options,
+        type_choices=[
+            {"value": t, "label": _t("duga-gaps-type-" + t), "projects": sorted(projects)}
+            for t, projects in sorted(projects_by_type.items())
+        ],
         maturity_options=GAP_MATURITIES,
         stale_detectors=stale_detectors,
     )

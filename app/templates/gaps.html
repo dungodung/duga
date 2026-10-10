@@ -27,7 +27,11 @@
   </div>
   <div class="gap-filter">
     <label for="filter-type">{{ _('duga-gaps-filter-type') }}</label>
-    <select name="type" id="filter-type">
+    {# Every type with the projects it belongs to, for enhance.js to
+       rebuild this list from when the project changes; the options below
+       are only the current project's. tojson escapes quotes, so the
+       single-quoted attribute is safe. #}
+    <select name="type" id="filter-type" data-choices='{{ type_choices | tojson }}'>
       <option value="">{{ _('duga-gaps-filter-any') }}</option>
       {% for code in type_options %}
       <option value="{{ code }}"{% if code == type_filter %} selected{% endif %}>{{ _('duga-gaps-type-' ~ code) }}</option>

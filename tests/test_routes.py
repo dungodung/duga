@@ -1,3 +1,5 @@
+import html
+import json
 from datetime import datetime, timezone
 
 from app.extensions import db
@@ -464,6 +466,56 @@ def test_gaps_filter_form_offers_present_projects_and_keeps_the_selection(client
     # ...but every option stays on screen while a filter is applied, so a
     # visitor who filters into an empty list can always get back out.
     assert b'<option value="stable">' in resp.data
+
+
+def _type_select(body):
+    start = body.index('id="filter-type"')
+    return body[start:body.index("</select>", start)]
+
+
+def test_gaps_type_filter_offers_only_the_chosen_projects_types(client, db, seed_languages):
+    """Wikipedia has no missing labels: offering that pair is offering a
+    filter nothing can ever match."""
+    db.session.add_all([_gap("Q1", "Article Topic"), _gap("Q2", "Label Topic", project="wikidata", gap_type="no_label")])
+    db.session.commit()
+
+    select = _type_select(client.get("/sr/gaps?project=wikipedia&uselang=en").data.decode())
+    assert '<option value="no_article">' in select
+    assert '<option value="no_label">' not in select
+
+
+def test_gaps_type_filter_offers_every_type_with_no_project_chosen(client, db, seed_languages):
+    db.session.add_all([_gap("Q1", "Article Topic"), _gap("Q2", "Label Topic", project="wikidata", gap_type="no_label")])
+    db.session.commit()
+
+    select = _type_select(client.get("/sr/gaps?uselang=en").data.decode())
+    assert '<option value="no_article">' in select
+    assert '<option value="no_label">' in select
+
+
+def test_gaps_type_from_another_project_is_dropped(client, db, seed_languages):
+    """The no-JS path: change the project, submit, and the old type comes
+    along with it. That is a stale choice, not a request for nothing."""
+    db.session.add_all([_gap("Q1", "Article Topic"), _gap("Q2", "Label Topic", project="wikidata", gap_type="no_label")])
+    db.session.commit()
+
+    body = client.get("/sr/gaps?project=wikipedia&type=no_label&uselang=en").data.decode()
+    assert "Article Topic" in body
+    assert "No gaps match" not in body
+    assert "selected" not in _type_select(body)
+
+
+def test_gaps_type_select_carries_every_choice_for_the_script(client, db, seed_languages):
+    """enhance.js rebuilds the list from this when the project changes, so
+    it must hold every type, not just the current project's."""
+    db.session.add_all([_gap("Q1", "Article Topic"), _gap("Q2", "Label Topic", project="wikidata", gap_type="no_label")])
+    db.session.commit()
+
+    body = client.get("/sr/gaps?project=wikipedia&uselang=en").data.decode()
+    start = body.index("data-choices='") + len("data-choices='")
+    choices = json.loads(html.unescape(body[start:body.index("'", start)]))
+    assert {c["value"]: c["projects"] for c in choices} == {"no_article": ["wikipedia"], "no_label": ["wikidata"]}
+    assert all(c["label"] for c in choices)
 
 
 def test_gaps_filter_form_is_still_shown_when_a_filter_matches_nothing(client, db, seed_languages):

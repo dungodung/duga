@@ -16,6 +16,37 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // Narrow the gap list's type filter to the chosen project as soon as it
+  // changes, rather than after the round trip. Without this the server
+  // does the same narrowing on submit (main.gaps), and drops a type that
+  // does not belong to the new project.
+  var projectSelect = document.getElementById("filter-project");
+  var typeSelect = document.getElementById("filter-type");
+  if (projectSelect && typeSelect && typeSelect.getAttribute("data-choices")) {
+    var typeChoices = JSON.parse(typeSelect.getAttribute("data-choices"));
+    // The "any" option is the first one the server rendered, already
+    // translated; it is kept and everything after it is rebuilt.
+    var anyOption = typeSelect.options[0];
+    projectSelect.addEventListener("change", function () {
+      var project = projectSelect.value;
+      var current = typeSelect.value;
+      while (typeSelect.options.length > 1) {
+        typeSelect.remove(1);
+      }
+      for (var i = 0; i < typeChoices.length; i++) {
+        var choice = typeChoices[i];
+        if (project && choice.projects.indexOf(project) === -1) continue;
+        var option = document.createElement("option");
+        option.value = choice.value;
+        option.textContent = choice.label;
+        typeSelect.appendChild(option);
+      }
+      // Keep the chosen type if the new project has it; otherwise "any".
+      typeSelect.value = current;
+      if (typeSelect.value !== current) anyOption.selected = true;
+    });
+  }
+
   // Filter the language picker as you type. Without this the same search
   // box still works -- it just round-trips to the server (main.home reads
   // ?q= and filters on the same data-search haystack), which is why the
