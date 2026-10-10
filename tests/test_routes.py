@@ -699,8 +699,8 @@ def test_gaps_page_marks_the_label_with_the_language_it_is_actually_in(client, d
     db.session.commit()
 
     body = client.get("/sr/gaps?uselang=en").data.decode()
-    assert '<div class="gap-label" lang="en"><a href="/topic/Q1">Marsha P. Johnson</a>' in body
-    assert '<div class="gap-label" lang="sr"><a href="/topic/Q2">родно квир</a>' in body
+    assert '<div class="gap-label" lang="en"><a href="/topic/Q1#sr">Marsha P. Johnson</a>' in body
+    assert '<div class="gap-label" lang="sr"><a href="/topic/Q2#sr">родно квир</a>' in body
 
 
 def test_gaps_page_omits_the_lang_attribute_when_the_label_language_is_unknown(client, db, seed_languages):
@@ -709,7 +709,7 @@ def test_gaps_page_omits_the_lang_attribute_when_the_label_language_is_unknown(c
     db.session.commit()
 
     body = client.get("/sr/gaps?uselang=en").data.decode()
-    assert '<div class="gap-label"><a href="/topic/Q1">Unknown Provenance</a>' in body
+    assert '<div class="gap-label"><a href="/topic/Q1#sr">Unknown Provenance</a>' in body
 
 
 def test_gaps_page_invites_a_local_word_only_where_it_makes_sense(client, db, seed_languages):
@@ -754,6 +754,24 @@ def test_lang_home_breaks_the_count_down_by_project_and_type(client, db, seed_la
     assert "/sr/gaps?project=wikidata&amp;type=no_label" in body
     # Ordered by count, biggest first.
     assert body.index("project=wikipedia") < body.index("project=wikidata")
+
+
+def test_gap_list_links_to_the_topic_at_its_own_language(client, db, seed_languages):
+    """The topic page lists every language; the link lands on the one the
+    visitor was browsing instead of dropping that context."""
+    db.session.add_all([_topic_row("Q1"), _gap("Q1", "Topic")])
+    db.session.commit()
+
+    assert 'href="/topic/Q1#sr"' in client.get("/sr/gaps?uselang=en").data.decode()
+
+
+def test_topic_page_has_an_anchor_per_language(client, db, seed_languages):
+    db.session.add_all([_topic_row("Q1"), _gap("Q1", "Topic"), _gap("Q1", "Sujet", lang="fr")])
+    db.session.commit()
+
+    body = client.get("/topic/Q1?uselang=en").data.decode()
+    assert 'id="sr"' in body
+    assert 'id="fr"' in body
 
 
 def test_about_page_renders(client):

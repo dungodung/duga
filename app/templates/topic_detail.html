@@ -18,7 +18,11 @@
 <p>{{ _('duga-topic-gap-count', gap_count, languages | length) }}</p>
 
 {% for language in languages %}
-<h2 lang="{{ language.code }}">{{ language.autonym }}</h2>
+{# id is the bare language code so the gap list can link to #sr and land on
+   the language it came from; the page itself stays language-neutral. No
+   other id on any page is a language code, so they cannot collide. #}
+<section class="topic-language" id="{{ language.code }}" aria-labelledby="{{ language.code }}-heading">
+<h2 id="{{ language.code }}-heading" lang="{{ language.code }}">{{ language.autonym }}</h2>
 <ul class="gap-list">
   {% for gap in language.gaps %}
   <li class="gap-row">
@@ -31,6 +35,7 @@
   </li>
   {% endfor %}
 </ul>
+</section>
 {% endfor %}
 {% else %}
 <p>{{ _('duga-topic-no-gaps') }}</p>

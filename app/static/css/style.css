@@ -895,6 +895,19 @@ summary:focus:not(:focus-visible) {
   margin-top: var(--space-5);
 }
 
+/* -- the topic page --
+   Arriving from a gap list links to #<lang>, so that language's section is
+   both scrolled to and marked: the page lists every language, and the one
+   you came from is the one you were working in. */
+.topic-language {
+  scroll-margin-top: var(--space-4);
+}
+
+.topic-language:target {
+  border-inline-start: 3px solid var(--link);
+  padding-inline-start: var(--space-3);
+}
+
 /* == 8. Vocabulary ======================================================== */
 
 .term-list {
