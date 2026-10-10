@@ -92,3 +92,61 @@ def test_override_already_overridden_gap_404s(client, db, seed_languages, logged
     resp = client.post("/gap/override", data={"gap_id": gap.id, "status": "not_applicable"})
     assert resp.status_code == 404
     assert GapOverride.query.count() == 1
+
+
+# -- the action row on a gap tile ----------------------------------------------
+
+
+def _row(body, label):
+    start = body.rindex('<li class="gap-row"', 0, body.index(label))
+    return body[start:body.index("</li>", start)]
+
+
+def test_the_fix_button_says_it_goes_to_wikidata(client, db, seed_languages):
+    """A missing Wikipedia article is fixed from the Wikidata item's
+    sitelinks; a bare "Fix this" that lands there surprised people."""
+    make_gap()
+    row = _row(client.get("/sr/gaps?uselang=en").data.decode(), "Some Topic")
+    assert ">Fix on Wikidata</a>" in row
+    assert row.count('class="button') == 1
+
+
+def test_a_gap_fixed_within_duga_says_so(client, db, seed_languages):
+    gap = make_gap(gap_type="no_term", project_code="vocabulary")
+    gap.action_url = "/sr/vocabulary"
+    db.session.commit()
+    row = _row(client.get("/sr/gaps?uselang=en").data.decode(), "Some Topic")
+    assert ">Fix in Duga</a>" in row
+
+
+def test_edit_here_is_the_one_button_when_it_is_available(client, db, seed_languages, logged_in):
+    make_gap(gap_type="no_label", project_code="wikidata")
+    row = _row(client.get("/sr/gaps?uselang=en").data.decode(), "Some Topic")
+    assert row.count('class="button') == 1
+    assert 'class="button gap-primary" href="/gap/' in row
+    assert ">or on Wikidata</a>" in row
+
+
+def test_every_row_has_exactly_one_button(client, db, seed_languages, logged_in):
+    make_gap(topic_qid="Q1", label="Article Gap")
+    make_gap(gap_type="no_label", project_code="wikidata", topic_qid="Q2", label="Label Gap")
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    for label in ("Article Gap", "Label Gap"):
+        assert _row(body, label).count('class="button') == 1
+
+
+def test_the_dismiss_panel_is_only_for_logged_in_visitors(client, db, seed_languages):
+    make_gap()
+    assert "gap-dismiss" not in client.get("/sr/gaps?uselang=en").data.decode()
+
+
+def test_the_dismiss_panel_explains_both_choices(client, db, seed_languages, logged_in):
+    make_gap()
+    row = _row(client.get("/sr/gaps?uselang=en").data.decode(), "Some Topic")
+    assert "<summary>Not something to fix?</summary>" in row
+    assert 'value="not_applicable"' in row and "Duga got this wrong" in row
+    assert 'value="declined"' in row and "Leave it unfixed" in row
+    # Neither is preselected, and the browser refuses a submit with neither.
+    assert "checked" not in row
+    assert row.count("required") == 2
+    assert "Hides it for everyone." in row

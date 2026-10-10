@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 from flask import (
     Blueprint, Response, abort, flash, g, jsonify, redirect, render_template, request, url_for,
@@ -466,6 +467,7 @@ def gaps(lang):
                 "gap_type": row.gap_type,
                 "maturity": detector_maturity.get(row.detector_key, UNREGISTERED_MATURITY),
                 "action_url": row.action_url,
+                "fix_target": fix_target(row.action_url),
                 "why_in_scope": rules_by_topic.get((row.scope_version_id, row.topic_qid), []),
                 "editable": row.project_code == "wikidata" and row.gap_type in EDITABLE_GAP_TYPES,
                 "vocabulary_url": (
@@ -612,6 +614,7 @@ def topic_detail(qid):
                 "gap_type": row.gap_type,
                 "maturity": detector_maturity.get(row.detector_key, UNREGISTERED_MATURITY),
                 "action_url": row.action_url,
+                "fix_target": fix_target(row.action_url),
             }
         )
 
@@ -655,6 +658,20 @@ def _redirect_lang(default_endpoint="main.home"):
     if lang and Language.query.filter_by(code=lang, seeded=True).first() is not None:
         return lang
     return None
+
+
+def fix_target(action_url):
+    """Where a gap's fix link goes, so its label can say so: "wikidata",
+    "duga" for a link within this site (the vocabulary detectors), or
+    "external". Nearly every detector sends you to the Wikidata item --
+    a missing Wikipedia article is fixed from its sitelinks -- and a bare
+    "Fix this" that lands on Wikidata surprised people."""
+    parts = urlsplit(action_url or "")
+    if not parts.netloc:
+        return "duga"
+    if parts.netloc == "www.wikidata.org" or parts.netloc == "wikidata.org":
+        return "wikidata"
+    return "external"
 
 
 def _preferred_label(labels, lang):

@@ -76,25 +76,57 @@
       · {{ _('duga-gaps-why-in-scope', item.why_in_scope | join(', ')) }}
       {% endif %}
     </div>
+    {# The same row on every tile: one primary button, quiet secondary
+       links, then -- logged in -- the "not something to fix" disclosure.
+       Exactly one .button per row (SPEC.md section 12, "a single button
+       that goes to the place where you fix it"); it is the in-Duga editor
+       when that exists, since it is the shortest way to fix the gap. The
+       external link always says where it goes: nearly every detector's
+       fix is on Wikidata, even a missing Wikipedia article. #}
+    {% set fix_key = 'duga-gaps-fix-button' if item.fix_target == 'external' else 'duga-gaps-fix-' ~ item.fix_target %}
+    {% set edit_here = item.editable and contributor %}
     <div class="gap-actions">
-    <a class="gap-action" href="{{ item.action_url }}">{{ _('duga-gaps-fix-button') }}</a>
-    {% if item.vocabulary_url %}
-    {# A missing label/description on a non-person topic is exactly when
-       someone knows the local word -- the one bridge between the gap
-       engine and the add-a-term flow. #}
-    <a class="gap-action" href="{{ item.vocabulary_url }}">{{ _('duga-gaps-add-word-button') }}</a>
-    {% endif %}
-    {% if item.editable and contributor %}
-    <a class="gap-action" href="{{ url_for('write.edit_form', gap_id=item.id) }}">{{ _('duga-gaps-edit-here-button') }}</a>
-    {% endif %}
-    {% if contributor %}
-    <form method="post" action="{{ url_for('main.override_gap') }}" class="gap-override-form">
-      <input type="hidden" name="gap_id" value="{{ item.id }}">
-      <input type="text" name="reason" placeholder="{{ _('duga-gaps-override-reason-placeholder') }}" class="gap-override-reason">
-      <button type="submit" name="status" value="not_applicable">{{ _('duga-gaps-override-not-applicable-button') }}</button>
-      <button type="submit" name="status" value="declined">{{ _('duga-gaps-override-declined-button') }}</button>
-    </form>
-    {% endif %}
+      {% if edit_here %}
+      <a class="button gap-primary" href="{{ url_for('write.edit_form', gap_id=item.id) }}">{{ _('duga-gaps-edit-here-button') }}</a>
+      <a class="gap-action" href="{{ item.action_url }}">{{ _('duga-gaps-fix-also-on-wikidata') }}</a>
+      {% else %}
+      <a class="button gap-primary" href="{{ item.action_url }}">{{ _(fix_key) }}</a>
+      {% endif %}
+      {% if item.vocabulary_url %}
+      {# A missing label/description on a non-person topic is exactly when
+         someone knows the local word -- the one bridge between the gap
+         engine and the add-a-term flow. #}
+      <a class="gap-action" href="{{ item.vocabulary_url }}">{{ _('duga-gaps-add-word-button') }}</a>
+      {% endif %}
+      {% if contributor %}
+      {# Collapsed, because hiding a gap is rare and affects everyone, and
+         the two statuses only make sense with their explanations beside
+         them. <details> needs no JavaScript. `required` on the radios lets
+         the browser refuse a submit with neither chosen. #}
+      <details class="gap-dismiss">
+        <summary>{{ _('duga-gaps-dismiss-summary') }}</summary>
+        <form method="post" action="{{ url_for('main.override_gap') }}" class="gap-dismiss-form">
+          <input type="hidden" name="gap_id" value="{{ item.id }}">
+          <fieldset>
+            <legend class="visually-hidden">{{ _('duga-gaps-dismiss-summary') }}</legend>
+            {% for status in ('not_applicable', 'declined') %}
+            {% set field_id = 'dismiss-' ~ item.id ~ '-' ~ status %}
+            <div class="gap-dismiss-choice">
+              <input type="radio" name="status" value="{{ status }}" id="{{ field_id }}" aria-describedby="{{ field_id }}-hint" required>
+              <label for="{{ field_id }}">{{ _('duga-gaps-dismiss-' ~ status | replace('_', '-')) }}</label>
+              <p class="gap-dismiss-hint" id="{{ field_id }}-hint">{{ _('duga-gaps-dismiss-' ~ status | replace('_', '-') ~ '-hint') }}</p>
+            </div>
+            {% endfor %}
+          </fieldset>
+          <label for="dismiss-{{ item.id }}-reason">{{ _('duga-gaps-dismiss-reason-label') }}</label>
+          <input type="text" name="reason" id="dismiss-{{ item.id }}-reason">
+          <div class="gap-dismiss-submit">
+            <button type="submit">{{ _('duga-gaps-dismiss-submit') }}</button>
+            <span class="gap-dismiss-note">{{ _('duga-gaps-dismiss-note') }}</span>
+          </div>
+        </form>
+      </details>
+      {% endif %}
     </div>
   </li>
   {% endfor %}

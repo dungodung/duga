@@ -628,6 +628,18 @@ summary:focus:not(:focus-visible) {
 
 /* == 5b. Small primitives ================================================= */
 
+/* For text a screen reader needs and the layout already conveys -- e.g. a
+   fieldset's legend repeating the summary directly above it. Clip-based,
+   never display:none, which would remove it from the accessibility tree. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* The one place on a page where a link should look like the thing to press.
    Used for a single primary action per page, never for several side by
    side -- SPEC.md section 12 asks for "a single button that goes to the
@@ -858,34 +870,112 @@ summary:focus:not(:focus-visible) {
   white-space: nowrap;
 }
 
-.gap-override-form {
-  display: flex;
+/* The primary fix button, sized down from .button's page-level call to
+   action: there is one per row, fifty rows a page. */
+.gap-primary {
+  padding: var(--space-1) var(--space-3);
+  min-height: var(--tap);
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
+  justify-content: center;
 }
 
-.gap-override-reason {
+/* Marks a link that leaves Duga. The alt text after the slash keeps
+   screen readers from announcing "north east arrow"; browsers that do not
+   understand it drop the whole declaration and fall back to the first. */
+.gap-actions a[href^="http"]::after {
+  content: "\00a0\2197";
+  content: "\00a0\2197" / "";
+}
+
+/* -- "Not something to fix?" --
+   Quiet until opened: hiding a gap is rare, and it hides it for everyone. */
+.gap-dismiss > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  color: var(--muted);
+  font-size: 0.9rem;
+  list-style: none;
+  cursor: pointer;
+}
+
+.gap-dismiss > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* The same hand-drawn chevron as .lang-picker's summary. */
+.gap-dismiss > summary::before {
+  content: "";
+  flex: none;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-inline-end: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.gap-dismiss[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.gap-dismiss-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.gap-dismiss-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Radio, label beside it, and the hint under the label rather than under
+   the radio -- a two-column grid keeps the hint aligned with its text. */
+.gap-dismiss-choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-2);
+  align-items: baseline;
+}
+
+.gap-dismiss-choice label {
+  font-size: 1rem;
+}
+
+.gap-dismiss-hint {
+  grid-column: 2;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.gap-dismiss-form input[type="text"] {
   width: 100%;
   /* 1rem, not smaller -- see .lang-search input on iOS zoom. */
   font-size: 1rem;
   padding: 0.4rem;
 }
 
-.gap-override-form button {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  font-size: 0.9rem;
-  color: var(--link);
-  cursor: pointer;
-  text-decoration: none;
-  white-space: nowrap;
+.gap-dismiss-submit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
 }
 
-.gap-override-form button:hover {
-  text-decoration: underline;
+.gap-dismiss-note {
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .pagination {
@@ -1062,22 +1152,29 @@ form button[type="submit"] {
     flex: 2 1 auto;
   }
 
+  /* One row: button, links, and the disclosure pushed to the far end.
+     Opened, the disclosure takes the full width under them instead.
+     Always on a line of its own below the label and meta: a tile with one
+     action used to pull it up beside the title while a tile with three
+     wrapped them underneath, so no two tiles lined up. */
   .gap-actions {
+    flex-basis: 100%;
     flex-direction: row;
-    align-items: baseline;
+    align-items: center;
     gap: var(--space-2) var(--space-4);
   }
 
-  .gap-override-form {
-    flex-wrap: nowrap;
-    gap: 0.4rem;
+  .gap-dismiss {
+    margin-inline-start: auto;
   }
 
-  .gap-override-reason {
-    width: 8rem;
-    font-size: 0.85rem;
-    padding: 0.15rem 0.4rem;
-    min-height: 0;
+  .gap-dismiss[open] {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+  }
+
+  .gap-dismiss-form {
+    max-width: var(--measure);
   }
 
   /* The three filters sit side by side, each sized to its own column rather

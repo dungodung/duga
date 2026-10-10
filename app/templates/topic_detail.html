@@ -29,7 +29,7 @@
     <div class="gap-label">{{ _('duga-gaps-what', _('duga-gaps-project-' ~ gap.project_code), _('duga-gaps-type-' ~ gap.gap_type)) }}</div>
     <div class="gap-meta">{{ _('duga-gaps-maturity-' ~ gap.maturity) }}</div>
     <div class="gap-actions">
-      <a class="gap-action" href="{{ gap.action_url }}">{{ _('duga-gaps-fix-button') }}</a>
+      <a class="gap-action" href="{{ gap.action_url }}">{{ _('duga-gaps-fix-button' if gap.fix_target == 'external' else 'duga-gaps-fix-' ~ gap.fix_target) }}</a>
       <a class="gap-action" href="{{ url_for('main.gaps', lang=language.code) }}">{{ _('duga-topic-view-language-gaps', language.autonym) }}</a>
     </div>
   </li>
