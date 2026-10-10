@@ -206,6 +206,8 @@
   "duga-home-search-empty": "Ниједан праћени језик се не поклапа.",
   "duga-home-search-clear": "Прикажи све језике",
   "duga-home-suggested-title": "Језици које читате",
+  "duga-home-suggested-remove": "Уклони $1 из језика које читате",
+  "duga-home-suggested-restore": "Поново прикажи уклоњене језике",
   "duga-home-all-languages-title": "Свих $1 језика",
   "duga-gaps-meta-description": "Шта недостаје на Викимедијиним пројектима на језику $1 и где се то може исправити.",
   "duga-lang-home-meta-description": "Квир знање које недостаје на Викимедијиним пројектима на језику $1: шта недостаје, зашто и како помоћи.",

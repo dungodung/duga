@@ -5,7 +5,7 @@
 {# One macro for both lists, so the suggested shortcut and the full list can
    never drift apart. (They had: suggested <li>s carried no data attributes,
    so enhance.js's live filter never touched them.) #}
-{% macro lang_item(language) -%}
+{% macro lang_item(language, removable=false) -%}
 <li class="lang-item" data-search="{{ language.search }}">
   <a class="lang-link" href="{{ url_for('main.lang_home', lang=language.code) }}">
     {# An autonym is by definition written in its own language, not in the
@@ -21,6 +21,16 @@
     <span class="lang-name">{{ language.name }}</span>
     {%- endif %}
   </a>
+  {%- if removable %}
+  {# A form, not a script, so removing works with JavaScript off. The glyph
+     is hidden from assistive tech; the label says which language and what
+     happens to it, since a bare "×" beside every row says neither. #}
+  <form class="lang-remove" method="post" action="{{ url_for('main.remove_suggested_language', lang=language.code) }}">
+    <button type="submit" class="lang-remove-button"
+            aria-label="{{ _('duga-home-suggested-remove', language.autonym) }}"
+            title="{{ _('duga-home-suggested-remove', language.autonym) }}"><span aria-hidden="true">×</span></button>
+  </form>
+  {%- endif %}
 </li>
 {%- endmacro %}
 
@@ -53,8 +63,15 @@
    something to tap -- on a phone this is often all anyone needs. #}
 <h3 class="lang-group-heading">{{ _('duga-home-suggested-title') }}</h3>
 <ul class="lang-list lang-list-suggested">
-  {% for language in suggested %}{{ lang_item(language) }}{% endfor %}
+  {% for language in suggested %}{{ lang_item(language, removable=true) }}{% endfor %}
 </ul>
+{% endif %}
+{% if has_hidden and not query %}
+{# Outside the block above on purpose: someone who removed every suggestion
+   still needs the way back. #}
+<form class="lang-restore" method="post" action="{{ url_for('main.restore_suggested_languages') }}">
+  <button type="submit" class="link-button">{{ _('duga-home-suggested-restore') }}</button>
+</form>
 {% endif %}
 
 {% if languages %}

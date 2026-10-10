@@ -210,6 +210,8 @@
   "duga-home-search-empty": "No tracked language matches that.",
   "duga-home-search-clear": "Show every language",
   "duga-home-suggested-title": "Languages you read",
+  "duga-home-suggested-remove": "Remove $1 from languages you read",
+  "duga-home-suggested-restore": "Show removed languages again",
   "duga-home-all-languages-title": "All $1 languages",
   "duga-gaps-meta-description": "What's missing from Wikimedia projects in $1, and where to fix it.",
   "duga-lang-home-meta-description": "Queer knowledge missing from Wikimedia projects in $1: what's missing, why, and how to help.",

@@ -209,6 +209,8 @@
   "duga-home-search-empty": "Ningún idioma seguido coincide con eso.",
   "duga-home-search-clear": "Mostrar todos los idiomas",
   "duga-home-suggested-title": "Idiomas que lees",
+  "duga-home-suggested-remove": "Quitar $1 de los idiomas que lees",
+  "duga-home-suggested-restore": "Volver a mostrar los idiomas quitados",
   "duga-home-all-languages-title": "Los $1 idiomas",
   "duga-gaps-meta-description": "Qué falta en los proyectos de Wikimedia en $1, y dónde corregirlo.",
   "duga-lang-home-meta-description": "Saber queer que falta en los proyectos de Wikimedia en $1: qué falta, por qué y cómo ayudar.",

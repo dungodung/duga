@@ -517,6 +517,52 @@ summary:focus:not(:focus-visible) {
   color: var(--muted);
 }
 
+/* A suggested row carries its own remove button beside the link. The link
+   keeps the full remaining width, so the tap target for "open this
+   language" barely shrinks; the button gets a full tap-sized square of its
+   own rather than a tiny glyph sitting inside the link's hit area. */
+.lang-list-suggested .lang-item {
+  display: flex;
+  align-items: stretch;
+}
+
+.lang-list-suggested .lang-link {
+  flex: 1;
+  min-width: 0;
+}
+
+.lang-remove {
+  display: flex;
+  margin: 0;
+}
+
+.lang-remove-button {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lang-remove-button:hover {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+/* .link-button's negative margins line it up inside the header; here it
+   sits on its own line under the list. */
+.lang-restore .link-button {
+  margin: 0;
+  padding-inline: 0;
+  font-size: 0.9rem;
+}
+
 /* -- the disclosure -- */
 
 .lang-picker {

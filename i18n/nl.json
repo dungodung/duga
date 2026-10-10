@@ -209,6 +209,8 @@
   "duga-home-search-empty": "Geen gevolgde taal komt daarmee overeen.",
   "duga-home-search-clear": "Alle talen tonen",
   "duga-home-suggested-title": "Talen die je leest",
+  "duga-home-suggested-remove": "$1 verwijderen uit talen die je leest",
+  "duga-home-suggested-restore": "Verwijderde talen weer tonen",
   "duga-home-all-languages-title": "Alle $1 talen",
   "duga-gaps-meta-description": "Wat ontbreekt in de Wikimedia-projecten in het $1, en waar je het kunt herstellen.",
   "duga-lang-home-meta-description": "Queer kennis die ontbreekt in de Wikimedia-projecten in het $1: wat ontbreekt, waarom, en hoe je kunt helpen.",

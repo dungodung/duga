@@ -839,6 +839,77 @@ def test_home_suggests_a_language_you_have_already_opened(client, db, seed_langu
     assert "Deutsch" in main.split("Languages you read")[1].split("</ul>")[0]
 
 
+def _suggested(client, **headers):
+    main = _main(client.get("/?uselang=en", headers=headers))
+    if "Languages you read" not in main:
+        return ""
+    return main.split("Languages you read")[1].split("</ul>")[0]
+
+
+def test_a_suggested_language_can_be_removed(client, db, seed_languages):
+    """A misclick, or a language only being explored, should not stay in
+    "Languages you read" for good."""
+    _seed_many_languages(db)
+    client.get("/de/")
+    client.get("/fr/")
+    assert 'action="/suggested/de/remove"' in _suggested(client)
+    response = client.post("/suggested/de/remove")
+    assert response.status_code == 303
+    suggested = _suggested(client)
+    assert "Deutsch" not in suggested
+    assert "Français" in suggested
+
+
+def test_a_removed_language_stays_in_the_full_list(client, db, seed_languages):
+    _seed_many_languages(db)
+    client.get("/de/")
+    client.post("/suggested/de/remove")
+    main = _main(client.get("/?uselang=en"))
+    assert "Deutsch" in main.split("All 5 languages")[1]
+
+
+def test_removing_beats_the_browsers_accept_language(client, db, seed_languages):
+    """Deleting from the recent-languages cookie alone would not be enough:
+    Accept-Language would put the language straight back."""
+    _seed_many_languages(db)
+    client.post("/suggested/ru/remove")
+    assert "Русский" not in _suggested(client, **{"Accept-Language": "ru-RU,ru;q=0.9"})
+
+
+def test_exploring_a_removed_language_does_not_bring_it_back(client, db, seed_languages):
+    _seed_many_languages(db)
+    client.get("/de/")
+    client.post("/suggested/de/remove")
+    client.get("/de/")
+    assert "Deutsch" not in _suggested(client)
+
+
+def test_removed_languages_can_be_restored(client, db, seed_languages):
+    _seed_many_languages(db)
+    client.get("/de/")
+    assert "Show removed languages again" not in _main(client.get("/?uselang=en"))
+    client.post("/suggested/de/remove")
+    main = _main(client.get("/?uselang=en"))
+    # Offered even though nothing is left to suggest -- that is exactly when
+    # it is needed most.
+    assert "Show removed languages again" in main
+    assert client.post("/suggested/restore").status_code == 303
+    client.get("/de/")
+    assert "Deutsch" in _suggested(client)
+    assert "Show removed languages again" not in _main(client.get("/?uselang=en"))
+
+
+def test_only_suggested_rows_carry_a_remove_button(client, db, seed_languages):
+    _seed_many_languages(db)
+    main = _main(client.get("/?uselang=en", headers={"Accept-Language": "de"}))
+    assert main.count('class="lang-remove"') == 1
+    assert 'aria-label="Remove Deutsch from languages you read"' in main
+
+
+def test_remove_rejects_a_malformed_code(client, db, seed_languages):
+    assert client.post("/suggested/de;x/remove").status_code == 404
+
+
 def test_home_suggestions_never_hide_the_full_list(client, db, seed_languages):
     _seed_many_languages(db)
     main = _main(client.get("/?uselang=en", headers={"Accept-Language": "de"}))

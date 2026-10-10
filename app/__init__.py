@@ -85,11 +85,19 @@ def create_app(config_name: str = "production") -> Flask:
         lang = g.get("remember_language")
         if not lang:
             return response
-        from .blueprints.main.routes import RECENT_LANGUAGE_COOKIE, RECENT_LANGUAGE_LIMIT
+        from .blueprints.main.routes import (
+            HIDDEN_LANGUAGE_COOKIE, RECENT_LANGUAGE_COOKIE, RECENT_LANGUAGE_LIMIT, cookie_language_codes,
+        )
 
+        # A language the visitor removed from "Languages you read" is not
+        # recorded at all: it would be filtered out of the suggestions
+        # anyway, and here it would take one of the few slots a language
+        # they do read could use.
+        if lang in cookie_language_codes(HIDDEN_LANGUAGE_COOKIE):
+            return response
         seen = [lang]
-        for code in (request.cookies.get(RECENT_LANGUAGE_COOKIE) or "").split(","):
-            if code and code != lang and code.isalnum() and len(seen) < RECENT_LANGUAGE_LIMIT:
+        for code in cookie_language_codes(RECENT_LANGUAGE_COOKIE):
+            if code != lang and len(seen) < RECENT_LANGUAGE_LIMIT:
                 seen.append(code)
         response.set_cookie(
             RECENT_LANGUAGE_COOKIE,

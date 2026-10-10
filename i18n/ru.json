@@ -209,6 +209,8 @@
   "duga-home-search-empty": "Ни один отслеживаемый язык не подходит.",
   "duga-home-search-clear": "Показать все языки",
   "duga-home-suggested-title": "Языки, которые вы читаете",
+  "duga-home-suggested-remove": "Убрать $1 из языков, которые вы читаете",
+  "duga-home-suggested-restore": "Снова показать убранные языки",
   "duga-home-all-languages-title": "Все языки ($1)",
   "duga-gaps-meta-description": "Чего не хватает в проектах Викимедиа на языке $1 и где это исправить.",
   "duga-lang-home-meta-description": "Квир-знание, которого не хватает в проектах Викимедиа на языке $1: чего не хватает, почему и как помочь.",

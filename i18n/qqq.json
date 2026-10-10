@@ -206,6 +206,8 @@
   "duga-home-search-empty": "Shown when a language search matches none of the tracked languages.",
   "duga-home-search-clear": "Link that clears the language search and shows the full list again.",
   "duga-home-suggested-title": "Heading over the handful of languages lifted to the top of the picker, guessed from the visitor's browser settings and the languages they have already opened. It is a shortcut, not a filter -- the full list follows underneath. Avoid wording that implies Duga knows anything about the visitor.",
+  "duga-home-suggested-remove": "Accessible label and tooltip for the × button beside each language under \"Languages you read\" (duga-home-suggested-title). $1 is the language's autonym. Removing only takes it out of that shortcut -- it stays in the full list.",
+  "duga-home-suggested-restore": "Button shown under \"Languages you read\" once the visitor has removed at least one language from it. Puts every removed language back.",
   "duga-home-all-languages-title": "Heading over the complete language list. $1 is how many languages Duga tracks. Deliberately just a count of languages -- never a ranking or a size comparison between them (SPEC.md S6).",
   "duga-gaps-meta-description": "HTML meta description for a language's gap list. $1 is the language autonym. Not shown on the page itself.",
   "duga-lang-home-meta-description": "HTML meta description for a language's overview page. $1 is the language autonym. This page IS indexed by search engines, so this is the sentence that shows up in results.",

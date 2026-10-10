@@ -24,6 +24,14 @@ GAP_MATURITIES = ("stable", "beta", "experimental")
 # i18n.INTERFACE_LANG_COOKIE, which is the language the *chrome* is in.
 RECENT_LANGUAGE_COOKIE = "duga_recent_langs"
 RECENT_LANGUAGE_LIMIT = 5
+# Languages the visitor has taken out of "Languages you read" by hand. A
+# separate list rather than just deleting from the recent cookie, because
+# the suggestions also come from Accept-Language: a browser set to "sr"
+# would put Serbian straight back. Wins over both sources, and over later
+# visits too -- exploring a language you removed is not a reason to start
+# claiming you read it again. The cap only bounds the cookie's size.
+HIDDEN_LANGUAGE_COOKIE = "duga_hidden_langs"
+HIDDEN_LANGUAGE_LIMIT = 50
 # What a gap row's maturity displays as when its detector_key has no
 # `detector` row at all -- _visible_gaps_query() deliberately fails open on
 # that case, so such gaps are listed and have to be labelled something. The
@@ -117,9 +125,13 @@ def home():
         languages = [row for row in languages if needle in row["search"]]
 
     seeded_codes = {row["code"] for row in languages}
+    # Counted against every tracked language, not the search result, so
+    # the way to undo a removal does not come and go as you type.
+    hidden_codes = set(cookie_language_codes(HIDDEN_LANGUAGE_COOKIE))
+    has_hidden = any(language.code in hidden_codes for language in rows)
     suggested_codes = []
     for code in _preferred_language_codes():
-        if code in seeded_codes and code not in suggested_codes:
+        if code in seeded_codes and code not in hidden_codes and code not in suggested_codes:
             suggested_codes.append(code)
     by_code = {row["code"]: row for row in languages}
     suggested = [by_code[code] for code in suggested_codes]
@@ -128,6 +140,7 @@ def home():
         "index.html",
         languages=languages,
         suggested=suggested,
+        has_hidden=has_hidden,
         query=query,
         total_languages=total_languages,
         picker_open=_picker_starts_open(query, suggested, total_languages),
@@ -198,16 +211,54 @@ def _remember_language(lang):
     g.remember_language = lang
 
 
+def cookie_language_codes(name):
+    """A comma-separated list of language codes from a cookie, keeping only
+    well-formed ones -- the value is client-supplied."""
+    return [code for code in (request.cookies.get(name) or "").split(",") if code and code.isalnum()]
+
+
+def _set_language_cookie(response, name, codes):
+    response.set_cookie(
+        name,
+        ",".join(codes),
+        max_age=i18n.INTERFACE_LANG_COOKIE_MAX_AGE,
+        samesite="Lax",
+    )
+
+
+@main_bp.post("/suggested/<lang>/remove")
+def remove_suggested_language(lang):
+    """Takes a language out of "Languages you read" -- a misclick, or a
+    language only being explored. A POST form rather than a script, so it
+    works with JavaScript off (SPEC.md section 12). Only the shortcut
+    changes: the language stays in the full list below it."""
+    if not lang.isalnum():
+        abort(404)
+    response = redirect(url_for("main.home"), code=303)
+    recent = [code for code in cookie_language_codes(RECENT_LANGUAGE_COOKIE) if code != lang]
+    _set_language_cookie(response, RECENT_LANGUAGE_COOKIE, recent)
+    hidden = [lang] + [code for code in cookie_language_codes(HIDDEN_LANGUAGE_COOKIE) if code != lang]
+    _set_language_cookie(response, HIDDEN_LANGUAGE_COOKIE, hidden[:HIDDEN_LANGUAGE_LIMIT])
+    return response
+
+
+@main_bp.post("/suggested/restore")
+def restore_suggested_languages():
+    """Undoes every removal at once. Without it a removal would be
+    permanent short of clearing cookies, which nobody should have to know
+    how to do."""
+    response = redirect(url_for("main.home"), code=303)
+    response.delete_cookie(HIDDEN_LANGUAGE_COOKIE, samesite="Lax")
+    return response
+
+
 def _preferred_language_codes():
     """Best guess at which tracked languages this visitor actually reads:
     the last content language they looked at, then their browser's
     Accept-Language, in the browser's own order of preference. Never
     inferred from anything about *them* -- only from what their client
     volunteers and what they have already clicked."""
-    codes = []
-    recent = request.cookies.get(RECENT_LANGUAGE_COOKIE)
-    if recent:
-        codes.extend(code for code in recent.split(",") if code)
+    codes = list(cookie_language_codes(RECENT_LANGUAGE_COOKIE))
     codes.extend(code for code, _quality in request.accept_languages)
     # "sr-Latn"/"pt-BR" style tags also imply their base language.
     expanded = []

@@ -209,6 +209,8 @@
   "duga-home-search-empty": "Keine erfasste Sprache passt dazu.",
   "duga-home-search-clear": "Alle Sprachen anzeigen",
   "duga-home-suggested-title": "Sprachen, die du liest",
+  "duga-home-suggested-remove": "$1 aus „Sprachen, die du liest“ entfernen",
+  "duga-home-suggested-restore": "Entfernte Sprachen wieder anzeigen",
   "duga-home-all-languages-title": "Alle $1 Sprachen",
   "duga-gaps-meta-description": "Was in den Wikimedia-Projekten auf $1 fehlt und wo es sich beheben lässt.",
   "duga-lang-home-meta-description": "Queeres Wissen, das in den Wikimedia-Projekten auf $1 fehlt: was fehlt, warum, und wie du helfen kannst.",
