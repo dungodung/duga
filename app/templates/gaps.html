@@ -68,7 +68,7 @@
      is untouched -- and never as the only signal: the project is named in
      words in .gap-meta directly below. #}
   <li class="gap-row" data-project="{{ item.project_code }}">
-    <div class="gap-label"{% if item.label_lang %} lang="{{ item.label_lang }}"{% endif %}><a href="{{ url_for('main.topic_detail', qid=item.qid, _anchor=language.code) }}">{{ item.label }}</a></div>
+    <div class="gap-label"{% if item.label_lang %} lang="{{ item.label_lang }}"{% endif %}><a href="{{ url_for('main.topic_detail', qid=item.qid, lang=language.code, _anchor=language.code) }}">{{ item.label }}</a></div>
     <div class="gap-meta">
       {{ _('duga-gaps-what', _('duga-gaps-project-' ~ item.project_code), _('duga-gaps-type-' ~ item.gap_type)) }}
       · <span class="badge badge-maturity">{{ _('duga-gaps-maturity-' ~ item.maturity) }}</span>

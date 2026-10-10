@@ -699,8 +699,8 @@ def test_gaps_page_marks_the_label_with_the_language_it_is_actually_in(client, d
     db.session.commit()
 
     body = client.get("/sr/gaps?uselang=en").data.decode()
-    assert '<div class="gap-label" lang="en"><a href="/topic/Q1#sr">Marsha P. Johnson</a>' in body
-    assert '<div class="gap-label" lang="sr"><a href="/topic/Q2#sr">родно квир</a>' in body
+    assert '<div class="gap-label" lang="en"><a href="/topic/Q1?lang=sr#sr">Marsha P. Johnson</a>' in body
+    assert '<div class="gap-label" lang="sr"><a href="/topic/Q2?lang=sr#sr">родно квир</a>' in body
 
 
 def test_gaps_page_omits_the_lang_attribute_when_the_label_language_is_unknown(client, db, seed_languages):
@@ -709,7 +709,7 @@ def test_gaps_page_omits_the_lang_attribute_when_the_label_language_is_unknown(c
     db.session.commit()
 
     body = client.get("/sr/gaps?uselang=en").data.decode()
-    assert '<div class="gap-label"><a href="/topic/Q1#sr">Unknown Provenance</a>' in body
+    assert '<div class="gap-label"><a href="/topic/Q1?lang=sr#sr">Unknown Provenance</a>' in body
 
 
 def test_gaps_page_invites_a_local_word_only_where_it_makes_sense(client, db, seed_languages):
@@ -762,7 +762,66 @@ def test_gap_list_links_to_the_topic_at_its_own_language(client, db, seed_langua
     db.session.add_all([_topic_row("Q1"), _gap("Q1", "Topic")])
     db.session.commit()
 
-    assert 'href="/topic/Q1#sr"' in client.get("/sr/gaps?uselang=en").data.decode()
+    assert 'href="/topic/Q1?lang=sr#sr"' in client.get("/sr/gaps?uselang=en").data.decode()
+
+
+def _labelled_gap(qid, lang, label, label_lang):
+    gap = _gap(qid, label, lang=lang)
+    gap.evidence_json = json.dumps({"label": label, "label_lang": label_lang})
+    return gap
+
+
+def _topic_heading(client, url):
+    body = client.get(url).data.decode()
+    start = body.index("<h1")
+    return body[start:body.index("</h1>", start)]
+
+
+def test_topic_heading_is_in_the_language_you_came_from(client, db, seed_languages):
+    """"de" sorts before "sr"; that must not decide the heading for
+    someone who clicked the Serbian title."""
+    db.session.add_all(
+        [
+            _topic_row("Q1"),
+            _labelled_gap("Q1", "de", "Freddie Mercury", "de"),
+            _labelled_gap("Q1", "sr", "Фреди Меркјури", "sr"),
+        ]
+    )
+    db.session.commit()
+
+    heading = _topic_heading(client, "/topic/Q1?lang=sr&uselang=en")
+    assert "Фреди Меркјури" in heading
+    assert 'lang="sr"' in heading
+
+
+def test_topic_heading_falls_back_to_the_interface_language(client, db, seed_languages):
+    db.session.add_all(
+        [
+            _topic_row("Q1"),
+            _labelled_gap("Q1", "de", "Freddie Mercury", "de"),
+            _labelled_gap("Q1", "sr", "Фреди Меркјури", "sr"),
+        ]
+    )
+    db.session.commit()
+
+    assert "Фреди Меркјури" in _topic_heading(client, "/topic/Q1?uselang=sr")
+
+
+def test_topic_heading_uses_your_languages_label_even_if_it_is_a_fallback(client, db, seed_languages):
+    """No Serbian label exists (the gap may be exactly that); the Serbian
+    gap list showed the English one, so that is what was clicked."""
+    db.session.add_all(
+        [
+            _topic_row("Q1"),
+            _labelled_gap("Q1", "de", "Freddie Mercury (de)", "de"),
+            _labelled_gap("Q1", "sr", "Freddie Mercury", "en"),
+        ]
+    )
+    db.session.commit()
+
+    heading = _topic_heading(client, "/topic/Q1?lang=sr&uselang=en")
+    assert heading.endswith(">Freddie Mercury")
+    assert 'lang="en"' in heading
 
 
 def test_topic_page_has_an_anchor_per_language(client, db, seed_languages):

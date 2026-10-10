@@ -594,13 +594,18 @@ def topic_detail(qid):
     detector_maturity = {d.detector_key: d.maturity for d in Detector.query.all()}
     autonyms = {row.code: row.autonym for row in Language.query.filter_by(seeded=True).all()}
 
-    label = None
-    label_lang = None
+    # The heading is a label from one of the gaps' evidence, and which one
+    # matters: arriving from /sr/gaps you clicked "Фреди Меркјури", and a
+    # heading reading "Freddie Mercury" because "de" sorts first drops the
+    # language you were in. The gap list passes ?lang=; without it, the
+    # interface language is the best guess at what the visitor reads.
+    wanted = request.args.get("lang") or g.get("interface_lang", i18n.FALLBACK_LANG)
+    labels = []  # (language_code, label, label_lang), in row order
     by_language = {}
     for row in rows:
         evidence = json.loads(row.evidence_json) if row.evidence_json else {}
-        if label is None and evidence.get("label"):
-            label, label_lang = evidence["label"], evidence.get("label_lang")
+        if evidence.get("label"):
+            labels.append((row.language_code, evidence["label"], evidence.get("label_lang")))
         by_language.setdefault(row.language_code, []).append(
             {
                 "project_code": row.project_code,
@@ -609,6 +614,8 @@ def topic_detail(qid):
                 "action_url": row.action_url,
             }
         )
+
+    label, label_lang = _preferred_label(labels, wanted)
 
     languages = [
         {"code": code, "autonym": autonyms.get(code, code), "gaps": gaps}
@@ -648,6 +655,27 @@ def _redirect_lang(default_endpoint="main.home"):
     if lang and Language.query.filter_by(code=lang, seeded=True).first() is not None:
         return lang
     return None
+
+
+def _preferred_label(labels, lang):
+    """The best of a topic's gap labels for a reader of `lang`, as
+    (label, label_lang), or (None, None) when no gap has one.
+
+    A label known to be *in* `lang` wins, from that language's own gaps
+    first. Failing that, whatever label that language's gap list shows --
+    possibly an English fallback, but the one the visitor just clicked.
+    Only then any label at all."""
+    tiers = (
+        lambda code, label_lang: code == lang and label_lang == lang,
+        lambda code, label_lang: label_lang == lang,
+        lambda code, label_lang: code == lang,
+        lambda code, label_lang: True,
+    )
+    for matches in tiers:
+        for code, label, label_lang in labels:
+            if matches(code, label_lang):
+                return label, label_lang
+    return None, None
 
 
 def _topic_label(qid):
