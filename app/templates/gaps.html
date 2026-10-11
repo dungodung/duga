@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_gap_info.html" import article_info with context %}
 {% block title %}{{ _('duga-gaps-title', language_label(language)) }}{% endblock %}
 {# Not indexed. A crawlable, paginated index of real people's names under a
    queer-topics heading is a concentration this tool should not create --
@@ -106,18 +107,18 @@
       {% if edit_here %}
       <a class="button gap-primary" href="{{ url_for('write.edit_form', gap_id=item.id, next=current_path) }}">{{ _('duga-gaps-edit-here-button') }}</a>
       <a class="gap-action" href="{{ item.action_url }}" target="_blank" rel="noopener">{{ _('duga-gaps-fix-also-on-wikidata') }}</a>
-      {# The titles below say which of the two Wikipedia fixes is which:
-         a tooltip, so fifty rows don't each carry a paragraph. Screen
-         readers announce a link's title as its description. #}
       {% elif item.create_url %}
       {# The item has a label in this language, so the article can be
          started right away under that title. Wikidata stays one click
-         away: an article may exist that just isn't linked yet. #}
+         away: an article may exist that just isn't linked yet. The titles
+         say which of the two is which -- a tooltip, so fifty rows don't
+         each carry a paragraph; on a phone, article_info() below. #}
       <a class="button gap-primary" href="{{ item.create_url }}" target="_blank" rel="noopener" title="{{ _('duga-gaps-fix-wikipedia-tooltip') }}">{{ _('duga-gaps-fix-wikipedia') }}</a>
       <a class="gap-action" href="{{ item.action_url }}" target="_blank" rel="noopener" title="{{ _('duga-gaps-link-on-wikidata-tooltip') }}">{{ _('duga-gaps-link-on-wikidata') }}</a>
       {% else %}
       <a class="button gap-primary" href="{{ item.action_url }}"{% if item.fix_target != 'duga' %} target="_blank" rel="noopener"{% endif %}{% if item.gap_type == 'no_article' %} title="{{ _('duga-gaps-fix-wikidata-article-tooltip') }}"{% endif %}>{{ _(fix_key) }}</a>
       {% endif %}
+      {{ article_info(item) }}
       {% if item.vocabulary_url %}
       {# A missing label/description on a non-person topic is exactly when
          someone knows the local word -- the one bridge between the gap

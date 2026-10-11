@@ -1523,3 +1523,20 @@ def test_wikipedia_hosts_follow_the_wikis_own_codes():
     assert create_article_url("nb", "Mary Daly").startswith("https://no.wikipedia.org/")
     assert wikipedia_dbname("nb") == "nowiki"
     assert wikipedia_dbname("sr") == "srwiki"
+
+
+def test_a_missing_article_has_a_tap_to_open_explanation(client, db, seed_languages):
+    """Tooltips never show on a phone, so the same text sits behind an
+    "i" that opens without JavaScript."""
+    db.session.add_all([
+        _no_article_gap("Q1", "Мери Дејли", "sr"),
+        _no_article_gap("Q2", "Mary Daly", "en"),
+        _gap("Q3", "Without article info", gap_type="no_label", project="wikidata", detector_key="wd_no_label"),
+    ])
+    db.session.commit()
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    assert body.count('<details class="gap-info">') == 2
+    infos = body.split('<details class="gap-info">')[1:]
+    explained = sorted(info.split("</details>")[0] for info in infos)
+    assert any("No article yet? Start one" in i and "Connect it to the item on Wikidata" in i for i in explained)
+    assert any("first add the item&#39;s label" in i for i in explained)

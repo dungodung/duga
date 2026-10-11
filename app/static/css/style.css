@@ -976,6 +976,74 @@ a[target="_blank"]::after {
   content: "\00a0\2197" / "";
 }
 
+/* -- the "i" beside a missing article's buttons --
+   Only where nothing can hover: with a mouse, the links' own tooltips
+   say the same thing. A full tap target around a small drawn circle. */
+.gap-info {
+  display: none;
+}
+
+@media (hover: none) {
+  .gap-info {
+    display: block;
+  }
+}
+
+.gap-info > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  list-style: none;
+  cursor: pointer;
+}
+
+.gap-info > summary::-webkit-details-marker {
+  display: none;
+}
+
+.gap-info-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, serif;
+  line-height: 1;
+}
+
+.gap-info[open] .gap-info-mark {
+  background: var(--muted);
+  border-color: var(--muted);
+  color: var(--bg);
+}
+
+.gap-info[open] {
+  flex-basis: 100%;
+}
+
+.gap-info-text {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  font-size: 0.9rem;
+}
+
+.gap-info-text p {
+  margin: 0;
+}
+
+.gap-info-text p + p {
+  margin-top: var(--space-2);
+}
+
 /* -- "Not something to fix?" --
    Quiet until opened: hiding a gap is rare, and it hides it for everyone. */
 .gap-dismiss > summary {

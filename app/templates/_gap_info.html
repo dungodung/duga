@@ -1,0 +1,19 @@
+{# The "i" beside a missing Wikipedia article's buttons: what each one is
+   for. The links carry the same text as tooltips, which a phone never
+   shows -- so this is drawn only where there is no hover (style.css),
+   and it is a <details>, so a tap opens it without JavaScript. #}
+{% macro article_info(gap) %}
+{% if gap.project_code == 'wikipedia' and gap.gap_type == 'no_article' %}
+<details class="gap-info">
+  <summary aria-label="{{ _('duga-gaps-info-label') }}" title="{{ _('duga-gaps-info-label') }}"><span class="gap-info-mark" aria-hidden="true">i</span></summary>
+  <div class="gap-info-text">
+    {% if gap.create_url %}
+    <p>{{ _('duga-gaps-fix-wikipedia-tooltip') }}</p>
+    <p>{{ _('duga-gaps-link-on-wikidata-tooltip') }}</p>
+    {% else %}
+    <p>{{ _('duga-gaps-fix-wikidata-article-tooltip') }}</p>
+    {% endif %}
+  </div>
+</details>
+{% endif %}
+{% endmacro %}

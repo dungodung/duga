@@ -54,6 +54,7 @@
   "duga-gaps-fix-button": "Åtgärda",
   "duga-gaps-fix-wikidata": "Åtgärda på Wikidata",
   "duga-gaps-fix-wikidata-article-tooltip": "Finns det redan en artikel på Wikipedia? Koppla den till objektet här. Lägg först till objektets etikett på det här språket för att påbörja en ny.",
+  "duga-gaps-info-label": "Vilken knapp ska jag använda?",
   "duga-gaps-fix-wikipedia": "Åtgärda på Wikipedia",
   "duga-gaps-fix-wikipedia-tooltip": "Ingen artikel ännu? Påbörja en på Wikipedia, med objektets etikett på det här språket som titel.",
   "duga-gaps-fix-duga": "Åtgärda i Duga",

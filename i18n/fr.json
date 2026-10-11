@@ -51,6 +51,7 @@
   "duga-gaps-fix-button": "Corriger",
   "duga-gaps-fix-wikidata": "Corriger sur Wikidata",
   "duga-gaps-fix-wikidata-article-tooltip": "Un article existe déjà sur Wikipédia ? Reliez-le ici à l’élément. Pour en créer un nouveau, ajoutez d’abord l’étiquette de l’élément dans cette langue.",
+  "duga-gaps-info-label": "Quel bouton utiliser ?",
   "duga-gaps-fix-wikipedia": "Corriger sur Wikipédia",
   "duga-gaps-fix-wikipedia-tooltip": "Pas encore d’article ? Créez-en un sur Wikipédia, intitulé avec l’étiquette de l’élément dans cette langue.",
   "duga-gaps-fix-duga": "Corriger dans Duga",

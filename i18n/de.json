@@ -54,6 +54,7 @@
   "duga-gaps-fix-button": "Beheben",
   "duga-gaps-fix-wikidata": "Auf Wikidata beheben",
   "duga-gaps-fix-wikidata-article-tooltip": "Gibt es schon einen Artikel auf Wikipedia? Verknüpfe ihn hier mit dem Objekt. Um einen neuen anzulegen, füge zuerst die Bezeichnung des Objekts in dieser Sprache hinzu.",
+  "duga-gaps-info-label": "Welche Schaltfläche soll ich verwenden?",
   "duga-gaps-fix-wikipedia": "Auf Wikipedia beheben",
   "duga-gaps-fix-wikipedia-tooltip": "Noch kein Artikel? Lege einen auf Wikipedia an, mit der Bezeichnung des Objekts in dieser Sprache als Titel.",
   "duga-gaps-fix-duga": "In Duga beheben",

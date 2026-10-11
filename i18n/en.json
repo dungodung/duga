@@ -55,6 +55,7 @@
   "duga-gaps-fix-button": "Fix this",
   "duga-gaps-fix-wikidata": "Fix on Wikidata",
   "duga-gaps-fix-wikidata-article-tooltip": "Already an article on Wikipedia? Connect it to the item here. To start a new one, first add the item's label in this language.",
+  "duga-gaps-info-label": "Which button should I use?",
   "duga-gaps-fix-wikipedia": "Fix on Wikipedia",
   "duga-gaps-fix-wikipedia-tooltip": "No article yet? Start one on Wikipedia, titled with the item's label in this language.",
   "duga-gaps-fix-duga": "Fix in Duga",
