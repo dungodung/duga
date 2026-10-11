@@ -235,7 +235,7 @@ def test_edit_form_shows_the_english_label_and_description(client, db, seed_lang
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
     assert "Already on Wikidata" in body
-    assert "<dt>English</dt>" in body
+    assert '<th scope="row">English</th>' in body
     assert "Mercury" in body
     assert "chemical element with symbol Hg" in body
 
@@ -252,7 +252,7 @@ def test_edit_form_shows_the_label_even_when_it_repeats_the_heading(client, db, 
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
     reference = body.split('class="wikidata-reference"')[1].split("</div>")[0]
-    assert 'class="wikidata-reference-label">Mercury</span>' in reference
+    assert 'class="wikidata-reference-label">Mercury</td>' in reference
     assert "chemical element" in reference
 
 
@@ -263,7 +263,7 @@ def test_the_stored_english_fallback_keeps_the_label_too(client, db, seed_langua
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
     reference = body.split('class="wikidata-reference"')[1].split("</div>")[0]
-    assert 'class="wikidata-reference-label">Mercury</span>' in reference
+    assert 'class="wikidata-reference-label">Mercury</td>' in reference
     assert "chemical element" in reference
 
 
@@ -283,8 +283,8 @@ def test_the_english_text_is_marked_as_english(client, db, seed_languages, logge
     })
 
     body = client.get(f"/gap/{gap.id}/edit").data.decode()
-    assert '<span lang="en" dir="auto" class="wikidata-reference-label">Mercury</span>' in body
-    assert '<span lang="en" dir="auto">chemical element</span>' in body
+    assert '<td lang="en" dir="auto" class="wikidata-reference-label">Mercury</td>' in body
+    assert '<td lang="en" dir="auto">chemical element</td>' in body
 
 
 def _choose(contributor, *codes):
@@ -304,8 +304,8 @@ def test_edit_form_shows_each_chosen_language_in_order(client, db, seed_language
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
     assert wikidata_terms_offline.calls == [("Q1", ["de", "en"])]
-    assert body.index("<dt>German</dt>") < body.index("<dt>English</dt>")
-    assert '<span lang="de" dir="auto" class="wikidata-reference-label">Quecksilber</span>' in body
+    assert body.index('<th scope="row">German</th>') < body.index('<th scope="row">English</th>')
+    assert '<td lang="de" dir="auto" class="wikidata-reference-label">Quecksilber</td>' in body
     assert "chemical element with symbol Hg" in body
 
 
@@ -329,7 +329,7 @@ def test_edit_form_says_which_of_label_and_description_is_missing(client, db, se
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
     reference = body.split('class="wikidata-reference"')[1].split("</div>")[0]
-    rows = reference.split("<dt>")[1:]
+    rows = reference.split("<tbody>")[1].split("<tr>")[1:]
     assert "no label" in rows[0] and "no description" in rows[0]
     assert "živa" in rows[1] and "no description" in rows[1] and "no label" not in rows[1]
     assert "no label" in rows[2] and "into" in rows[2] and "no description" not in rows[2]
@@ -344,7 +344,7 @@ def test_edit_form_falls_back_to_stored_english_when_wikidata_is_unreachable(cli
     body = resp.data.decode()
     assert resp.status_code == 200
     assert "chemical element" in body
-    assert "<dt>German</dt>" not in body
+    assert '<th scope="row">German</th>' not in body
     assert 'name="value"' in body
 
 

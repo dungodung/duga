@@ -11,18 +11,29 @@
 {% if references %}
 <div class="wikidata-reference">
   <span class="wikidata-reference-heading">{{ _('duga-write-reference-heading') }}</span>
-  <dl>
-    {% for row in references %}
-    <dt>{{ row.name }}</dt>
-    <dd>
-      {#- Both, always, and a plain note where one is missing. -#}
-      {%- if row.label %}<span lang="{{ row.code }}" dir="auto" class="wikidata-reference-label">{{ row.label }}</span>
-      {%- else %}<span class="wikidata-reference-label wikidata-reference-missing">{{ _('duga-write-reference-no-label') }}</span>{% endif %}
-      {% if row.description %}<span lang="{{ row.code }}" dir="auto">{{ row.description }}</span>
-      {%- else %}<span class="wikidata-reference-missing">{{ _('duga-write-reference-no-description') }}</span>{% endif -%}
-    </dd>
-    {% endfor %}
-  </dl>
+  {# A table, so language, label and description each line up in their
+     own column; on a phone each row stacks instead (style.css). Both
+     terms always, with a plain note where one is missing. #}
+  <table class="wikidata-reference-table">
+    <thead>
+      <tr>
+        <th scope="col">{{ _('duga-write-reference-language') }}</th>
+        <th scope="col">{{ _('duga-write-value-label-label') }}</th>
+        <th scope="col">{{ _('duga-write-value-label-description') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in references %}
+      <tr>
+        <th scope="row">{{ row.name }}</th>
+        {% if row.label %}<td lang="{{ row.code }}" dir="auto" class="wikidata-reference-label">{{ row.label }}</td>
+        {%- else %}<td class="wikidata-reference-label wikidata-reference-missing">{{ _('duga-write-reference-no-label') }}</td>{% endif %}
+        {% if row.description %}<td lang="{{ row.code }}" dir="auto">{{ row.description }}</td>
+        {%- else %}<td class="wikidata-reference-missing">{{ _('duga-write-reference-no-description') }}</td>{% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   <a class="wikidata-reference-change" href="{{ url_for('auth.account', _anchor='reference-languages') }}">{{ _('duga-write-reference-change') }}</a>
 </div>
 {% else %}

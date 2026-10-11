@@ -79,6 +79,7 @@
   "duga-write-value-label-description": "Field label for the text input where a contributor types the description to write to Wikidata.",
   "duga-write-also-title-label": "Heading of the optional second field on the add-a-description form, shown when the item has no label in this language either. Friendly and optional in tone -- an offer, not a requirement.",
   "duga-write-reference-heading": "Small heading over the box on the label/description edit form that lists what Wikidata already says about the item, one row per reference language the contributor chose on their account page.",
+  "duga-write-reference-language": "Column heading in the \"Already on Wikidata\" table on the label/description edit form (duga-write-reference-heading). The other two columns reuse duga-write-value-label-label and duga-write-value-label-description.",
   "duga-write-reference-no-label": "Shown in the \"Already on Wikidata\" box (duga-write-reference-heading), in place of the label, for a language that has no label for the item yet.",
   "duga-write-reference-no-description": "Shown in the \"Already on Wikidata\" box (duga-write-reference-heading), in place of the description, for a language that has no description for the item yet.",
   "duga-write-reference-change": "Link from the label/description edit form to the reference-language setting on the account page.",
