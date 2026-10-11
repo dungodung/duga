@@ -286,22 +286,14 @@ main {
   font-size: 0.85rem;
 }
 
-/* A globe, near enough, in two elements and no request. */
+/* The "文A" translate sign, the widely recognised mark for "change the
+   language". An inline SVG in base.html, so no request; it takes the
+   label's colour. */
 .lang-switch-icon {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1.1rem;
+  height: 1.1rem;
   flex: none;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-  position: relative;
-}
-
-.lang-switch-icon::before {
-  content: "";
-  position: absolute;
-  inset: -1.5px 35%;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
+  fill: currentColor;
 }
 
 /* Overrides the generic `form select { width: 100% }` the same way
