@@ -33,6 +33,8 @@
    beside the button so nobody presses it without knowing it edits
    Wikidata, at once, as them. #}
 <form method="post" action="{{ url_for('write.edit_submit', gap_id=gap.id) }}">
+  {# Carries the gap list's filters and page through to the redirect. #}
+  <input type="hidden" name="next" value="{{ back_url }}">
   <p>
     <label for="value">{{ _('duga-write-value-label-' ~ edit_kind) }}</label><br>
     <input type="text" id="value" name="value" lang="{{ gap.language_code }}" dir="auto" required>
@@ -45,6 +47,6 @@
 
 <p>
   <a href="https://www.wikidata.org/wiki/{{ gap.topic_qid }}" target="_blank" rel="noopener">{{ _('duga-write-view-on-wikidata') }}</a>
-  · <a href="{{ url_for('main.gaps', lang=gap.language_code) }}">{{ _('duga-gaps-back') }}</a>
+  · <a href="{{ back_url }}">{{ _('duga-write-back-to-gaps') }}</a>
 </p>
 {% endblock %}

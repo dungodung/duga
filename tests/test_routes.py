@@ -1464,3 +1464,27 @@ def test_every_link_that_leaves_duga_opens_in_a_new_tab(client, db, seed_languag
         assert links, url
         for link in links:
             assert 'target="_blank" rel="noopener"' in link, link
+
+
+def test_paging_is_drawn_above_the_list_too_when_there_is_more_than_one_page(client, db, seed_languages):
+    db.session.add_all(_gap(f"Q{i}", f"Topic {i}") for i in range(60))
+    db.session.commit()
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    assert body.count('<nav class="pagination') == 2
+    assert body.index("pagination-top") < body.index('class="gap-list"') < body.index("pagination-bottom")
+
+
+def test_a_single_page_has_no_paging_above_the_list(client, db, seed_languages):
+    db.session.add(_gap("Q1", "Topic one"))
+    db.session.commit()
+    assert "pagination-top" not in client.get("/sr/gaps?uselang=en").data.decode()
+
+
+def test_a_page_past_the_end_shows_the_last_page(client, db, seed_languages):
+    """Fixing the only gap on the last page and coming back to that ?page=
+    should not claim there are no gaps at all."""
+    db.session.add_all(_gap(f"Q{i}", f"Topic {i}") for i in range(60))
+    db.session.commit()
+    body = client.get("/sr/gaps?page=3&uselang=en").data.decode()
+    assert "Page 2 of 2" in body
+    assert "Showing 51" in body

@@ -336,3 +336,53 @@ def test_edit_form_with_no_languages_chosen_shows_none_and_links_to_the_setting(
     assert "chemical element" not in body
     assert 'href="/account#reference-languages"' in body
 
+
+
+# -- coming back to the gap list as it was ------------------------------------
+
+
+def test_edit_here_link_carries_the_lists_filters_and_page(client, db, seed_languages, logged_in_with_token):
+    from urllib.parse import parse_qs, urlsplit
+
+    gap = make_gap()
+    body = client.get("/sr/gaps?project=wikidata&type=no_label&uselang=en").data.decode()
+    href = body.split('class="button gap-primary" href="')[1].split('"')[0].replace("&amp;", "&")
+    assert urlsplit(href).path == f"/gap/{gap.id}/edit"
+    assert parse_qs(urlsplit(href).query)["next"] == ["/sr/gaps?project=wikidata&type=no_label&uselang=en"]
+
+
+@responses.activate
+def test_publish_returns_to_the_list_as_it_was(client, db, seed_languages, logged_in_with_token):
+    mock_wikidata_write()
+    gap = make_gap()
+    back = "/sr/gaps?project=wikidata&type=no_label&page=3"
+
+    form = client.get(f"/gap/{gap.id}/edit", query_string={"next": back}).data.decode()
+    assert '<input type="hidden" name="next" value="/sr/gaps?project=wikidata&amp;type=no_label&amp;page=3">' in form
+    assert '<a href="/sr/gaps?project=wikidata&amp;type=no_label&amp;page=3">Back to the gap list</a>' in form
+
+    resp = client.post(f"/gap/{gap.id}/edit", data={"value": "нова ознака", "next": back})
+    assert resp.status_code == 302
+    assert resp.location == back
+
+
+def test_a_failed_publish_also_returns_to_the_list_as_it_was(client, app, db, seed_languages, logged_in_with_token):
+    app.config["DUGA_WRITES_ENABLED"] = False
+    gap = make_gap()
+    back = "/sr/gaps?page=2"
+    resp = client.post(f"/gap/{gap.id}/edit", data={"value": "x", "next": back})
+    assert resp.location == back
+
+
+def test_an_empty_value_keeps_the_way_back(client, db, seed_languages, logged_in_with_token):
+    gap = make_gap()
+    resp = client.post(f"/gap/{gap.id}/edit", data={"value": "", "next": "/sr/gaps?page=2"})
+    assert resp.location == f"/gap/{gap.id}/edit?next=/sr/gaps?page%3D2"
+
+
+def test_publish_never_redirects_off_site(client, app, db, seed_languages, logged_in_with_token):
+    app.config["DUGA_WRITES_ENABLED"] = False
+    gap = make_gap()
+    for evil in ("https://evil.example/", "//evil.example/", "/\\evil.example/"):
+        resp = client.post(f"/gap/{gap.id}/edit", data={"value": "x", "next": evil})
+        assert resp.location == "/sr/gaps", evil

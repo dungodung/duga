@@ -13,7 +13,7 @@ from ...audit import log as audit_log
 from ...extensions import db
 from ...models import Detector, Gap, GapOverride, Language, ScopeRule, Topic, TopicRule
 from ...wikidata_write import EDITABLE_GAP_TYPES
-from ..auth.routes import current_contributor, login_required
+from ..auth.routes import current_contributor, local_path, login_required
 
 main_bp = Blueprint("main", __name__)
 
@@ -392,6 +392,10 @@ def gaps(lang):
 
     page = max(request.args.get("page", 1, type=int) or 1, 1)
     total = query.count()
+    # Past the end -- typically after fixing or hiding the last gap on the
+    # last page, and coming back to the same ?page= -- show the new last
+    # page rather than an empty list that says there are no gaps.
+    page = min(page, max(-(-total // GAPS_PAGE_SIZE), 1))
     rows = (
         # Impact scoring (SPEC.md S6: ranks topics *within* a language,
         # never languages against each other -- see jobs/impact_score.py)
@@ -565,7 +569,8 @@ def override_gap():
     db.session.commit()
 
     flash(_t("duga-gaps-override-success"))
-    return redirect(url_for("main.gaps", lang=gap.language_code))
+    # Back to the list as it was -- same filters, same page.
+    return redirect(local_path(request.form.get("next")) or url_for("main.gaps", lang=gap.language_code))
 
 
 @main_bp.get("/topic/<qid>")

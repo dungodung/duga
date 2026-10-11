@@ -44,12 +44,18 @@ def login_required(view):
     return wrapped
 
 
-def _safe_next(target):
-    """Only ever redirect to a same-site relative path -- an open redirect
-    via ?next= would let a phishing link ride Duga's own login flow."""
-    if target and target.startswith("/") and not target.startswith("//"):
+def local_path(target):
+    """`target` if it is a same-site relative path, else None -- an open
+    redirect via ?next= would let a phishing link ride Duga's own flows.
+    A backslash is refused too: browsers read "/\\evil.example" as
+    "//evil.example"."""
+    if target and target.startswith("/") and not target.startswith("//") and "\\" not in target:
         return target
-    return url_for("main.home")
+    return None
+
+
+def _safe_next(target):
+    return local_path(target) or url_for("main.home")
 
 
 @auth_bp.get("/login")

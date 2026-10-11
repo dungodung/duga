@@ -150,3 +150,24 @@ def test_the_dismiss_panel_explains_both_choices(client, db, seed_languages, log
     assert "checked" not in row
     assert row.count("required") == 2
     assert "Hides it for everyone." in row
+
+
+def test_hiding_a_gap_returns_to_the_list_as_it_was(client, db, seed_languages, logged_in):
+    gap = make_gap()
+    back = "/sr/gaps?project=wikipedia&page=3"
+    resp = client.post("/gap/override", data={"gap_id": gap.id, "status": "declined", "next": back})
+    assert resp.status_code == 302
+    assert resp.location == back
+
+
+def test_hiding_a_gap_never_redirects_off_site(client, db, seed_languages, logged_in):
+    for i, evil in enumerate(("https://evil.example/", "//evil.example/", "/\\evil.example/")):
+        gap = make_gap(topic_qid=f"Q{i + 1}")
+        resp = client.post("/gap/override", data={"gap_id": gap.id, "status": "declined", "next": evil})
+        assert resp.location == "/sr/gaps", evil
+
+
+def test_the_dismiss_form_carries_the_current_list_url(client, db, seed_languages, logged_in):
+    make_gap()
+    body = client.get("/sr/gaps?project=wikipedia&uselang=en").data.decode()
+    assert '<input type="hidden" name="next" value="/sr/gaps?project=wikipedia&amp;uselang=en">' in body

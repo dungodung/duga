@@ -1087,6 +1087,11 @@ a[target="_blank"]::after {
   margin-top: var(--space-5);
 }
 
+.pagination-top {
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
 /* -- the topic page --
    Arriving from a gap list links to #<lang>, so that language's section is
    both scrolled to and marked: the page lists every language, and the one

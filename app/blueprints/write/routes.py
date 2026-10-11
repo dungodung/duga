@@ -36,7 +36,7 @@ from ...wikidata_write import (
     set_description,
     set_label,
 )
-from ..auth.routes import current_contributor, login_required
+from ..auth.routes import current_contributor, local_path, login_required
 from ..main.routes import _visible_gaps_query
 from ..vocabulary.routes import _get_visible_term_or_404
 
@@ -140,6 +140,14 @@ def _reference_terms(gap, contributor):
     return rows
 
 
+def _gap_list_url(gap):
+    """Where to go after the edit: the gap list exactly as the contributor
+    left it -- filters and page -- carried as ?next= from the "Edit here"
+    link and then as a hidden field. Any URL state beats a cookie or local
+    storage here: it works without JavaScript and survives a second tab."""
+    return local_path(request.values.get("next")) or url_for("main.gaps", lang=gap.language_code)
+
+
 def _term_awaiting_sense_or_404(term_id):
     """Lexeme write-back (SPEC.md section 9: "Wikidata Lexemes, Forms,
     Senses (post-v0.1)") is only offered for a term that M7's promotion
@@ -173,6 +181,7 @@ def edit_form(gap_id):
         edit_kind=EDITABLE_GAP_TYPES[gap.gap_type],
         label=_gap_evidence_label(gap),
         references=_reference_terms(gap, current_contributor()),
+        back_url=_gap_list_url(gap),
     )
 
 
@@ -182,25 +191,26 @@ def edit_submit(gap_id):
     gap = _editable_gap_or_404(gap_id)
     edit_kind = EDITABLE_GAP_TYPES[gap.gap_type]
     contributor = current_contributor()
+    back_url = _gap_list_url(gap)
     value = (request.form.get("value") or "").strip()
 
     if not value:
         flash(_t("duga-write-error-required"))
-        return redirect(url_for("write.edit_form", gap_id=gap_id))
+        return redirect(url_for("write.edit_form", gap_id=gap_id, next=back_url))
 
     if not current_app.config["DUGA_WRITES_ENABLED"]:  # S8, checked here, not earlier
         flash(_t("duga-write-error-disabled"))
-        return redirect(url_for("main.gaps", lang=gap.language_code))
+        return redirect(back_url)
 
     if _rate_limited(contributor.wiki_username):
         flash(_t("duga-write-error-rate-limited"))
-        return redirect(url_for("main.gaps", lang=gap.language_code))
+        return redirect(back_url)
 
     try:
         access_token = get_valid_access_token(contributor.id)
     except TokenUnavailable:
         flash(_t("duga-write-error-relogin"))
-        return redirect(url_for("auth.login", next=url_for("write.edit_form", gap_id=gap_id)))
+        return redirect(url_for("auth.login", next=url_for("write.edit_form", gap_id=gap_id, next=back_url)))
 
     wiki_edit = WikiEdit(
         contributor=contributor.wiki_username,
@@ -246,7 +256,7 @@ def edit_submit(gap_id):
         )
         db.session.commit()
         flash(_t("duga-write-error-failed", str(exc)))
-        return redirect(url_for("main.gaps", lang=gap.language_code))
+        return redirect(back_url)
 
     wiki_edit.status = "success"
     wiki_edit.revid = revid
@@ -265,7 +275,7 @@ def edit_submit(gap_id):
     db.session.commit()
 
     flash(_t("duga-write-success"))
-    return redirect(url_for("main.gaps", lang=gap.language_code))
+    return redirect(back_url)
 
 
 @write_bp.get("/term/<int:term_id>/add-sense")

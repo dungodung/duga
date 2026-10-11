@@ -6,6 +6,21 @@
    people. The overview pages that link here stay indexable. #}
 {% block robots %}noindex, follow{% endblock %}
 {% block description %}{{ _('duga-gaps-meta-description', language_label(language)) }}{% endblock %}
+{# url_for drops None-valued arguments, so an inactive filter simply
+   isn't in the link -- and every active one survives paging. Drawn above
+   the list as well as below it: fifty rows is a long scroll back up. #}
+{% macro pagination(position) %}
+<nav class="pagination pagination-{{ position }}" aria-label="{{ _('duga-gaps-pagination-label') }}">
+  <span class="page-position">{{ _('duga-gaps-page-position', page, page_count) }}</span>
+  {% if page > 1 %}
+  <a href="{{ url_for('main.gaps', lang=language.code, page=page - 1, project=project_filter or none, type=type_filter or none, maturity=maturity_filter or none) }}">{{ _('duga-gaps-prev-page') }}</a>
+  {% endif %}
+  {% if has_next %}
+  <a href="{{ url_for('main.gaps', lang=language.code, page=page + 1, project=project_filter or none, type=type_filter or none, maturity=maturity_filter or none) }}">{{ _('duga-gaps-next-page') }}</a>
+  {% endif %}
+</nav>
+{% endmacro %}
+
 {% block content %}
 <h1>{{ _('duga-gaps-title', language_label(language)) }}</h1>
 <p><a href="{{ url_for('main.lang_home', lang=language.code) }}">{{ _('duga-gaps-back') }}</a></p>
@@ -60,6 +75,8 @@
   <span class="gap-order-note">{{ _('duga-gaps-order-note') }}</span>
 </p>
 
+{% if page_count > 1 %}{{ pagination("top") }}{% endif %}
+
 <ul class="gap-list">
   {% for item in items %}
   {# data-project drives a spectrum-coloured edge in CSS. There are exactly
@@ -87,7 +104,7 @@
     {% set edit_here = item.editable and contributor %}
     <div class="gap-actions">
       {% if edit_here %}
-      <a class="button gap-primary" href="{{ url_for('write.edit_form', gap_id=item.id) }}">{{ _('duga-gaps-edit-here-button') }}</a>
+      <a class="button gap-primary" href="{{ url_for('write.edit_form', gap_id=item.id, next=current_path) }}">{{ _('duga-gaps-edit-here-button') }}</a>
       <a class="gap-action" href="{{ item.action_url }}" target="_blank" rel="noopener">{{ _('duga-gaps-fix-also-on-wikidata') }}</a>
       {% else %}
       <a class="button gap-primary" href="{{ item.action_url }}"{% if item.fix_target != 'duga' %} target="_blank" rel="noopener"{% endif %}>{{ _(fix_key) }}</a>
@@ -107,6 +124,7 @@
         <summary>{{ _('duga-gaps-dismiss-summary') }}</summary>
         <form method="post" action="{{ url_for('main.override_gap') }}" class="gap-dismiss-form">
           <input type="hidden" name="gap_id" value="{{ item.id }}">
+          <input type="hidden" name="next" value="{{ current_path }}">
           <fieldset>
             <legend class="visually-hidden">{{ _('duga-gaps-dismiss-summary') }}</legend>
             {% for status in ('not_applicable', 'declined') %}
@@ -132,17 +150,7 @@
   {% endfor %}
 </ul>
 
-{# url_for drops None-valued arguments, so an inactive filter simply
-   isn't in the link -- and every active one survives paging. #}
-<nav class="pagination">
-  <span class="page-position">{{ _('duga-gaps-page-position', page, page_count) }}</span>
-  {% if page > 1 %}
-  <a href="{{ url_for('main.gaps', lang=language.code, page=page - 1, project=project_filter or none, type=type_filter or none, maturity=maturity_filter or none) }}">{{ _('duga-gaps-prev-page') }}</a>
-  {% endif %}
-  {% if has_next %}
-  <a href="{{ url_for('main.gaps', lang=language.code, page=page + 1, project=project_filter or none, type=type_filter or none, maturity=maturity_filter or none) }}">{{ _('duga-gaps-next-page') }}</a>
-  {% endif %}
-</nav>
+{{ pagination("bottom") }}
 {% else %}
 <p>{{ _('duga-gaps-empty') }}</p>
 {% endif %}
