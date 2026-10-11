@@ -15,9 +15,11 @@
     {% for row in references %}
     <dt>{{ row.name }}</dt>
     <dd>
-      {%- if row.label %}<span lang="{{ row.code }}" dir="auto" class="wikidata-reference-label">{{ row.label }}</span>{% endif %}
-      {%- if row.description %} <span lang="{{ row.code }}" dir="auto">{{ row.description }}</span>{% endif %}
-      {%- if not row.label and not row.description %}<span class="wikidata-reference-missing">{{ _('duga-write-reference-missing') }}</span>{% endif -%}
+      {#- Both, always, and a plain note where one is missing. -#}
+      {%- if row.label %}<span lang="{{ row.code }}" dir="auto" class="wikidata-reference-label">{{ row.label }}</span>
+      {%- else %}<span class="wikidata-reference-label wikidata-reference-missing">{{ _('duga-write-reference-no-label') }}</span>{% endif %}
+      {% if row.description %}<span lang="{{ row.code }}" dir="auto">{{ row.description }}</span>
+      {%- else %}<span class="wikidata-reference-missing">{{ _('duga-write-reference-no-description') }}</span>{% endif -%}
     </dd>
     {% endfor %}
   </dl>

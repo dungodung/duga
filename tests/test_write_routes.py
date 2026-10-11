@@ -240,17 +240,31 @@ def test_edit_form_shows_the_english_label_and_description(client, db, seed_lang
     assert "chemical element with symbol Hg" in body
 
 
-def test_edit_form_does_not_repeat_the_label_it_already_shows(client, db, seed_languages, logged_in_with_token):
-    """For a missing *label* the heading is already the English one, so
-    repeating it in the reference block adds nothing."""
+def test_edit_form_shows_the_label_even_when_it_repeats_the_heading(client, db, seed_languages, logged_in_with_token, wikidata_terms_offline):
+    """Every chosen language shows its label and its description, so the
+    rows line up and none looks as if its label were missing."""
+    _choose(logged_in_with_token, "en", "de")
+    wikidata_terms_offline.terms = {
+        "en": {"label": "Mercury", "description": "chemical element"},
+        "de": {"label": "Quecksilber", "description": "chemisches Element"},
+    }
+    gap = _wikidata_gap(db, gap_type="no_label", evidence={"label": "Mercury", "label_lang": "en"})
+
+    body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
+    reference = body.split('class="wikidata-reference"')[1].split("</div>")[0]
+    assert 'class="wikidata-reference-label">Mercury</span>' in reference
+    assert "chemical element" in reference
+
+
+def test_the_stored_english_fallback_keeps_the_label_too(client, db, seed_languages, logged_in_with_token):
     gap = _wikidata_gap(db, gap_type="no_label", evidence={
         "label": "Mercury", "label_lang": "en", "description_en": "chemical element",
     })
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
     reference = body.split('class="wikidata-reference"')[1].split("</div>")[0]
+    assert 'class="wikidata-reference-label">Mercury</span>' in reference
     assert "chemical element" in reference
-    assert "Mercury" not in reference
 
 
 def test_edit_form_omits_the_block_entirely_when_nothing_was_recorded(client, db, seed_languages, logged_in_with_token):
@@ -304,14 +318,21 @@ def test_edit_form_never_asks_for_the_language_being_written(client, db, seed_la
     assert wikidata_terms_offline.calls == [("Q1", ["de"])]
 
 
-def test_edit_form_says_when_a_chosen_language_has_nothing_yet(client, db, seed_languages, logged_in_with_token, wikidata_terms_offline):
-    _choose(logged_in_with_token, "de")
-    wikidata_terms_offline.terms = {"de": {"label": None, "description": None}}
+def test_edit_form_says_which_of_label_and_description_is_missing(client, db, seed_languages, logged_in_with_token, wikidata_terms_offline):
+    _choose(logged_in_with_token, "de", "hr", "zu")
+    wikidata_terms_offline.terms = {
+        "de": {"label": None, "description": None},
+        "hr": {"label": "živa", "description": None},
+        "zu": {"label": None, "description": "into"},
+    }
     gap = _wikidata_gap(db)
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
-    assert "<dt>German</dt>" in body
-    assert "nothing yet" in body
+    reference = body.split('class="wikidata-reference"')[1].split("</div>")[0]
+    rows = reference.split("<dt>")[1:]
+    assert "no label" in rows[0] and "no description" in rows[0]
+    assert "živa" in rows[1] and "no description" in rows[1] and "no label" not in rows[1]
+    assert "no label" in rows[2] and "into" in rows[2] and "no description" not in rows[2]
 
 
 def test_edit_form_falls_back_to_stored_english_when_wikidata_is_unreachable(client, db, seed_languages, logged_in_with_token, wikidata_terms_offline):

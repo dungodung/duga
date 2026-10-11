@@ -75,11 +75,6 @@ def _english_reference(gap):
     fallback when the live lookup in _reference_terms() can't reach
     Wikidata.
 
-    The label is dropped when it is the same string already shown as the
-    heading (which is the normal case for a missing *label*, where the
-    English one is all we had to display in the first place), so the
-    reference block adds information rather than repeating it.
-
     Returns {} for gaps detected before this was recorded; the template
     then shows nothing rather than a half-empty box. Detectors rewrite
     their rows nightly, so it fills in on its own."""
@@ -87,8 +82,6 @@ def _english_reference(gap):
     label = evidence.get("label_en") or (
         evidence.get("label") if evidence.get("label_lang") == "en" else None
     )
-    if label == _gap_evidence_label(gap):
-        label = None
     description = evidence.get("description_en")
     if not label and not description:
         return {}
@@ -103,8 +96,10 @@ def _reference_terms(gap, contributor):
     The gap's own language is skipped -- it is the one being written.
     When Wikidata can't be reached, the English the detector stored stands
     in, so the page degrades to exactly what it showed before there was a
-    choice. A language with nothing yet still gets a row: knowing the
-    German description is missing too is worth a line.
+    choice. Every language shows both its label and its description, even
+    a label that repeats the page heading, and says so where one is
+    missing: knowing the German description is missing too is worth a
+    line.
     """
     lang = g.get("interface_lang", i18n.FALLBACK_LANG)
     codes = [code for code in reference_languages.chosen(contributor) if code != gap.language_code]
@@ -122,22 +117,15 @@ def _reference_terms(gap, contributor):
         terms = {"en": english} if english and "en" in codes else {}
         codes = [code for code in codes if code in terms]
 
-    heading = _gap_evidence_label(gap)
-    rows = []
-    for code in codes:
-        label = terms[code].get("label")
-        description = terms[code].get("description")
-        # A label that is the page heading again adds nothing -- unless it
-        # is all this language has, when dropping it would read "nothing".
-        if label == heading and description:
-            label = None
-        rows.append({
+    return [
+        {
             "code": code,
             "name": reference_languages.name(code, lang),
-            "label": label,
-            "description": description,
-        })
-    return rows
+            "label": terms[code].get("label"),
+            "description": terms[code].get("description"),
+        }
+        for code in codes
+    ]
 
 
 def _gap_list_url(gap):
