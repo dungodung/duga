@@ -71,6 +71,7 @@
   "duga-write-explain-description": "$1 n'a pas encore de description dans cette langue. Proposez-en une ci-dessous.",
   "duga-write-value-label-label": "Étiquette",
   "duga-write-value-label-description": "Description",
+  "duga-write-also-title-label": "Tant que vous y êtes : ajouter aussi une étiquette ?",
   "duga-write-reference-heading": "Déjà sur Wikidata",
   "duga-write-reference-no-label": "pas d’étiquette",
   "duga-write-reference-no-description": "pas de description",
@@ -78,6 +79,7 @@
   "duga-write-back-to-gaps": "Retour à la liste des lacunes",
   "duga-write-publish-button": "Publier",
   "duga-write-publish-note": "Duga effectuera cette modification sur Wikidata pour vous, avec votre compte $1, dès que vous cliquerez sur « Publier ». Elle sera publique, comme toute autre modification sur Wikidata.",
+  "duga-write-publish-note-both": "Duga effectuera ces modifications sur Wikidata pour vous, une par champ rempli, avec votre compte $1, dès que vous cliquerez sur « Publier ». Elles seront publiques, comme toute autre modification sur Wikidata.",
   "duga-write-view-on-wikidata": "Voir sur Wikidata",
   "duga-write-error-required": "Veuillez saisir une valeur.",
   "duga-write-error-disabled": "L'écriture sur Wikidata est temporairement désactivée. Veuillez réessayer plus tard.",
@@ -85,6 +87,8 @@
   "duga-write-error-relogin": "Votre connexion a expiré. Veuillez vous reconnecter pour continuer.",
   "duga-write-error-failed": "La modification a échoué : $1",
   "duga-write-success": "Enregistré sur Wikidata. Merci !",
+  "duga-write-success-both": "Les deux sont enregistrées sur Wikidata. Merci !",
+  "duga-write-success-partial": "La première modification a été enregistrée sur Wikidata, mais pas la seconde. $1",
   "duga-write-title-sense": "Ajouter un sens pour $1",
   "duga-write-explain-sense": "$1 est lié au lexème Wikidata $2, mais ce lexème n'a pas encore de sens pour cette signification. Proposez une glose (courte définition) ci-dessous.",
   "duga-write-value-label-sense": "Glose",
@@ -244,5 +248,8 @@
   "duga-nav-label": "Navigation du site",
   "duga-nav-interface-language-short": "Interface",
   "duga-footer-label": "À propos de cet outil",
-  "duga-footer-source": "Code source"
+  "duga-footer-source": "Code source",
+  "duga-write-also-title-description": "Tant que vous y êtes : ajouter aussi une description ?",
+  "duga-write-also-explain-label": "$1 n’a pas non plus d’étiquette dans cette langue. Remplissez-la pour publier les deux d’un coup, ou laissez-la vide pour l’ignorer.",
+  "duga-write-also-explain-description": "$1 n’a pas non plus de description dans cette langue. Remplissez-la pour publier les deux d’un coup, ou laissez-la vide pour l’ignorer."
 }

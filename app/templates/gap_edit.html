@@ -41,9 +41,19 @@
     <label for="value">{{ _('duga-write-value-label-' ~ edit_kind) }}</label><br>
     <input type="text" id="value" name="value" lang="{{ gap.language_code }}" dir="auto" required>
   </p>
+  {% if also_kind %}
+  {# The item is missing the other term in this language too. Optional:
+     left empty, only the first is written. #}
+  <fieldset class="write-also">
+    <legend>{{ _('duga-write-also-title-' ~ also_kind) }}</legend>
+    <p class="write-also-explain" id="also-explain">{{ _('duga-write-also-explain-' ~ also_kind, label) }}</p>
+    <label for="also_value">{{ _('duga-write-value-label-' ~ also_kind) }}</label><br>
+    <input type="text" id="also_value" name="also_value" lang="{{ gap.language_code }}" dir="auto" aria-describedby="also-explain">
+  </fieldset>
+  {% endif %}
   <div class="write-publish">
     <button type="submit" class="button">{{ _('duga-write-publish-button') }}</button>
-    <span class="write-publish-note">{{ _('duga-write-publish-note', contributor.wiki_username) }}</span>
+    <span class="write-publish-note">{{ _('duga-write-publish-note-both' if also_kind else 'duga-write-publish-note', contributor.wiki_username) }}</span>
   </div>
 </form>
 

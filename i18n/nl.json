@@ -74,6 +74,7 @@
   "duga-write-explain-description": "$1 heeft nog geen beschrijving in deze taal. Stel er hieronder een voor.",
   "duga-write-value-label-label": "Label",
   "duga-write-value-label-description": "Beschrijving",
+  "duga-write-also-title-label": "Nu je hier toch bent: ook een label toevoegen?",
   "duga-write-reference-heading": "Al op Wikidata",
   "duga-write-reference-no-label": "geen label",
   "duga-write-reference-no-description": "geen beschrijving",
@@ -81,6 +82,7 @@
   "duga-write-back-to-gaps": "Terug naar de lijst met hiaten",
   "duga-write-publish-button": "Publiceren",
   "duga-write-publish-note": "Duga maakt deze bewerking namens jou op Wikidata, met je account $1, zodra je op ‘Publiceren’ drukt. Ze is openbaar, net als elke andere Wikidata-bewerking.",
+  "duga-write-publish-note-both": "Duga maakt deze bewerkingen namens jou op Wikidata, één per ingevuld veld, met je account $1, zodra je op ‘Publiceren’ drukt. Ze zijn openbaar, net als elke andere Wikidata-bewerking.",
   "duga-write-view-on-wikidata": "Bekijken op Wikidata",
   "duga-write-error-required": "Vul een waarde in.",
   "duga-write-error-disabled": "Schrijven naar Wikidata is tijdelijk uitgeschakeld. Probeer het later opnieuw.",
@@ -88,6 +90,8 @@
   "duga-write-error-relogin": "Je sessie is verlopen. Meld je opnieuw aan om verder te gaan.",
   "duga-write-error-failed": "De bewerking is mislukt: $1",
   "duga-write-success": "Opgeslagen op Wikidata. Bedankt!",
+  "duga-write-success-both": "Beide opgeslagen op Wikidata. Bedankt!",
+  "duga-write-success-partial": "De eerste bewerking is op Wikidata opgeslagen, de tweede niet. $1",
   "duga-write-title-sense": "Een betekenis toevoegen voor $1",
   "duga-write-explain-sense": "$1 is gekoppeld aan Wikidata-lexeem $2, maar dat lexeem heeft nog geen betekenis hiervoor. Stel hieronder een korte omschrijving voor.",
   "duga-write-value-label-sense": "Korte omschrijving",
@@ -247,5 +251,8 @@
   "duga-nav-label": "Sitenavigatie",
   "duga-nav-interface-language-short": "Interface",
   "duga-footer-label": "Over dit hulpmiddel",
-  "duga-footer-source": "Broncode"
+  "duga-footer-source": "Broncode",
+  "duga-write-also-title-description": "Nu je hier toch bent: ook een beschrijving toevoegen?",
+  "duga-write-also-explain-label": "$1 heeft in deze taal ook geen label. Vul het in om beide tegelijk te publiceren, of laat het veld leeg om het over te slaan.",
+  "duga-write-also-explain-description": "$1 heeft in deze taal ook geen beschrijving. Vul die in om beide tegelijk te publiceren, of laat het veld leeg om het over te slaan."
 }

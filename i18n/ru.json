@@ -74,6 +74,7 @@
   "duga-write-explain-description": "У $1 ещё нет описания на этом языке. Предложите его ниже.",
   "duga-write-value-label-label": "Метка",
   "duga-write-value-label-description": "Описание",
+  "duga-write-also-title-label": "Раз уж вы здесь: добавить и метку?",
   "duga-write-reference-heading": "Уже в Викиданных",
   "duga-write-reference-no-label": "нет метки",
   "duga-write-reference-no-description": "нет описания",
@@ -81,6 +82,7 @@
   "duga-write-back-to-gaps": "Назад к списку пробелов",
   "duga-write-publish-button": "Опубликовать",
   "duga-write-publish-note": "Duga сделает эту правку в Викиданных от вашего имени, с учётной записи $1, как только вы нажмёте «Опубликовать». Она будет публичной, как любая другая правка в Викиданных.",
+  "duga-write-publish-note-both": "Duga сделает эти правки в Викиданных от вашего имени, по одной на каждое заполненное поле, с учётной записи $1, как только вы нажмёте «Опубликовать». Они будут публичными, как любая другая правка в Викиданных.",
   "duga-write-view-on-wikidata": "Посмотреть в Викиданных",
   "duga-write-error-required": "Введите значение.",
   "duga-write-error-disabled": "Запись в Викиданные временно отключена. Попробуйте позже.",
@@ -88,6 +90,8 @@
   "duga-write-error-relogin": "Срок вашего входа истёк. Войдите снова, чтобы продолжить.",
   "duga-write-error-failed": "Правка не удалась: $1",
   "duga-write-success": "Сохранено в Викиданных. Спасибо!",
+  "duga-write-success-both": "Оба сохранены в Викиданных. Спасибо!",
+  "duga-write-success-partial": "Первая правка сохранена в Викиданных, а вторая нет. $1",
   "duga-write-title-sense": "Добавить значение для $1",
   "duga-write-explain-sense": "$1 связано с лексемой $2 в Викиданных, но у этой лексемы ещё нет значения для этого смысла. Предложите ниже краткое толкование.",
   "duga-write-value-label-sense": "Краткое толкование",
@@ -247,5 +251,8 @@
   "duga-nav-label": "Навигация по сайту",
   "duga-nav-interface-language-short": "Интерфейс",
   "duga-footer-label": "Об этом инструменте",
-  "duga-footer-source": "Исходный код"
+  "duga-footer-source": "Исходный код",
+  "duga-write-also-title-description": "Раз уж вы здесь: добавить и описание?",
+  "duga-write-also-explain-label": "У элемента $1 на этом языке нет и метки. Заполните её, чтобы опубликовать обе сразу, или оставьте пустой, чтобы пропустить.",
+  "duga-write-also-explain-description": "У элемента $1 на этом языке нет и описания. Заполните его, чтобы опубликовать оба сразу, или оставьте пустым, чтобы пропустить."
 }

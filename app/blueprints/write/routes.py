@@ -159,47 +159,29 @@ def _rate_limited(contributor_username):
     return total >= current_app.config["DUGA_MAX_WRITES_PER_HOUR_GLOBAL"]
 
 
-@write_bp.get("/gap/<int:gap_id>/edit")
-@login_required
-def edit_form(gap_id):
-    gap = _editable_gap_or_404(gap_id)
-    return render_template(
-        "gap_edit.html",
-        gap=gap,
-        edit_kind=EDITABLE_GAP_TYPES[gap.gap_type],
-        label=_gap_evidence_label(gap),
-        references=_reference_terms(gap, current_contributor()),
-        back_url=_gap_list_url(gap),
+def _companion_gap(gap):
+    """The item's other missing term in the same language, if it has one:
+    a missing label when this gap is a missing description, and the other
+    way round. Two in one -- whoever is writing one usually knows the
+    other. Looked up through the same visibility filter as the gap itself,
+    so a hidden or suppressed companion is never offered."""
+    other = {"no_label": "no_description", "no_description": "no_label"}[gap.gap_type]
+    return (
+        _visible_gaps_query()
+        .filter(
+            Gap.topic_qid == gap.topic_qid,
+            Gap.language_code == gap.language_code,
+            Gap.project_code == "wikidata",
+            Gap.gap_type == other,
+        )
+        .first()
     )
 
 
-@write_bp.post("/gap/<int:gap_id>/edit")
-@login_required
-def edit_submit(gap_id):
-    gap = _editable_gap_or_404(gap_id)
+def _publish(gap, value, contributor, access_token):
+    """One edit to Wikidata for one gap, logged before and after
+    (guardrail 11). Returns None on success, or the error to show."""
     edit_kind = EDITABLE_GAP_TYPES[gap.gap_type]
-    contributor = current_contributor()
-    back_url = _gap_list_url(gap)
-    value = (request.form.get("value") or "").strip()
-
-    if not value:
-        flash(_t("duga-write-error-required"))
-        return redirect(url_for("write.edit_form", gap_id=gap_id, next=back_url))
-
-    if not current_app.config["DUGA_WRITES_ENABLED"]:  # S8, checked here, not earlier
-        flash(_t("duga-write-error-disabled"))
-        return redirect(back_url)
-
-    if _rate_limited(contributor.wiki_username):
-        flash(_t("duga-write-error-rate-limited"))
-        return redirect(back_url)
-
-    try:
-        access_token = get_valid_access_token(contributor.id)
-    except TokenUnavailable:
-        flash(_t("duga-write-error-relogin"))
-        return redirect(url_for("auth.login", next=url_for("write.edit_form", gap_id=gap_id, next=back_url)))
-
     wiki_edit = WikiEdit(
         contributor=contributor.wiki_username,
         target_wiki="wikidata",
@@ -243,8 +225,7 @@ def edit_submit(gap_id):
             after={"status": "failed", "error": str(exc)},
         )
         db.session.commit()
-        flash(_t("duga-write-error-failed", str(exc)))
-        return redirect(back_url)
+        return _t("duga-write-error-failed", str(exc))
 
     wiki_edit.status = "success"
     wiki_edit.revid = revid
@@ -261,8 +242,79 @@ def edit_submit(gap_id):
         after={"status": "success", "revid": revid},
     )
     db.session.commit()
+    return None
 
-    flash(_t("duga-write-success"))
+
+def _cannot_write_now(contributor):
+    """The kill switch (S8) and the rate limits, checked immediately before
+    each edit -- so before the second of two, too. None when clear."""
+    if not current_app.config["DUGA_WRITES_ENABLED"]:
+        return _t("duga-write-error-disabled")
+    if _rate_limited(contributor.wiki_username):
+        return _t("duga-write-error-rate-limited")
+    return None
+
+
+@write_bp.get("/gap/<int:gap_id>/edit")
+@login_required
+def edit_form(gap_id):
+    gap = _editable_gap_or_404(gap_id)
+    companion = _companion_gap(gap)
+    return render_template(
+        "gap_edit.html",
+        gap=gap,
+        edit_kind=EDITABLE_GAP_TYPES[gap.gap_type],
+        also_kind=EDITABLE_GAP_TYPES[companion.gap_type] if companion else None,
+        label=_gap_evidence_label(gap),
+        references=_reference_terms(gap, current_contributor()),
+        back_url=_gap_list_url(gap),
+    )
+
+
+@write_bp.post("/gap/<int:gap_id>/edit")
+@login_required
+def edit_submit(gap_id):
+    gap = _editable_gap_or_404(gap_id)
+    contributor = current_contributor()
+    back_url = _gap_list_url(gap)
+    value = (request.form.get("value") or "").strip()
+    # The optional second field. The companion is looked up again rather
+    # than trusted from the form, so only a gap that is still open and
+    # visible can be written through it.
+    also_value = (request.form.get("also_value") or "").strip()
+    companion = _companion_gap(gap) if also_value else None
+
+    if not value:
+        flash(_t("duga-write-error-required"))
+        return redirect(url_for("write.edit_form", gap_id=gap_id, next=back_url))
+
+    blocked = _cannot_write_now(contributor)  # S8, checked here, not earlier
+    if blocked:
+        flash(blocked)
+        return redirect(back_url)
+
+    try:
+        access_token = get_valid_access_token(contributor.id)
+    except TokenUnavailable:
+        flash(_t("duga-write-error-relogin"))
+        return redirect(url_for("auth.login", next=url_for("write.edit_form", gap_id=gap_id, next=back_url)))
+
+    error = _publish(gap, value, contributor, access_token)
+    if error:
+        flash(error)
+        return redirect(back_url)
+
+    if companion is None:
+        flash(_t("duga-write-success"))
+        return redirect(back_url)
+
+    # Its own edit, with its own checks: the first one may have just used
+    # up the last of the hour's rate limit.
+    error = _cannot_write_now(contributor) or _publish(companion, also_value, contributor, access_token)
+    if error:
+        flash(_t("duga-write-success-partial", error))
+    else:
+        flash(_t("duga-write-success-both"))
     return redirect(back_url)
 
 

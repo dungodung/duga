@@ -71,6 +71,7 @@
   "duga-write-explain-description": "Explains why this form exists, shown above the description input field. $1 is the topic's display label.",
   "duga-write-value-label-label": "Field label for the text input where a contributor types the label to write to Wikidata.",
   "duga-write-value-label-description": "Field label for the text input where a contributor types the description to write to Wikidata.",
+  "duga-write-also-title-label": "Heading of the optional second field on the add-a-description form, shown when the item has no label in this language either. Friendly and optional in tone -- an offer, not a requirement.",
   "duga-write-reference-heading": "Small heading over the box on the label/description edit form that lists what Wikidata already says about the item, one row per reference language the contributor chose on their account page.",
   "duga-write-reference-no-label": "Shown in the \"Already on Wikidata\" box (duga-write-reference-heading), in place of the label, for a language that has no label for the item yet.",
   "duga-write-reference-no-description": "Shown in the \"Already on Wikidata\" box (duga-write-reference-heading), in place of the description, for a language that has no description for the item yet.",
@@ -78,6 +79,7 @@
   "duga-write-back-to-gaps": "Link at the bottom of the label/description edit form, back to the gap list the contributor came from -- with the same filters and page.",
   "duga-write-publish-button": "The button that writes the edit to Wikidata straight away -- there is no preview step after it. Use the same word MediaWiki uses for saving an edit in your language.",
   "duga-write-publish-note": "Shown beside the Publish button (duga-write-publish-button) on the forms that edit Wikidata. $1 is the contributor's Wikimedia username. This sentence IS the confirmation step (SPEC.md section 9): it must make clear that pressing the button edits Wikidata immediately, from the contributor's own account, and publicly. Quote the button label exactly as you translated it.",
+  "duga-write-publish-note-both": "Variant of duga-write-publish-note shown when the form also offers the optional second field: each filled-in field becomes its own Wikidata edit. $1 is the contributor's Wikimedia username. Same confirmation duty as duga-write-publish-note.",
   "duga-write-view-on-wikidata": "Link label to view the target item directly on Wikidata.",
   "duga-write-error-required": "Error shown when the write form was submitted with an empty value.",
   "duga-write-error-disabled": "Error shown when a contributor tries to confirm a write while SPEC.md S8's global kill switch has writes turned off.",
@@ -85,6 +87,8 @@
   "duga-write-error-relogin": "Error shown when a contributor's stored login has expired or was revoked and they need to log in again before a write can proceed.",
   "duga-write-error-failed": "Error shown when the Wikidata API itself rejected or failed the write. $1 is the underlying error message from Wikidata.",
   "duga-write-success": "Confirmation shown after a label/description was successfully written to Wikidata.",
+  "duga-write-success-both": "Shown after publishing both a label and a description from one form.",
+  "duga-write-success-partial": "Shown when the form published a label and a description and only the first succeeded. $1 is the reason the second failed, itself a complete sentence (e.g. duga-write-error-failed or duga-write-error-rate-limited).",
   "duga-write-title-sense": "Page title for the lexeme write-back flow: adding a new Sense (a specific meaning, with a short definition called a gloss) to an existing Wikidata Lexeme. $1 is the local term's written form.",
   "duga-write-explain-sense": "Explains why this form is offered: the term is linked to a Lexeme but that Lexeme has no Sense yet for this meaning. $1 is the term's written form, $2 is the Lexeme id (e.g. L12345).",
   "duga-write-value-label-sense": "Form field label for the gloss (short dictionary-style definition) text being added as a new Sense.",
@@ -244,5 +248,8 @@
   "duga-nav-label": "Accessible name for the main navigation region in the page header. Never displayed on screen; read out by screen readers to tell it apart from the footer's navigation.",
   "duga-nav-interface-language-short": "Short visible label for the interface-language selector in the site header, where there is no room for the full wording. The control's full accessible name remains duga-home-interface-language, so this should read as a shortened form of that translation rather than as a different phrase (WCAG 2.5.3, Label in Name). This is the language Duga's own buttons and headings are in -- NOT the language whose missing content is being browsed. The two are independent (SPEC.md section 13).",
   "duga-footer-label": "Accessible name for the small navigation region in the page footer. Never displayed on screen.",
-  "duga-footer-source": "Link text in the footer pointing at Duga's public source repository. The URL itself is not translatable, only this label."
+  "duga-footer-source": "Link text in the footer pointing at Duga's public source repository. The URL itself is not translatable, only this label.",
+  "duga-write-also-title-description": "Heading of the optional second field on the add-a-label form, shown when the item has no description in this language either. Friendly and optional in tone -- an offer, not a requirement.",
+  "duga-write-also-explain-label": "Explains the optional label field on the add-a-description form. $1 is the item's name as shown in the page heading.",
+  "duga-write-also-explain-description": "Explains the optional description field on the add-a-label form. $1 is the item's name as shown in the page heading."
 }

@@ -75,6 +75,7 @@
   "duga-write-explain-description": "$1 has no description in this language yet. Suggest one below.",
   "duga-write-value-label-label": "Label",
   "duga-write-value-label-description": "Description",
+  "duga-write-also-title-label": "While you're here: add a label too?",
   "duga-write-reference-heading": "Already on Wikidata",
   "duga-write-reference-no-label": "no label",
   "duga-write-reference-no-description": "no description",
@@ -82,6 +83,7 @@
   "duga-write-back-to-gaps": "Back to the gap list",
   "duga-write-publish-button": "Publish",
   "duga-write-publish-note": "Duga will make this edit on Wikidata for you, from your account $1, as soon as you press Publish. It will be public, like any other Wikidata edit.",
+  "duga-write-publish-note-both": "Duga will make these edits on Wikidata for you, one for each field you fill in, from your account $1, as soon as you press Publish. They will be public, like any other Wikidata edit.",
   "duga-write-view-on-wikidata": "View on Wikidata",
   "duga-write-error-required": "Please enter a value.",
   "duga-write-error-disabled": "Writing to Wikidata is temporarily disabled. Please try again later.",
@@ -89,6 +91,8 @@
   "duga-write-error-relogin": "Your login has expired. Please log in again to continue.",
   "duga-write-error-failed": "The edit failed: $1",
   "duga-write-success": "Saved to Wikidata. Thank you!",
+  "duga-write-success-both": "Both saved to Wikidata. Thank you!",
+  "duga-write-success-partial": "The first edit was saved to Wikidata, but the second wasn't. $1",
   "duga-write-title-sense": "Add a sense for $1",
   "duga-write-explain-sense": "$1 is linked to Wikidata Lexeme $2, but that Lexeme has no sense for this meaning yet. Suggest a gloss (a short definition) below.",
   "duga-write-value-label-sense": "Gloss",
@@ -248,5 +252,8 @@
   "duga-nav-label": "Site navigation",
   "duga-nav-interface-language-short": "Interface",
   "duga-footer-label": "About this tool",
-  "duga-footer-source": "Source code"
+  "duga-footer-source": "Source code",
+  "duga-write-also-title-description": "While you're here: add a description too?",
+  "duga-write-also-explain-label": "$1 has no label in this language either. Fill it in to publish both at once, or leave it empty to skip it.",
+  "duga-write-also-explain-description": "$1 has no description in this language either. Fill it in to publish both at once, or leave it empty to skip it."
 }

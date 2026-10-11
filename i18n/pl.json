@@ -74,6 +74,7 @@
   "duga-write-explain-description": "$1 nie ma jeszcze opisu w tym języku. Zaproponuj go poniżej.",
   "duga-write-value-label-label": "Etykieta",
   "duga-write-value-label-description": "Opis",
+  "duga-write-also-title-label": "Skoro już tu jesteś: dodasz też etykietę?",
   "duga-write-reference-heading": "Już w Wikidanych",
   "duga-write-reference-no-label": "brak etykiety",
   "duga-write-reference-no-description": "brak opisu",
@@ -81,6 +82,7 @@
   "duga-write-back-to-gaps": "Powrót do listy braków",
   "duga-write-publish-button": "Opublikuj",
   "duga-write-publish-note": "Duga wykona tę edycję w Wikidanych w twoim imieniu, z konta $1, gdy tylko klikniesz „Opublikuj”. Będzie publiczna, jak każda inna edycja Wikidanych.",
+  "duga-write-publish-note-both": "Duga wykona te edycje w Wikidanych w twoim imieniu, po jednej na każde wypełnione pole, z konta $1, gdy tylko klikniesz „Opublikuj”. Będą publiczne, jak każda inna edycja Wikidanych.",
   "duga-write-view-on-wikidata": "Zobacz w Wikidanych",
   "duga-write-error-required": "Wpisz wartość.",
   "duga-write-error-disabled": "Zapis do Wikidanych jest chwilowo wyłączony. Spróbuj ponownie później.",
@@ -88,6 +90,8 @@
   "duga-write-error-relogin": "Twoja sesja wygasła. Zaloguj się ponownie, aby kontynuować.",
   "duga-write-error-failed": "Edycja nie powiodła się: $1",
   "duga-write-success": "Zapisano w Wikidanych. Dziękujemy!",
+  "duga-write-success-both": "Oba zapisane w Wikidanych. Dziękujemy!",
+  "duga-write-success-partial": "Pierwsza edycja została zapisana w Wikidanych, druga nie. $1",
   "duga-write-title-sense": "Dodaj znaczenie dla $1",
   "duga-write-explain-sense": "$1 jest powiązane z leksemem $2 w Wikidanych, ale ten leksem nie ma jeszcze znaczenia dla tego sensu. Zaproponuj poniżej krótką definicję.",
   "duga-write-value-label-sense": "Krótka definicja",
@@ -247,5 +251,8 @@
   "duga-nav-label": "Nawigacja witryny",
   "duga-nav-interface-language-short": "Interfejs",
   "duga-footer-label": "O tym narzędziu",
-  "duga-footer-source": "Kod źródłowy"
+  "duga-footer-source": "Kod źródłowy",
+  "duga-write-also-title-description": "Skoro już tu jesteś: dodasz też opis?",
+  "duga-write-also-explain-label": "$1 nie ma w tym języku także etykiety. Wypełnij ją, aby opublikować obie naraz, albo zostaw puste, aby ją pominąć.",
+  "duga-write-also-explain-description": "$1 nie ma w tym języku także opisu. Wypełnij go, aby opublikować oba naraz, albo zostaw puste, aby go pominąć."
 }

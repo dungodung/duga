@@ -74,6 +74,7 @@
   "duga-write-explain-description": "$1 har ingen beskrivning på det här språket än. Föreslå en nedan.",
   "duga-write-value-label-label": "Etikett",
   "duga-write-value-label-description": "Beskrivning",
+  "duga-write-also-title-label": "Medan du ändå är här: lägga till en etikett också?",
   "duga-write-reference-heading": "Redan på Wikidata",
   "duga-write-reference-no-label": "ingen etikett",
   "duga-write-reference-no-description": "ingen beskrivning",
@@ -81,6 +82,7 @@
   "duga-write-back-to-gaps": "Tillbaka till listan med luckor",
   "duga-write-publish-button": "Publicera",
   "duga-write-publish-note": "Duga gör den här redigeringen på Wikidata åt dig, med ditt konto $1, så fort du trycker på ”Publicera”. Den blir offentlig, som alla andra Wikidata-redigeringar.",
+  "duga-write-publish-note-both": "Duga gör de här redigeringarna på Wikidata åt dig, en för varje fält du fyller i, med ditt konto $1, så fort du trycker på ”Publicera”. De blir offentliga, som alla andra Wikidata-redigeringar.",
   "duga-write-view-on-wikidata": "Visa på Wikidata",
   "duga-write-error-required": "Ange ett värde.",
   "duga-write-error-disabled": "Skrivning till Wikidata är tillfälligt avstängd. Försök igen senare.",
@@ -88,6 +90,8 @@
   "duga-write-error-relogin": "Din inloggning har gått ut. Logga in igen för att fortsätta.",
   "duga-write-error-failed": "Redigeringen misslyckades: $1",
   "duga-write-success": "Sparat på Wikidata. Tack!",
+  "duga-write-success-both": "Båda sparade på Wikidata. Tack!",
+  "duga-write-success-partial": "Den första redigeringen sparades på Wikidata, men inte den andra. $1",
   "duga-write-title-sense": "Lägg till en betydelse för $1",
   "duga-write-explain-sense": "$1 är länkad till Wikidata-lexemet $2, men det lexemet har ingen betydelse för det här ännu. Föreslå en kort definition nedan.",
   "duga-write-value-label-sense": "Kort definition",
@@ -247,5 +251,8 @@
   "duga-nav-label": "Webbplatsnavigering",
   "duga-nav-interface-language-short": "Gränssnitt",
   "duga-footer-label": "Om det här verktyget",
-  "duga-footer-source": "Källkod"
+  "duga-footer-source": "Källkod",
+  "duga-write-also-title-description": "Medan du ändå är här: lägga till en beskrivning också?",
+  "duga-write-also-explain-label": "$1 saknar också en etikett på det här språket. Fyll i den för att publicera båda på en gång, eller lämna fältet tomt för att hoppa över det.",
+  "duga-write-also-explain-description": "$1 saknar också en beskrivning på det här språket. Fyll i den för att publicera båda på en gång, eller lämna fältet tomt för att hoppa över det."
 }

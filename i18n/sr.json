@@ -71,6 +71,7 @@
   "duga-write-explain-description": "$1 још увек нема опис на овом језику. Предложите га испод.",
   "duga-write-value-label-label": "Ознака",
   "duga-write-value-label-description": "Опис",
+  "duga-write-also-title-label": "Кад сте већ ту: да додате и ознаку?",
   "duga-write-reference-heading": "Већ на Википодацима",
   "duga-write-reference-no-label": "нема ознаку",
   "duga-write-reference-no-description": "нема опис",
@@ -78,6 +79,7 @@
   "duga-write-back-to-gaps": "Назад на списак празнина",
   "duga-write-publish-button": "Објави",
   "duga-write-publish-note": "Дуга ће ову измену направити на Википодацима у ваше име, са налога $1, чим притиснете „Објави”. Биће јавна, као и свака друга измена на Википодацима.",
+  "duga-write-publish-note-both": "Дуга ће ове измене направити на Википодацима у ваше име, по једну за свако попуњено поље, са налога $1, чим притиснете „Објави”. Биће јавне, као и свака друга измена на Википодацима.",
   "duga-write-view-on-wikidata": "Погледај на Википодацима",
   "duga-write-error-required": "Молимо унесите вредност.",
   "duga-write-error-disabled": "Уписивање на Википодатке је привремено онемогућено. Покушајте поново касније.",
@@ -85,6 +87,8 @@
   "duga-write-error-relogin": "Ваша пријава је истекла. Молимо пријавите се поново да бисте наставили.",
   "duga-write-error-failed": "Измена није успела: $1",
   "duga-write-success": "Сачувано на Википодацима. Хвала вам!",
+  "duga-write-success-both": "Обоје је сачувано на Википодацима. Хвала!",
+  "duga-write-success-partial": "Прва измена је сачувана на Википодацима, а друга није. $1",
   "duga-write-title-sense": "Додај значење за $1",
   "duga-write-explain-sense": "$1 је повезан са лексемом $2 на Википодацима, али та лексема још нема ово значење. Предложите дефиницију (сјај) испод.",
   "duga-write-value-label-sense": "Сјај (дефиниција)",
@@ -244,5 +248,8 @@
   "duga-nav-label": "Навигација сајта",
   "duga-nav-interface-language-short": "Интерфејс",
   "duga-footer-label": "О овој алатки",
-  "duga-footer-source": "Изворни код"
+  "duga-footer-source": "Изворни код",
+  "duga-write-also-title-description": "Кад сте већ ту: да додате и опис?",
+  "duga-write-also-explain-label": "$1 нема ни ознаку на овом језику. Попуните је да објавите обоје одједном или оставите празно да прескочите.",
+  "duga-write-also-explain-description": "$1 нема ни опис на овом језику. Попуните га да објавите обоје одједном или оставите празно да прескочите."
 }

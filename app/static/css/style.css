@@ -1066,6 +1066,31 @@ a[target="_blank"]::after {
   font-size: 0.85rem;
 }
 
+/* "While you're here": the optional second term, set apart so it reads
+   as an offer rather than as a second required field. */
+.write-also {
+  max-width: var(--measure);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.write-also legend {
+  padding-inline: var(--space-1);
+  font-weight: 600;
+}
+
+.write-also-explain {
+  margin-top: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.write-also input[type="text"] {
+  width: 100%;
+}
+
 /* Publish and the note that says what it does, side by side once there
    is room -- the same shape as the gap list's "Hide this gap". */
 .write-publish {

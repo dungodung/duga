@@ -407,3 +407,93 @@ def test_publish_never_redirects_off_site(client, app, db, seed_languages, logge
     for evil in ("https://evil.example/", "//evil.example/", "/\\evil.example/"):
         resp = client.post(f"/gap/{gap.id}/edit", data={"value": "x", "next": evil})
         assert resp.location == "/sr/gaps", evil
+
+
+# -- two in one: the other missing term, while you're here ---------------------
+
+
+def _label_and_description_gaps():
+    return make_gap(gap_type="no_label"), make_gap(gap_type="no_description")
+
+
+def test_edit_form_offers_the_description_when_it_is_missing_too(client, db, seed_languages, logged_in_with_token):
+    label_gap, _ = _label_and_description_gaps()
+    body = client.get(f"/gap/{label_gap.id}/edit?uselang=en").data.decode()
+    assert "add a description too?" in body
+    assert 'name="also_value"' in body
+    assert "one for each field you fill in" in body
+
+
+def test_edit_form_offers_the_label_from_the_description_side_too(client, db, seed_languages, logged_in_with_token):
+    _, description_gap = _label_and_description_gaps()
+    body = client.get(f"/gap/{description_gap.id}/edit?uselang=en").data.decode()
+    assert "add a label too?" in body
+
+
+def test_edit_form_offers_nothing_extra_when_only_one_is_missing(client, db, seed_languages, logged_in_with_token):
+    gap = make_gap(gap_type="no_label")
+    body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
+    assert 'name="also_value"' not in body
+    assert "one for each field you fill in" not in body
+
+
+def test_a_hidden_companion_is_not_offered(client, db, seed_languages, logged_in_with_token):
+    label_gap, _ = _label_and_description_gaps()
+    db.session.add(GapOverride(
+        topic_qid="Q1", language_code="sr", project_code="wikidata", gap_type="no_description",
+        status="declined", set_by="someone", set_at=datetime.now(timezone.utc),
+    ))
+    db.session.commit()
+    body = client.get(f"/gap/{label_gap.id}/edit?uselang=en").data.decode()
+    assert 'name="also_value"' not in body
+
+
+@responses.activate
+def test_publishing_both_makes_two_edits_and_closes_both_gaps(client, db, seed_languages, logged_in_with_token):
+    mock_wikidata_write()
+    label_gap, _ = _label_and_description_gaps()
+
+    resp = client.post(f"/gap/{label_gap.id}/edit?uselang=en", data={"value": "ознака", "also_value": "опис"}, follow_redirects=True)
+    assert "Both saved to Wikidata" in resp.data.decode()
+    assert Gap.query.count() == 0
+    edits = WikiEdit.query.order_by(WikiEdit.id).all()
+    assert [(e.edit_kind, e.status) for e in edits] == [("label", "success"), ("description", "success")]
+    posted = [c.request.body for c in responses.calls if c.request.method == "POST"]
+    assert "wbsetlabel" in posted[0] and "wbsetdescription" in posted[1]
+
+
+@responses.activate
+def test_leaving_the_second_field_empty_makes_one_edit(client, db, seed_languages, logged_in_with_token):
+    mock_wikidata_write()
+    label_gap, description_gap = _label_and_description_gaps()
+
+    client.post(f"/gap/{label_gap.id}/edit", data={"value": "ознака", "also_value": "  "})
+    assert WikiEdit.query.count() == 1
+    assert [g.id for g in Gap.query.all()] == [description_gap.id]
+
+
+@responses.activate
+def test_when_the_second_edit_fails_the_first_still_counts(client, db, seed_languages, logged_in_with_token):
+    responses.add(responses.GET, API_URL, json={"query": {"tokens": {"csrftoken": "abc"}}}, status=200)
+    responses.add(responses.POST, API_URL, json={"entity": {"lastrevid": 1}}, status=200)
+    responses.add(responses.POST, API_URL, json={"error": {"code": "permissiondenied", "info": "blocked"}}, status=200)
+    label_gap, description_gap = _label_and_description_gaps()
+
+    resp = client.post(f"/gap/{label_gap.id}/edit?uselang=en", data={"value": "ознака", "also_value": "опис"}, follow_redirects=True)
+    body = resp.data.decode()
+    assert "The first edit was saved to Wikidata, but the second wasn" in body
+    assert "blocked" in body
+    assert [g.id for g in Gap.query.all()] == [description_gap.id]
+
+
+@responses.activate
+def test_the_second_edit_respects_the_rate_limit_on_its_own(client, app, db, seed_languages, logged_in_with_token):
+    """The first edit may use up the last of the hour's allowance."""
+    mock_wikidata_write()
+    app.config["DUGA_MAX_WRITES_PER_HOUR_PER_USER"] = 1
+    label_gap, description_gap = _label_and_description_gaps()
+
+    resp = client.post(f"/gap/{label_gap.id}/edit?uselang=en", data={"value": "ознака", "also_value": "опис"}, follow_redirects=True)
+    assert "Too many edits recently" in resp.data.decode()
+    assert WikiEdit.query.count() == 1
+    assert [g.id for g in Gap.query.all()] == [description_gap.id]

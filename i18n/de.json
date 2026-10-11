@@ -74,6 +74,7 @@
   "duga-write-explain-description": "$1 hat in dieser Sprache noch keine Beschreibung. Schlage unten eine vor.",
   "duga-write-value-label-label": "Bezeichnung",
   "duga-write-value-label-description": "Beschreibung",
+  "duga-write-also-title-label": "Wo du schon hier bist: auch eine Bezeichnung hinzufügen?",
   "duga-write-reference-heading": "Schon auf Wikidata",
   "duga-write-reference-no-label": "keine Bezeichnung",
   "duga-write-reference-no-description": "keine Beschreibung",
@@ -81,6 +82,7 @@
   "duga-write-back-to-gaps": "Zurück zur Lückenliste",
   "duga-write-publish-button": "Veröffentlichen",
   "duga-write-publish-note": "Duga nimmt diese Bearbeitung für dich auf Wikidata vor, mit deinem Konto $1, sobald du auf „Veröffentlichen“ klickst. Sie ist öffentlich, wie jede andere Wikidata-Bearbeitung.",
+  "duga-write-publish-note-both": "Duga nimmt diese Bearbeitungen für dich auf Wikidata vor, eine pro ausgefülltem Feld, mit deinem Konto $1, sobald du auf „Veröffentlichen“ klickst. Sie sind öffentlich, wie jede andere Wikidata-Bearbeitung.",
   "duga-write-view-on-wikidata": "Auf Wikidata ansehen",
   "duga-write-error-required": "Bitte gib einen Wert ein.",
   "duga-write-error-disabled": "Das Schreiben nach Wikidata ist vorübergehend deaktiviert. Bitte versuche es später erneut.",
@@ -88,6 +90,8 @@
   "duga-write-error-relogin": "Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.",
   "duga-write-error-failed": "Die Bearbeitung ist fehlgeschlagen: $1",
   "duga-write-success": "Auf Wikidata gespeichert. Danke!",
+  "duga-write-success-both": "Beides auf Wikidata gespeichert. Danke!",
+  "duga-write-success-partial": "Die erste Bearbeitung wurde auf Wikidata gespeichert, die zweite nicht. $1",
   "duga-write-title-sense": "Bedeutung für $1 hinzufügen",
   "duga-write-explain-sense": "$1 ist mit dem Wikidata-Lexem $2 verknüpft, aber dieses Lexem hat für diese Bedeutung noch keinen Sense. Schlage unten eine kurze Definition vor.",
   "duga-write-value-label-sense": "Kurzdefinition",
@@ -247,5 +251,8 @@
   "duga-nav-label": "Website-Navigation",
   "duga-nav-interface-language-short": "Oberfläche",
   "duga-footer-label": "Über dieses Werkzeug",
-  "duga-footer-source": "Quellcode"
+  "duga-footer-source": "Quellcode",
+  "duga-write-also-title-description": "Wo du schon hier bist: auch eine Beschreibung hinzufügen?",
+  "duga-write-also-explain-label": "$1 hat in dieser Sprache auch keine Bezeichnung. Fülle sie aus, um beides auf einmal zu veröffentlichen, oder lass das Feld leer, um sie zu überspringen.",
+  "duga-write-also-explain-description": "$1 hat in dieser Sprache auch keine Beschreibung. Fülle sie aus, um beides auf einmal zu veröffentlichen, oder lass das Feld leer, um sie zu überspringen."
 }

@@ -74,6 +74,7 @@
   "duga-write-explain-description": "$1 non ha ancora una descrizione in questa lingua. Proponine una qui sotto.",
   "duga-write-value-label-label": "Etichetta",
   "duga-write-value-label-description": "Descrizione",
+  "duga-write-also-title-label": "Già che ci sei: aggiungi anche un'etichetta?",
   "duga-write-reference-heading": "Già su Wikidata",
   "duga-write-reference-no-label": "nessuna etichetta",
   "duga-write-reference-no-description": "nessuna descrizione",
@@ -81,6 +82,7 @@
   "duga-write-back-to-gaps": "Torna all'elenco delle lacune",
   "duga-write-publish-button": "Pubblica",
   "duga-write-publish-note": "Duga farà questa modifica su Wikidata per te, con il tuo account $1, non appena premi «Pubblica». Sarà pubblica, come qualsiasi altra modifica su Wikidata.",
+  "duga-write-publish-note-both": "Duga farà queste modifiche su Wikidata per te, una per ogni campo che compili, con il tuo account $1, non appena premi «Pubblica». Saranno pubbliche, come qualsiasi altra modifica su Wikidata.",
   "duga-write-view-on-wikidata": "Vedi su Wikidata",
   "duga-write-error-required": "Inserisci un valore.",
   "duga-write-error-disabled": "La scrittura su Wikidata è temporaneamente disattivata. Riprova più tardi.",
@@ -88,6 +90,8 @@
   "duga-write-error-relogin": "La tua sessione è scaduta. Accedi di nuovo per continuare.",
   "duga-write-error-failed": "La modifica non è riuscita: $1",
   "duga-write-success": "Salvato su Wikidata. Grazie!",
+  "duga-write-success-both": "Entrambe salvate su Wikidata. Grazie!",
+  "duga-write-success-partial": "La prima modifica è stata salvata su Wikidata, la seconda no. $1",
   "duga-write-title-sense": "Aggiungi un significato per $1",
   "duga-write-explain-sense": "$1 è collegato al lessema Wikidata $2, ma quel lessema non ha ancora un significato per questa accezione. Proponi qui sotto una glossa (una definizione breve).",
   "duga-write-value-label-sense": "Glossa",
@@ -247,5 +251,8 @@
   "duga-nav-label": "Navigazione del sito",
   "duga-nav-interface-language-short": "Interfaccia",
   "duga-footer-label": "Informazioni su questo strumento",
-  "duga-footer-source": "Codice sorgente"
+  "duga-footer-source": "Codice sorgente",
+  "duga-write-also-title-description": "Già che ci sei: aggiungi anche una descrizione?",
+  "duga-write-also-explain-label": "Anche l'etichetta di $1 manca in questa lingua. Compilala per pubblicare entrambe insieme, oppure lasciala vuota per saltarla.",
+  "duga-write-also-explain-description": "Anche la descrizione di $1 manca in questa lingua. Compilala per pubblicare entrambe insieme, oppure lasciala vuota per saltarla."
 }

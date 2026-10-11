@@ -74,6 +74,7 @@
   "duga-write-explain-description": "$1 todavía no tiene descripción en este idioma. Propón una abajo.",
   "duga-write-value-label-label": "Etiqueta",
   "duga-write-value-label-description": "Descripción",
+  "duga-write-also-title-label": "Ya que estás aquí: ¿añades también una etiqueta?",
   "duga-write-reference-heading": "Ya en Wikidata",
   "duga-write-reference-no-label": "sin etiqueta",
   "duga-write-reference-no-description": "sin descripción",
@@ -81,6 +82,7 @@
   "duga-write-back-to-gaps": "Volver a la lista de vacíos",
   "duga-write-publish-button": "Publicar",
   "duga-write-publish-note": "Duga hará esta edición en Wikidata por ti, con tu cuenta $1, en cuanto pulses «Publicar». Será pública, como cualquier otra edición en Wikidata.",
+  "duga-write-publish-note-both": "Duga hará estas ediciones en Wikidata por ti, una por cada campo que rellenes, con tu cuenta $1, en cuanto pulses «Publicar». Serán públicas, como cualquier otra edición en Wikidata.",
   "duga-write-view-on-wikidata": "Ver en Wikidata",
   "duga-write-error-required": "Introduce un valor.",
   "duga-write-error-disabled": "La escritura en Wikidata está desactivada temporalmente. Inténtalo de nuevo más tarde.",
@@ -88,6 +90,8 @@
   "duga-write-error-relogin": "Tu sesión ha caducado. Vuelve a iniciar sesión para continuar.",
   "duga-write-error-failed": "La edición falló: $1",
   "duga-write-success": "Guardado en Wikidata. ¡Gracias!",
+  "duga-write-success-both": "Ambas guardadas en Wikidata. ¡Gracias!",
+  "duga-write-success-partial": "La primera edición se guardó en Wikidata, pero la segunda no. $1",
   "duga-write-title-sense": "Añadir una acepción para $1",
   "duga-write-explain-sense": "$1 está enlazado al lexema $2 de Wikidata, pero ese lexema todavía no tiene una acepción para este significado. Propón abajo una glosa (una definición breve).",
   "duga-write-value-label-sense": "Glosa",
@@ -247,5 +251,8 @@
   "duga-nav-label": "Navegación del sitio",
   "duga-nav-interface-language-short": "Interfaz",
   "duga-footer-label": "Acerca de esta herramienta",
-  "duga-footer-source": "Código fuente"
+  "duga-footer-source": "Código fuente",
+  "duga-write-also-title-description": "Ya que estás aquí: ¿añades también una descripción?",
+  "duga-write-also-explain-label": "$1 tampoco tiene etiqueta en este idioma. Rellénala para publicar ambas cosas a la vez, o déjala vacía para omitirla.",
+  "duga-write-also-explain-description": "$1 tampoco tiene descripción en este idioma. Rellénala para publicar ambas cosas a la vez, o déjala vacía para omitirla."
 }
