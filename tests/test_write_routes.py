@@ -91,7 +91,7 @@ def test_edit_form_publishes_in_one_step_and_says_so(client, db, seed_languages,
     from the person's own account, is the per-edit confirmation."""
     gap = make_gap()
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
-    assert ">Publish</button>" in body
+    assert 'class="button">Publish</button>' in body
     assert "from your account" in body
     assert "Preview" not in body
 
@@ -202,12 +202,13 @@ def test_publish_without_stored_token_prompts_relogin(client, db, seed_languages
     assert WikiEdit.query.count() == 0
 
 
-# -- the English reference on the edit form ----------------------------------
+# -- what Wikidata already says, on the edit form -----------------------------
 #
-# Someone writing a Serbian description is translating from the English
-# one; without it they are guessing which "Mercury" the item is. Both
-# strings are recorded by the detector, so showing them costs no API call
-# at render time.
+# Someone writing a Serbian description is translating from another
+# language's; without it they are guessing which "Mercury" the item is.
+# English, recorded by the detector, unless the contributor chose other
+# languages on their account page, which are looked up live. The
+# `wikidata_terms_offline` fixture stands in for that lookup.
 
 
 def _wikidata_gap(db, gap_type="no_description", evidence=None):
@@ -233,7 +234,8 @@ def test_edit_form_shows_the_english_label_and_description(client, db, seed_lang
     })
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
-    assert "On Wikidata in English:" in body
+    assert "Already on Wikidata" in body
+    assert "<dt>English</dt>" in body
     assert "Mercury" in body
     assert "chemical element with symbol Hg" in body
 
@@ -246,7 +248,7 @@ def test_edit_form_does_not_repeat_the_label_it_already_shows(client, db, seed_l
     })
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
-    reference = body.split('class="english-reference"')[1].split("</div>")[0]
+    reference = body.split('class="wikidata-reference"')[1].split("</div>")[0]
     assert "chemical element" in reference
     assert "Mercury" not in reference
 
@@ -257,7 +259,7 @@ def test_edit_form_omits_the_block_entirely_when_nothing_was_recorded(client, db
     gap = _wikidata_gap(db, evidence={"label": "Живa", "label_lang": "sr"})
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
-    assert "english-reference" not in body
+    assert "wikidata-reference-heading" not in body
 
 
 def test_the_english_text_is_marked_as_english(client, db, seed_languages, logged_in_with_token):
@@ -267,5 +269,70 @@ def test_the_english_text_is_marked_as_english(client, db, seed_languages, logge
     })
 
     body = client.get(f"/gap/{gap.id}/edit").data.decode()
-    assert '<span lang="en" class="english-reference-label">Mercury</span>' in body
-    assert '<span lang="en">chemical element</span>' in body
+    assert '<span lang="en" dir="auto" class="wikidata-reference-label">Mercury</span>' in body
+    assert '<span lang="en" dir="auto">chemical element</span>' in body
+
+
+def _choose(contributor, *codes):
+    from app import reference_languages
+
+    reference_languages.save(contributor, codes)
+    db.session.commit()
+
+
+def test_edit_form_shows_each_chosen_language_in_order(client, db, seed_languages, logged_in_with_token, wikidata_terms_offline):
+    _choose(logged_in_with_token, "de", "en")
+    wikidata_terms_offline.terms = {
+        "de": {"label": "Quecksilber", "description": "chemisches Element"},
+        "en": {"label": "mercury", "description": "chemical element with symbol Hg"},
+    }
+    gap = _wikidata_gap(db, evidence={"label": "Живa", "label_lang": "sr"})
+
+    body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
+    assert wikidata_terms_offline.calls == [("Q1", ["de", "en"])]
+    assert body.index("<dt>German</dt>") < body.index("<dt>English</dt>")
+    assert '<span lang="de" dir="auto" class="wikidata-reference-label">Quecksilber</span>' in body
+    assert "chemical element with symbol Hg" in body
+
+
+def test_edit_form_never_asks_for_the_language_being_written(client, db, seed_languages, logged_in_with_token, wikidata_terms_offline):
+    _choose(logged_in_with_token, "sr", "de")
+    wikidata_terms_offline.terms = {"de": {"label": "Quecksilber", "description": None}}
+    gap = _wikidata_gap(db)
+
+    client.get(f"/gap/{gap.id}/edit?uselang=en")
+    assert wikidata_terms_offline.calls == [("Q1", ["de"])]
+
+
+def test_edit_form_says_when_a_chosen_language_has_nothing_yet(client, db, seed_languages, logged_in_with_token, wikidata_terms_offline):
+    _choose(logged_in_with_token, "de")
+    wikidata_terms_offline.terms = {"de": {"label": None, "description": None}}
+    gap = _wikidata_gap(db)
+
+    body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
+    assert "<dt>German</dt>" in body
+    assert "nothing yet" in body
+
+
+def test_edit_form_falls_back_to_stored_english_when_wikidata_is_unreachable(client, db, seed_languages, logged_in_with_token, wikidata_terms_offline):
+    """A slow Wikidata costs the page its extra languages, never the form."""
+    _choose(logged_in_with_token, "de", "en")
+    gap = _wikidata_gap(db, evidence={"label": "Живa", "label_lang": "sr", "description_en": "chemical element"})
+
+    resp = client.get(f"/gap/{gap.id}/edit?uselang=en")
+    body = resp.data.decode()
+    assert resp.status_code == 200
+    assert "chemical element" in body
+    assert "<dt>German</dt>" not in body
+    assert 'name="value"' in body
+
+
+def test_edit_form_with_no_languages_chosen_shows_none_and_links_to_the_setting(client, db, seed_languages, logged_in_with_token, wikidata_terms_offline):
+    _choose(logged_in_with_token)
+    gap = _wikidata_gap(db, evidence={"label": "Живa", "label_lang": "sr", "description_en": "chemical element"})
+
+    body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
+    assert wikidata_terms_offline.calls == []
+    assert "chemical element" not in body
+    assert 'href="/account#reference-languages"' in body
+

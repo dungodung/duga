@@ -113,7 +113,7 @@ def test_add_sense_form_publishes_in_one_step_and_says_so(client, db, seed_langu
     concept = make_concept()
     term = make_term(concept)
     body = client.get(f"/term/{term.id}/add-sense?uselang=en").data.decode()
-    assert ">Publish</button>" in body
+    assert 'class="button">Publish</button>' in body
     assert "from your account" in body
     assert "Preview" not in body
 

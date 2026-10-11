@@ -286,7 +286,21 @@ disallowed, it's not expressible through this code path at all.
   other Wikidata edit -- Duga is not a bot account making the edit on their
   behalf, the OAuth token *is* their account.
 - `app/wikidata_lookup.py` also exists (see M7 below) but performs no
-  writes -- it's a single read-only `wbgetentities` existence check.
+  writes -- it holds two single-entity, read-only `wbgetentities` calls.
+- **Languages you translate from.** The edit form shows what Wikidata
+  already says about the item -- label and description -- in each
+  language the contributor chose on `/account` (up to five; English until
+  they choose; none if they remove them all). The choice lives in
+  `contributor.languages_json` as `{"reference": [codes]}`
+  (`app/reference_languages.py`). The list to choose from is every
+  language Wikidata accepts terms in, baked into
+  `data/wikidata_term_languages.json` by `scripts/fetch_term_languages.py`
+  with names in each interface language, and offered through a native
+  `<datalist>`, so the search works without JavaScript. Because which
+  languages is up to each contributor, no detector can store them in
+  advance: the form makes one live `wikidata_lookup.entity_terms()` call
+  for the one item, 3s timeout, and falls back to the English the
+  detector stored if that fails.
 
 ## Promoting local vocabulary upstream (M7)
 

@@ -22,11 +22,12 @@ from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, abort, current_app, flash, g, redirect, render_template, request, url_for
 
-from ... import i18n
+from ... import i18n, reference_languages
 from ...audit import log as audit_log
 from ...extensions import db
 from ...models import Gap, WikiEdit
 from ...token_store import TokenUnavailable, get_valid_access_token
+from ...wikidata_lookup import entity_terms
 from ...wikidata_write import (
     EDITABLE_GAP_TYPES,
     WikidataWriteError,
@@ -69,11 +70,10 @@ def _gap_evidence_label(gap):
 
 
 def _english_reference(gap):
-    """The English label/description Wikidata already holds, for someone
-    writing the missing one in another language. Both are recorded by
-    wd_no_label/wd_no_description at detection time, so rendering this
-    costs no API call -- the web side never talks to the Wikidata API to
-    draw a page.
+    """The English label/description Wikidata already holds, as recorded by
+    wd_no_label/wd_no_description at detection time. The edit form's
+    fallback when the live lookup in _reference_terms() can't reach
+    Wikidata.
 
     The label is dropped when it is the same string already shown as the
     heading (which is the normal case for a missing *label*, where the
@@ -93,6 +93,51 @@ def _english_reference(gap):
     if not label and not description:
         return {}
     return {"label": label, "description": description}
+
+
+def _reference_terms(gap, contributor):
+    """What Wikidata already says about the item in each language the
+    contributor translates from (their account page; English until they
+    choose), as rows for the edit page, in their order.
+
+    The gap's own language is skipped -- it is the one being written.
+    When Wikidata can't be reached, the English the detector stored stands
+    in, so the page degrades to exactly what it showed before there was a
+    choice. A language with nothing yet still gets a row: knowing the
+    German description is missing too is worth a line.
+    """
+    lang = g.get("interface_lang", i18n.FALLBACK_LANG)
+    codes = [code for code in reference_languages.chosen(contributor) if code != gap.language_code]
+    if not codes:
+        return []
+
+    terms = entity_terms(
+        current_app.config["DUGA_WIKIDATA_API"],
+        gap.topic_qid,
+        codes,
+        current_app.config["DUGA_USER_AGENT"],
+    )
+    if terms is None:
+        english = _english_reference(gap)
+        terms = {"en": english} if english and "en" in codes else {}
+        codes = [code for code in codes if code in terms]
+
+    heading = _gap_evidence_label(gap)
+    rows = []
+    for code in codes:
+        label = terms[code].get("label")
+        description = terms[code].get("description")
+        # A label that is the page heading again adds nothing -- unless it
+        # is all this language has, when dropping it would read "nothing".
+        if label == heading and description:
+            label = None
+        rows.append({
+            "code": code,
+            "name": reference_languages.name(code, lang),
+            "label": label,
+            "description": description,
+        })
+    return rows
 
 
 def _term_awaiting_sense_or_404(term_id):
@@ -127,7 +172,7 @@ def edit_form(gap_id):
         gap=gap,
         edit_kind=EDITABLE_GAP_TYPES[gap.gap_type],
         label=_gap_evidence_label(gap),
-        english=_english_reference(gap),
+        references=_reference_terms(gap, current_contributor()),
     )
 
 

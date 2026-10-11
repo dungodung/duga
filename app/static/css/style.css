@@ -44,7 +44,7 @@
   /* -- surfaces -- */
   --bg: #ffffff;
   --surface: #faf7fd;         /* cards, filter bars, the picker body */
-  --surface-sunken: #f3eef9;  /* inset blocks: english-reference, evidence */
+  --surface-sunken: #f3eef9;  /* inset blocks: wikidata-reference, evidence */
   --border: #ddd6e6;
   --border-strong: #c4b8d6;   /* a card edge, never text */
 
@@ -567,6 +567,57 @@ summary:focus:not(:focus-visible) {
   font-size: 0.9rem;
 }
 
+/* -- account: reference languages -- */
+.reference-languages {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-3);
+  max-width: var(--measure);
+}
+
+.reference-languages li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-inline-start: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.reference-language-autonym,
+.reference-language-hint,
+.reference-languages-none {
+  color: var(--muted);
+}
+
+.reference-language-autonym {
+  margin-inline-start: var(--space-2);
+}
+
+.reference-language-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: var(--measure);
+}
+
+.reference-language-hint {
+  font-size: 0.9rem;
+}
+
+.reference-language-add-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.reference-language-add-row input {
+  flex: 1;
+  min-width: 0;
+  /* 1rem, not smaller -- see .lang-search input on iOS zoom. */
+  font-size: 1rem;
+  padding: 0.4rem;
+}
+
 /* -- the disclosure -- */
 
 .lang-picker {
@@ -640,7 +691,8 @@ summary:focus:not(:focus-visible) {
   white-space: nowrap;
 }
 
-/* The one place on a page where a link should look like the thing to press.
+/* The one place on a page where a link -- or a form's one submit button --
+   should look like the thing to press.
    Used for a single primary action per page, never for several side by
    side -- SPEC.md section 12 asks for "a single button that goes to the
    place where you fix it". */
@@ -649,10 +701,14 @@ summary:focus:not(:focus-visible) {
   padding: var(--space-2) var(--space-4);
   min-height: var(--tap);
   border-radius: var(--radius);
+  /* Also a <button>: Publish on the edit forms. */
+  border: 0;
   background: var(--link);
   color: var(--bg);
+  font: inherit;
   font-weight: 600;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .button:hover {
@@ -788,7 +844,7 @@ summary:focus:not(:focus-visible) {
   font-size: 0.9rem;
 }
 
-.english-reference {
+.wikidata-reference {
   border-inline-start: 3px solid var(--spectrum-violet);
   background: var(--surface-sunken);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
@@ -797,7 +853,7 @@ summary:focus:not(:focus-visible) {
   font-size: 0.95rem;
 }
 
-.english-reference-heading {
+.wikidata-reference-heading {
   display: block;
   color: var(--muted);
   font-size: 0.85rem;
@@ -805,9 +861,47 @@ summary:focus:not(:focus-visible) {
   letter-spacing: 0.03em;
 }
 
-.english-reference-label {
+/* Language name over its text on a phone; side by side, in two aligned
+   columns, once there is room. */
+.wikidata-reference dl {
+  margin: var(--space-2) 0;
+}
+
+.wikidata-reference dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: var(--space-2);
+}
+
+.wikidata-reference dd {
+  margin: 0;
+}
+
+@media (min-width: 30rem) {
+  .wikidata-reference dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--space-1) var(--space-3);
+    align-items: baseline;
+  }
+
+  .wikidata-reference dt {
+    margin-top: 0;
+  }
+}
+
+.wikidata-reference-label {
   font-weight: 600;
   margin-inline-end: 0.4rem;
+}
+
+.wikidata-reference-missing {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.wikidata-reference-change {
+  font-size: 0.9rem;
 }
 
 .gap-list {
@@ -1084,6 +1178,11 @@ form button[type="submit"] {
   min-height: var(--tap);
   padding-inline: var(--space-4);
   font: inherit;
+}
+
+/* `font: inherit` above outranks .button's weight on a submit button. */
+form button.button {
+  font-weight: 600;
 }
 
 /* -- the header on a phone --

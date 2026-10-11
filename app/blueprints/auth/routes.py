@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 from functools import wraps
 
-from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, g, redirect, render_template, request, session, url_for
 
+from ... import i18n, reference_languages
 from ...audit import log as audit_log
 from ...extensions import db
 from ...models import Contributor
@@ -125,7 +126,21 @@ def logout():
 def account():
     contributor = current_contributor()
     continue_url = _safe_next(request.args.get("next"))
-    return render_template("account.html", contributor=contributor, continue_url=continue_url)
+    lang = g.get("interface_lang", i18n.FALLBACK_LANG)
+    chosen = reference_languages.chosen(contributor)
+    return render_template(
+        "account.html",
+        contributor=contributor,
+        continue_url=continue_url,
+        reference_languages=[
+            {"code": code, "name": reference_languages.name(code, lang), "autonym": reference_languages.autonym(code)}
+            for code in chosen
+        ],
+        reference_full=len(chosen) >= reference_languages.MAX_LANGUAGES,
+        reference_max=reference_languages.MAX_LANGUAGES,
+        # Only drawn while there is room for another language.
+        reference_options=[] if len(chosen) >= reference_languages.MAX_LANGUAGES else reference_languages.options(lang),
+    )
 
 
 @auth_bp.post("/account/attribution")
@@ -146,3 +161,40 @@ def update_attribution():
         )
     db.session.commit()
     return redirect(url_for("auth.account"))
+
+
+def _back_to_reference_languages():
+    return redirect(url_for("auth.account", _anchor="reference-languages"))
+
+
+@auth_bp.post("/account/reference-languages/add")
+@login_required
+def add_reference_language():
+    contributor = current_contributor()
+    lang = g.get("interface_lang", i18n.FALLBACK_LANG)
+    typed = request.form.get("language", "")
+    code = reference_languages.resolve(typed, lang)
+    if code is None:
+        flash(i18n.translate("duga-account-reference-unknown", lang, typed.strip()))
+        return _back_to_reference_languages()
+
+    chosen = reference_languages.chosen(contributor)
+    if code not in chosen:
+        if len(chosen) >= reference_languages.MAX_LANGUAGES:
+            flash(i18n.translate("duga-account-reference-full", lang))
+            return _back_to_reference_languages()
+        reference_languages.save(contributor, chosen + [code])
+        db.session.commit()
+    return _back_to_reference_languages()
+
+
+@auth_bp.post("/account/reference-languages/remove")
+@login_required
+def remove_reference_language():
+    contributor = current_contributor()
+    code = request.form.get("code", "")
+    chosen = reference_languages.chosen(contributor)
+    if code in chosen:
+        reference_languages.save(contributor, [c for c in chosen if c != code])
+        db.session.commit()
+    return _back_to_reference_languages()

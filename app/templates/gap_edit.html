@@ -5,14 +5,26 @@
 {% block content %}
 <h1>{{ _('duga-write-title-' ~ edit_kind, label) }}</h1>
 
-{% if english %}
-{# What Wikidata already says in English -- the thing you translate from.
-   Recorded by the detector, so drawing this page still makes no API call. #}
-<div class="english-reference">
-  <span class="english-reference-heading">{{ _('duga-write-english-reference') }}</span>
-  {% if english.label %}<span lang="en" class="english-reference-label">{{ english.label }}</span>{% endif %}
-  {% if english.description %}<span lang="en">{{ english.description }}</span>{% endif %}
+{# What Wikidata already says in the languages this contributor
+   translates from -- the thing you translate from. Which languages is
+   their choice, on the account page; English until they make one. #}
+{% if references %}
+<div class="wikidata-reference">
+  <span class="wikidata-reference-heading">{{ _('duga-write-reference-heading') }}</span>
+  <dl>
+    {% for row in references %}
+    <dt>{{ row.name }}</dt>
+    <dd>
+      {%- if row.label %}<span lang="{{ row.code }}" dir="auto" class="wikidata-reference-label">{{ row.label }}</span>{% endif %}
+      {%- if row.description %} <span lang="{{ row.code }}" dir="auto">{{ row.description }}</span>{% endif %}
+      {%- if not row.label and not row.description %}<span class="wikidata-reference-missing">{{ _('duga-write-reference-missing') }}</span>{% endif -%}
+    </dd>
+    {% endfor %}
+  </dl>
+  <a class="wikidata-reference-change" href="{{ url_for('auth.account', _anchor='reference-languages') }}">{{ _('duga-write-reference-change') }}</a>
 </div>
+{% else %}
+<p><a class="wikidata-reference-change" href="{{ url_for('auth.account', _anchor='reference-languages') }}">{{ _('duga-write-reference-change') }}</a></p>
 {% endif %}
 
 <p>{{ _('duga-write-explain-' ~ edit_kind, label) }}</p>
@@ -26,7 +38,7 @@
     <input type="text" id="value" name="value" lang="{{ gap.language_code }}" dir="auto" required>
   </p>
   <div class="write-publish">
-    <button type="submit">{{ _('duga-write-publish-button') }}</button>
+    <button type="submit" class="button">{{ _('duga-write-publish-button') }}</button>
     <span class="write-publish-note">{{ _('duga-write-publish-note', contributor.wiki_username) }}</span>
   </div>
 </form>

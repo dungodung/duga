@@ -16,6 +16,51 @@
   <button type="submit">{{ _('duga-account-attribution-save') }}</button>
 </form>
 
+{# The languages the edit page shows Wikidata's existing label and
+   description in, for translating from. Works without JavaScript: the
+   searchable list is a native <datalist>, and adding and removing are
+   ordinary form posts. #}
+<h2 id="reference-languages">{{ _('duga-account-reference-title') }}</h2>
+<p>{{ _('duga-account-reference-explain', reference_max) }}</p>
+{% if reference_languages %}
+<ul class="reference-languages">
+  {% for language in reference_languages %}
+  <li>
+    <span class="reference-language-name">{{ language.name }}
+      {%- if language.autonym | lower != language.name | lower %}
+      <span class="reference-language-autonym" lang="{{ language.code }}" dir="auto">{{ language.autonym }}</span>
+      {%- endif %}</span>
+    <form class="lang-remove" method="post" action="{{ url_for('auth.remove_reference_language') }}">
+      <input type="hidden" name="code" value="{{ language.code }}">
+      <button type="submit" class="lang-remove-button"
+              aria-label="{{ _('duga-account-reference-remove', language.name) }}"
+              title="{{ _('duga-account-reference-remove', language.name) }}"><span aria-hidden="true">×</span></button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="reference-languages-none">{{ _('duga-account-reference-none') }}</p>
+{% endif %}
+{% if reference_full %}
+<p class="reference-languages-none">{{ _('duga-account-reference-full') }}</p>
+{% else %}
+<form class="reference-language-add" method="post" action="{{ url_for('auth.add_reference_language') }}">
+  <label for="reference-language">{{ _('duga-account-reference-add-label') }}</label>
+  <span class="reference-language-hint" id="reference-language-hint">{{ _('duga-account-reference-add-hint') }}</span>
+  <div class="reference-language-add-row">
+    <input type="text" id="reference-language" name="language" list="reference-language-options"
+           autocomplete="off" spellcheck="false" aria-describedby="reference-language-hint" required>
+    <button type="submit">{{ _('duga-account-reference-add') }}</button>
+  </div>
+  <datalist id="reference-language-options">
+    {%- for option in reference_options %}
+    <option value="{{ option }}">
+    {%- endfor %}
+  </datalist>
+</form>
+{% endif %}
+
 {% if continue_url and continue_url != url_for('auth.account') %}
 <p><a href="{{ continue_url }}">{{ _('duga-account-continue') }}</a></p>
 {% endif %}

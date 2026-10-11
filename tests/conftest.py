@@ -14,6 +14,28 @@ def app():
         _db.drop_all()
 
 
+@pytest.fixture(autouse=True)
+def wikidata_terms_offline(monkeypatch):
+    """The edit page asks Wikidata for an item's labels in the contributor's
+    reference languages. No test should reach the real API: by default the
+    lookup answers as if Wikidata were unreachable, which is also the path
+    that falls back to the stored English. A test that wants live-looking
+    answers sets `.terms` on the returned object."""
+
+    class Fake:
+        terms = None
+        calls = []
+
+        def __call__(self, api_url, entity_id, languages, user_agent, timeout=3):
+            self.calls.append((entity_id, list(languages)))
+            return self.terms
+
+    fake = Fake()
+    fake.calls = []
+    monkeypatch.setattr("app.blueprints.write.routes.entity_terms", fake)
+    return fake
+
+
 @pytest.fixture()
 def db(app):
     return _db
