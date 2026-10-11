@@ -18,14 +18,14 @@ def test_available_languages_is_read_from_the_directory():
 
 
 def test_translate_returns_requested_language():
-    assert i18n.translate("duga-nav-home", "fr") == "Accueil"
-    assert i18n.translate("duga-nav-home", "sr") == "Почетна"
+    assert i18n.translate("duga-nav-about", "fr") == "À propos"
+    assert i18n.translate("duga-nav-about", "sr") == "О пројекту"
 
 
 def test_translate_falls_back_to_english_for_missing_key():
     # A key present in en.json but deliberately absent elsewhere would fall
     # back; here we simulate that by asking for a nonexistent language.
-    assert i18n.translate("duga-nav-home", "xx") == "Home"
+    assert i18n.translate("duga-nav-about", "xx") == "About"
 
 
 def test_translate_substitutes_positional_placeholders():
@@ -54,7 +54,7 @@ def test_a_message_file_is_parsed_once_however_often_it_is_translated_from():
 
     with mock.patch.object(i18n.json, "load", counting_load):
         for _ in range(25):
-            i18n.translate("duga-nav-home", "en")
+            i18n.translate("duga-nav-about", "en")
 
     assert len(parses) == 1, f"parsed en.json {len(parses)} times, expected once"
 

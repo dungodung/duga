@@ -1,7 +1,6 @@
 {
   "@metadata": {},
   "duga-tagline": "The project tagline, shown under the name on the home page. Keep it short. In your language, feel free to choose a natural local term rather than transliterating \"queer\" if there's a better-established one -- see the /about page for the terminology policy.",
-  "duga-nav-home": "Link label in the site navigation, goes back to the home page.",
   "duga-nav-about": "Link label in the site navigation, goes to the About page.",
   "duga-nav-login": "Link label in the site navigation to log in with a Wikimedia account, shown only to logged-out visitors.",
   "duga-nav-logout": "Button label in the site navigation to log out, shown only to logged-in visitors.",
