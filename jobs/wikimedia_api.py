@@ -210,6 +210,18 @@ def qid_from_uri(uri: str) -> str:
 MAX_ENTITY_IDS_PER_REQUEST = 50  # the action API's limit for non-bot accounts
 
 
+def _label_language(entry):
+    """The language a fallback label is really written in. MediaWiki tags
+    a label it derived for `sr` as `"language": "sr"` even when it came
+    from the Latin-script `sr-el` label (or from `mul`) through the
+    language converter, and says so only in `source-language`. Trusting
+    `language` stored "David Ogden Stiers" as a Serbian label, and Duga
+    then offered it as the title of a new Serbian article."""
+    if not entry:
+        return None
+    return entry.get("source-language") or entry.get("language")
+
+
 def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str, timeout: int = 30):
     """Fetches sitelinks + a best-effort label (with MediaWiki's language
     fallback chain, then an explicit English fallback if that chain still
@@ -261,7 +273,7 @@ def get_entities_batch(api_url: str, qids: list, language: str, user_agent: str,
         result[qid] = {
             "sitelinks": entity.get("sitelinks", {}),
             "label": label_entry["value"] if label_entry else None,
-            "label_lang": label_entry.get("language") if label_entry else None,
+            "label_lang": _label_language(label_entry),
         }
     return result
 
@@ -311,7 +323,7 @@ def get_claims_batch(api_url: str, qids: list, properties: list, language: str, 
         result[qid] = {
             "claims": {prop: bool(claims.get(prop)) for prop in properties},
             "label": label_entry["value"] if label_entry else None,
-            "label_lang": label_entry.get("language") if label_entry else None,
+            "label_lang": _label_language(label_entry),
         }
     return result
 

@@ -453,3 +453,30 @@ def test_retryable_errors_are_still_wikimedia_api_errors():
     """Every existing handler catches WikimediaApiError; the retryable
     subclass must not slip past any of them."""
     assert issubclass(RetryableApiError, WikimediaApiError)
+
+
+@responses.activate
+def test_a_label_converted_from_another_script_is_not_reported_as_the_requested_language():
+    """Q202449 has only a Latin-script `sr-el` label, and asking for `sr`
+    with fallback returns it tagged "language": "sr" -- the truth is in
+    `source-language`. Taking it as Serbian made Duga offer "David Ogden
+    Stiers" as the title of a new Serbian Wikipedia article."""
+    responses.add(
+        responses.GET,
+        API_URL,
+        json={
+            "entities": {
+                "Q202449": {"id": "Q202449", "sitelinks": {}, "labels": {
+                    "sr": {"value": "David Ogden Stiers", "language": "sr", "source-language": "sr-el"},
+                    "en": {"value": "David Ogden Stiers", "language": "en"},
+                }},
+                "Q2": {"id": "Q2", "sitelinks": {}, "labels": {
+                    "sr": {"value": "Example", "language": "sr", "source-language": "mul"},
+                }},
+            }
+        },
+        status=200,
+    )
+    result = get_entities_batch(API_URL, ["Q202449", "Q2"], "sr", "test-agent")
+    assert result["Q202449"]["label_lang"] == "sr-el"
+    assert result["Q2"]["label_lang"] == "mul"
