@@ -30,9 +30,9 @@
     <div class="gap-meta">{{ _('duga-gaps-maturity-' ~ gap.maturity) }}</div>
     <div class="gap-actions">
       {% if gap.create_url %}
-      <a class="gap-action" href="{{ gap.create_url }}" target="_blank" rel="noopener">{{ _('duga-gaps-fix-wikipedia') }}</a>
+      <a class="gap-action" href="{{ gap.create_url }}" target="_blank" rel="noopener" title="{{ _('duga-gaps-fix-wikipedia-tooltip') }}">{{ _('duga-gaps-fix-wikipedia') }}</a>
       {% endif %}
-      <a class="gap-action" href="{{ gap.action_url }}"{% if gap.fix_target != 'duga' %} target="_blank" rel="noopener"{% endif %}>{{ _('duga-gaps-fix-button' if gap.fix_target == 'external' else 'duga-gaps-fix-' ~ gap.fix_target) }}</a>
+      <a class="gap-action" href="{{ gap.action_url }}"{% if gap.fix_target != 'duga' %} target="_blank" rel="noopener"{% endif %}{% if gap.gap_type == 'no_article' %} title="{{ _('duga-gaps-link-on-wikidata-tooltip' if gap.create_url else 'duga-gaps-fix-wikidata-article-tooltip') }}"{% endif %}>{{ _('duga-gaps-fix-button' if gap.fix_target == 'external' else 'duga-gaps-fix-' ~ gap.fix_target) }}</a>
       <a class="gap-action" href="{{ url_for('main.gaps', lang=language.code) }}">{{ _('duga-topic-view-language-gaps', language_label(language)) }}</a>
     </div>
   </li>
