@@ -13,7 +13,7 @@ and `docs/deployment-toolforge.md` cover the current code.
 
 **Status:** all seven milestones (M0-M7) are live. A logged-in visitor can
 fix a `no_label`/`no_description` Wikidata gap directly from the gap list:
-preview the exact edit, confirm, and it's written to Wikidata under their
+type the value, press Publish, and it's written to Wikidata under their
 own account (never as identity statements — see SPEC.md S1). Writes are
 gated by a global kill switch (`DUGA_WRITES_ENABLED`) and per-user/global
 hourly rate limits, and every attempt is recorded in `audit_log` and
@@ -38,7 +38,7 @@ living people out of them. Promotion to `beta`/`stable` is a separate,
 still-unmade human decision (SPEC.md section 11: review with native
 speakers of at least two affected languages). Lexeme write-back is also live: a term already linked to an
 existing Wikidata Lexeme but with no Sense yet can have one added —
-gloss, preview, confirm, same kill switch and rate limits as every other
+gloss, Publish, same kill switch and rate limits as every other
 write — via "Add a sense to this Lexeme" on the term's page; this never
 creates a new Lexeme, only a Sense on one that already exists. Impact
 scoring is also live — a per-(topic, language) score, computed daily from

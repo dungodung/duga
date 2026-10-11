@@ -210,9 +210,8 @@ implements the Wikimedia OAuth 2.0 Authorization Code flow:
   deploying before the OAuth consumer is registered is safe.
 
 As of M4, access/refresh tokens were used once at login and never
-persisted -- M6's preview-then-confirm write flow (see below) needed that
-reversed, since it spans two separate HTTP requests and the second one
-needs a token to act with. See the M6 section for what changed and why.
+persisted -- M6's write flow (see below) needed that reversed, since the
+Publish request comes long after login and needs a token to act with. See the M6 section for what changed and why.
 
 ## Vocabulary (M5)
 
@@ -260,13 +259,15 @@ disallowed, it's not expressible through this code path at all.
 `description` edit kinds; no other gap type is editable.
 
 - `app/blueprints/write/routes.py` (`GET`/`POST /gap/<id>/edit`) --
-  preview-then-confirm: the first `POST` (no `confirmed` field) re-renders
-  the form with the exact value that would be written and does not touch
-  Wikidata; only a second `POST` with `confirmed=1` performs the edit. This
-  is the reason token persistence (below) exists -- the confirm step is a
+  one step: the form shows exactly what will be written, and its Publish
+  button sits beside a note saying Duga makes the edit at once, publicly,
+  from the contributor's own account. That button is the per-edit
+  confirmation SPEC.md section 9 asks for; it replaced an earlier
+  preview-then-confirm round trip that only repeated the typed value back.
+  This is the reason token persistence (below) exists -- the `POST` is a
   separate HTTP request from the one that authenticated it.
 - SPEC.md S8 ("global write kill switch checked immediately before every
-  write") — `DUGA_WRITES_ENABLED` is read fresh at the top of the confirm
+  write") — `DUGA_WRITES_ENABLED` is read fresh at the top of the Publish
   handler, not cached; `DUGA_MAX_WRITES_PER_HOUR_PER_USER` and
   `_GLOBAL` are enforced the same way, counting recent `wiki_edit` rows.
 - Token persistence: `app/token_crypto.py` (Fernet symmetric encryption,
@@ -543,7 +544,7 @@ than an editing action:
 - **Two steps, not a button.** A link opens a confirmation page
   (`app/templates/suppress_confirm.html`) that states the real blast radius
   -- every language, every visitor, not just the row it was clicked from --
-  and only then posts. Same preview/confirm shape as every write path.
+  and only then posts.
 - **A reason is required**, unlike the optional one on gap overrides. S4
   asks for a logged reason; the confirmation page's wording is deliberately
   "why? (recorded)" rather than anything that reads like justifying yourself
@@ -857,7 +858,7 @@ state -- `lifecycle = 'upstream'`, `lexeme_id` set, `sense_id` still NULL
   joins `label`/`description` in `ALLOWED_EDIT_KINDS` (guardrail 6's
   explicit allowlist).
 - `GET`/`POST /term/<id>/add-sense` (`app/blueprints/write/routes.py`) --
-  same shape as every other write in this app: two-step preview/confirm,
+  same shape as the gap edit: one Publish step with the explanatory note,
   the S8 kill switch re-checked immediately before the API call (not
   earlier), the same per-user/global hourly rate limit `_rate_limited()`
   already enforced, `wiki_edit` written before and after, `audit_log`

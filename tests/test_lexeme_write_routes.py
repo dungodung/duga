@@ -106,17 +106,16 @@ def test_add_sense_form_404s_when_sense_already_set(client, db, seed_languages, 
     assert resp.status_code == 404
 
 
-# -- POST /term/<id>/add-sense: preview step (no write yet) -----------------
+# -- GET /term/<id>/add-sense: one step, Publish ---------------------------
 
 
-def test_submit_without_confirmed_shows_preview_and_writes_nothing(client, db, seed_languages, logged_in_with_token):
+def test_add_sense_form_publishes_in_one_step_and_says_so(client, db, seed_languages, logged_in_with_token):
     concept = make_concept()
     term = make_term(concept)
-    resp = client.post(f"/term/{term.id}/add-sense?uselang=en", data={"gloss": "нека дефиниција"})
-    assert resp.status_code == 200
-    assert "нека дефиниција".encode() in resp.data
-    assert WikiEdit.query.count() == 0
-    assert db.session.get(Term, term.id).sense_id is None
+    body = client.get(f"/term/{term.id}/add-sense?uselang=en").data.decode()
+    assert ">Publish</button>" in body
+    assert "from your account" in body
+    assert "Preview" not in body
 
 
 def test_submit_without_gloss_flashes_error_and_redirects(client, db, seed_languages, logged_in_with_token):
@@ -127,16 +126,16 @@ def test_submit_without_gloss_flashes_error_and_redirects(client, db, seed_langu
     assert WikiEdit.query.count() == 0
 
 
-# -- POST /term/<id>/add-sense: confirmed step (real write) -----------------
+# -- POST /term/<id>/add-sense: Publish (real write) -----------------------
 
 
 @responses.activate
-def test_confirmed_submit_writes_and_updates_term(client, db, seed_languages, logged_in_with_token):
+def test_publish_writes_and_updates_term(client, db, seed_languages, logged_in_with_token):
     mock_add_sense(sense_id="L1-S1", revid=777)
     concept = make_concept()
     term = make_term(concept)
 
-    resp = client.post(f"/term/{term.id}/add-sense", data={"gloss": "нека дефиниција", "confirmed": "1"})
+    resp = client.post(f"/term/{term.id}/add-sense", data={"gloss": "нека дефиниција"})
     assert resp.status_code == 302
 
     updated = db.session.get(Term, term.id)
@@ -152,11 +151,11 @@ def test_confirmed_submit_writes_and_updates_term(client, db, seed_languages, lo
 
 
 @responses.activate
-def test_confirmed_submit_writes_audit_log_entries(client, db, seed_languages, logged_in_with_token):
+def test_publish_writes_audit_log_entries(client, db, seed_languages, logged_in_with_token):
     mock_add_sense(sense_id="L1-S1", revid=555)
     concept = make_concept()
     term = make_term(concept)
-    client.post(f"/term/{term.id}/add-sense", data={"gloss": "нека дефиниција", "confirmed": "1"})
+    client.post(f"/term/{term.id}/add-sense", data={"gloss": "нека дефиниција"})
 
     actions = {entry.action for entry in AuditLog.query.all()}
     assert "wiki_edit_attempt" in actions
@@ -167,17 +166,17 @@ def test_confirmed_submit_writes_audit_log_entries(client, db, seed_languages, l
     assert json.loads(sense_entry.after_json)["sense_id"] == "L1-S1"
 
 
-def test_confirmed_submit_blocked_by_kill_switch(client, app, db, seed_languages, logged_in_with_token):
+def test_publish_blocked_by_kill_switch(client, app, db, seed_languages, logged_in_with_token):
     app.config["DUGA_WRITES_ENABLED"] = False
     concept = make_concept()
     term = make_term(concept)
-    resp = client.post(f"/term/{term.id}/add-sense?uselang=en", data={"gloss": "x", "confirmed": "1"}, follow_redirects=True)
+    resp = client.post(f"/term/{term.id}/add-sense?uselang=en", data={"gloss": "x"}, follow_redirects=True)
     assert b"temporarily disabled" in resp.data
     assert WikiEdit.query.count() == 0
     assert db.session.get(Term, term.id).sense_id is None
 
 
-def test_confirmed_submit_blocked_by_per_user_rate_limit(client, app, db, seed_languages, logged_in_with_token):
+def test_publish_blocked_by_per_user_rate_limit(client, app, db, seed_languages, logged_in_with_token):
     app.config["DUGA_MAX_WRITES_PER_HOUR_PER_USER"] = 1
     now = datetime.now(timezone.utc)
     db.session.add(
@@ -190,13 +189,13 @@ def test_confirmed_submit_blocked_by_per_user_rate_limit(client, app, db, seed_l
 
     concept = make_concept()
     term = make_term(concept)
-    resp = client.post(f"/term/{term.id}/add-sense?uselang=en", data={"gloss": "x", "confirmed": "1"}, follow_redirects=True)
+    resp = client.post(f"/term/{term.id}/add-sense?uselang=en", data={"gloss": "x"}, follow_redirects=True)
     assert b"Too many edits" in resp.data
     assert db.session.get(Term, term.id).sense_id is None
 
 
 @responses.activate
-def test_confirmed_submit_records_failure_without_updating_term(client, db, seed_languages, logged_in_with_token):
+def test_publish_records_failure_without_updating_term(client, db, seed_languages, logged_in_with_token):
     responses.add(
         responses.GET, API_URL, json={"query": {"tokens": {"csrftoken": "abc"}}}, status=200,
     )
@@ -204,7 +203,7 @@ def test_confirmed_submit_records_failure_without_updating_term(client, db, seed
 
     concept = make_concept()
     term = make_term(concept)
-    resp = client.post(f"/term/{term.id}/add-sense?uselang=en", data={"gloss": "x", "confirmed": "1"}, follow_redirects=True)
+    resp = client.post(f"/term/{term.id}/add-sense?uselang=en", data={"gloss": "x"}, follow_redirects=True)
     assert b"edit failed" in resp.data
 
     assert db.session.get(Term, term.id).sense_id is None
@@ -213,10 +212,10 @@ def test_confirmed_submit_records_failure_without_updating_term(client, db, seed
     assert "blocked" in wiki_edit.error
 
 
-def test_confirmed_submit_without_stored_token_prompts_relogin(client, db, seed_languages, logged_in):
+def test_publish_without_stored_token_prompts_relogin(client, db, seed_languages, logged_in):
     concept = make_concept()
     term = make_term(concept)
-    resp = client.post(f"/term/{term.id}/add-sense", data={"gloss": "x", "confirmed": "1"})
+    resp = client.post(f"/term/{term.id}/add-sense", data={"gloss": "x"})
     assert resp.status_code == 302
     assert "/login" in resp.location
     assert WikiEdit.query.count() == 0

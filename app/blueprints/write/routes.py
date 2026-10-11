@@ -3,9 +3,9 @@ S8). Every write here:
   1. checks the global kill switch immediately before the request (S8) --
      not cached, not checked earlier in the flow, read fresh right before
      the Wikidata API call
-  2. shows an exact preview and requires a second, explicit confirmation
-     before anything is written (same request path handles both: no
-     "confirmed" field renders the preview, "confirmed=1" performs the write)
+  2. is made only when the person presses Publish on a form showing
+     exactly what will be written, beside a note saying Duga will make the
+     edit from their account -- one explicit confirmation per edit
   3. uses an edit summary naming Duga and linking to the tool
      (app/wikidata_write.py:edit_summary)
   4. logs to wiki_edit and audit_log before and after (guardrail 11) -- a
@@ -128,8 +128,6 @@ def edit_form(gap_id):
         edit_kind=EDITABLE_GAP_TYPES[gap.gap_type],
         label=_gap_evidence_label(gap),
         english=_english_reference(gap),
-        value="",
-        confirming=False,
     )
 
 
@@ -140,26 +138,10 @@ def edit_submit(gap_id):
     edit_kind = EDITABLE_GAP_TYPES[gap.gap_type]
     contributor = current_contributor()
     value = (request.form.get("value") or "").strip()
-    confirmed = request.form.get("confirmed") == "1"
 
     if not value:
         flash(_t("duga-write-error-required"))
         return redirect(url_for("write.edit_form", gap_id=gap_id))
-
-    if not confirmed:
-        # Step 1 of 2: show the exact preview. Nothing is written yet --
-        # no DB row, no Wikidata call (SPEC.md section 9, requirement 2).
-        return render_template(
-            "gap_edit.html",
-            gap=gap,
-            edit_kind=edit_kind,
-            label=_gap_evidence_label(gap),
-            english=_english_reference(gap),
-            value=value,
-            confirming=True,
-        )
-
-    # --- Step 2 of 2: the person has seen the preview and confirmed. ---
 
     if not current_app.config["DUGA_WRITES_ENABLED"]:  # S8, checked here, not earlier
         flash(_t("duga-write-error-disabled"))
@@ -249,7 +231,6 @@ def add_sense_form(term_id):
         "term_add_sense.html",
         term=term,
         gloss=term.usage_note or "",
-        confirming=False,
     )
 
 
@@ -259,17 +240,10 @@ def add_sense_submit(term_id):
     term = _term_awaiting_sense_or_404(term_id)
     contributor = current_contributor()
     gloss = (request.form.get("gloss") or "").strip()
-    confirmed = request.form.get("confirmed") == "1"
 
     if not gloss:
         flash(_t("duga-write-error-required"))
         return redirect(url_for("write.add_sense_form", term_id=term_id))
-
-    if not confirmed:
-        # Step 1 of 2: show the exact preview. Nothing is written yet.
-        return render_template("term_add_sense.html", term=term, gloss=gloss, confirming=True)
-
-    # --- Step 2 of 2: the person has seen the preview and confirmed. ---
 
     if not current_app.config["DUGA_WRITES_ENABLED"]:  # S8, checked here, not earlier
         flash(_t("duga-write-error-disabled"))

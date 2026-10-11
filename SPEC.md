@@ -494,7 +494,9 @@ Duga may **never** write:
 Every write path must:
 
 1. check the global kill switch immediately before the request
-2. show the user an exact preview of the change and require confirmation
+2. show the user exactly what will be written and require an explicit action for
+   each edit: a Publish button, beside a note saying the edit is made at once,
+   publicly, from their own account (no separate preview step)
 3. include an edit summary naming Duga and linking to the tool
 4. log to `wiki_edit` and `audit_log` before and after
 5. respect per-user and global rate limits

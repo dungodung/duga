@@ -83,16 +83,17 @@ def test_edit_form_404s_for_overridden_gap(client, db, seed_languages, logged_in
     assert resp.status_code == 404
 
 
-# -- POST /gap/<id>/edit: preview step (no write yet) --------------------
+# -- GET /gap/<id>/edit: one step, Publish --------------------------------
 
 
-def test_submit_without_confirmed_shows_preview_and_writes_nothing(client, db, seed_languages, logged_in_with_token):
+def test_edit_form_publishes_in_one_step_and_says_so(client, db, seed_languages, logged_in_with_token):
+    """No preview: Publish beside a note saying the edit goes out at once,
+    from the person's own account, is the per-edit confirmation."""
     gap = make_gap()
-    resp = client.post(f"/gap/{gap.id}/edit?uselang=en", data={"value": "нова ознака"})
-    assert resp.status_code == 200
-    assert "нова ознака".encode() in resp.data
-    assert WikiEdit.query.count() == 0
-    assert Gap.query.count() == 1  # untouched
+    body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
+    assert ">Publish</button>" in body
+    assert "from your account" in body
+    assert "Preview" not in body
 
 
 def test_submit_without_value_flashes_error_and_redirects(client, db, seed_languages, logged_in_with_token):
@@ -102,16 +103,16 @@ def test_submit_without_value_flashes_error_and_redirects(client, db, seed_langu
     assert WikiEdit.query.count() == 0
 
 
-# -- POST /gap/<id>/edit: confirmed step (real write) ---------------------
+# -- POST /gap/<id>/edit: Publish (real write) -----------------------------
 
 
 @responses.activate
-def test_confirmed_submit_writes_and_removes_gap(client, db, seed_languages, logged_in_with_token):
+def test_publish_writes_and_removes_gap(client, db, seed_languages, logged_in_with_token):
     mock_wikidata_write(revid=777)
     gap = make_gap(gap_type="no_label")
     gap_id = gap.id
 
-    resp = client.post(f"/gap/{gap_id}/edit", data={"value": "нова ознака", "confirmed": "1"})
+    resp = client.post(f"/gap/{gap_id}/edit", data={"value": "нова ознака"})
     assert resp.status_code == 302
 
     assert Gap.query.filter_by(id=gap_id).count() == 0
@@ -125,10 +126,10 @@ def test_confirmed_submit_writes_and_removes_gap(client, db, seed_languages, log
 
 
 @responses.activate
-def test_confirmed_submit_for_description_gap_calls_set_description(client, db, seed_languages, logged_in_with_token):
+def test_publish_for_description_gap_calls_set_description(client, db, seed_languages, logged_in_with_token):
     mock_wikidata_write()
     gap = make_gap(gap_type="no_description")
-    resp = client.post(f"/gap/{gap.id}/edit", data={"value": "опис", "confirmed": "1"})
+    resp = client.post(f"/gap/{gap.id}/edit", data={"value": "опис"})
     assert resp.status_code == 302
 
     wiki_edit = WikiEdit.query.first()
@@ -136,10 +137,10 @@ def test_confirmed_submit_for_description_gap_calls_set_description(client, db, 
 
 
 @responses.activate
-def test_confirmed_submit_writes_audit_log_entries(client, db, seed_languages, logged_in_with_token):
+def test_publish_writes_audit_log_entries(client, db, seed_languages, logged_in_with_token):
     mock_wikidata_write(revid=555)
     gap = make_gap()
-    client.post(f"/gap/{gap.id}/edit", data={"value": "нова ознака", "confirmed": "1"})
+    client.post(f"/gap/{gap.id}/edit", data={"value": "нова ознака"})
 
     actions = {entry.action for entry in AuditLog.query.all()}
     assert "wiki_edit_attempt" in actions
@@ -149,16 +150,16 @@ def test_confirmed_submit_writes_audit_log_entries(client, db, seed_languages, l
     assert json.loads(success_entry.after_json)["revid"] == 555
 
 
-def test_confirmed_submit_blocked_by_kill_switch(client, app, db, seed_languages, logged_in_with_token):
+def test_publish_blocked_by_kill_switch(client, app, db, seed_languages, logged_in_with_token):
     app.config["DUGA_WRITES_ENABLED"] = False
     gap = make_gap()
-    resp = client.post(f"/gap/{gap.id}/edit?uselang=en", data={"value": "x", "confirmed": "1"}, follow_redirects=True)
+    resp = client.post(f"/gap/{gap.id}/edit?uselang=en", data={"value": "x"}, follow_redirects=True)
     assert b"temporarily disabled" in resp.data
     assert WikiEdit.query.count() == 0
     assert Gap.query.count() == 1
 
 
-def test_confirmed_submit_blocked_by_per_user_rate_limit(client, app, db, seed_languages, logged_in_with_token):
+def test_publish_blocked_by_per_user_rate_limit(client, app, db, seed_languages, logged_in_with_token):
     app.config["DUGA_MAX_WRITES_PER_HOUR_PER_USER"] = 1
     now = datetime.now(timezone.utc)
     db.session.add(
@@ -170,20 +171,20 @@ def test_confirmed_submit_blocked_by_per_user_rate_limit(client, app, db, seed_l
     db.session.commit()
 
     gap = make_gap()
-    resp = client.post(f"/gap/{gap.id}/edit?uselang=en", data={"value": "x", "confirmed": "1"}, follow_redirects=True)
+    resp = client.post(f"/gap/{gap.id}/edit?uselang=en", data={"value": "x"}, follow_redirects=True)
     assert b"Too many edits" in resp.data
     assert Gap.query.count() == 1
 
 
 @responses.activate
-def test_confirmed_submit_records_failure_without_removing_gap(client, db, seed_languages, logged_in_with_token):
+def test_publish_records_failure_without_removing_gap(client, db, seed_languages, logged_in_with_token):
     responses.add(
         responses.GET, API_URL, json={"query": {"tokens": {"csrftoken": "abc"}}}, status=200,
     )
     responses.add(responses.POST, API_URL, json={"error": {"code": "permissiondenied", "info": "blocked"}}, status=200)
 
     gap = make_gap()
-    resp = client.post(f"/gap/{gap.id}/edit?uselang=en", data={"value": "x", "confirmed": "1"}, follow_redirects=True)
+    resp = client.post(f"/gap/{gap.id}/edit?uselang=en", data={"value": "x"}, follow_redirects=True)
     assert b"edit failed" in resp.data
 
     assert Gap.query.count() == 1  # not removed on failure
@@ -192,10 +193,10 @@ def test_confirmed_submit_records_failure_without_removing_gap(client, db, seed_
     assert "blocked" in wiki_edit.error
 
 
-def test_confirmed_submit_without_stored_token_prompts_relogin(client, db, seed_languages, logged_in):
+def test_publish_without_stored_token_prompts_relogin(client, db, seed_languages, logged_in):
     """logged_in (not logged_in_with_token) has no ContributorToken row."""
     gap = make_gap()
-    resp = client.post(f"/gap/{gap.id}/edit", data={"value": "x", "confirmed": "1"})
+    resp = client.post(f"/gap/{gap.id}/edit", data={"value": "x"})
     assert resp.status_code == 302
     assert "/login" in resp.location
     assert WikiEdit.query.count() == 0
@@ -257,16 +258,6 @@ def test_edit_form_omits_the_block_entirely_when_nothing_was_recorded(client, db
 
     body = client.get(f"/gap/{gap.id}/edit?uselang=en").data.decode()
     assert "english-reference" not in body
-
-
-def test_the_english_reference_survives_to_the_confirm_step(client, db, seed_languages, logged_in_with_token):
-    gap = _wikidata_gap(db, evidence={
-        "label": "Живa", "label_lang": "sr", "label_en": "Mercury",
-        "description_en": "chemical element with symbol Hg",
-    })
-
-    body = client.post(f"/gap/{gap.id}/edit", data={"value": "хемијски елемент"}).data.decode()
-    assert "chemical element with symbol Hg" in body
 
 
 def test_the_english_text_is_marked_as_english(client, db, seed_languages, logged_in_with_token):

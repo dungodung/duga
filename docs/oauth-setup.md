@@ -54,9 +54,8 @@ profile, and upserts a `Contributor` row keyed by the profile's `username`.
 As of M6, the access/refresh tokens are also stored, encrypted at rest
 (`app/token_crypto.py`, Fernet, keyed by `DUGA_TOKEN_ENCRYPTION_KEY`) via
 `app/token_store.py`, one row per contributor in `contributor_token`. This
-is needed because the Wikidata write flow (`/gap/<id>/edit`) is a
-preview-then-confirm form spanning two requests, and the confirm step needs
-a token to act with. `token_store.get_valid_access_token()` transparently
+is needed because the Wikidata write flow (`/gap/<id>/edit`) publishes in
+a later request than the login, and that request needs a token to act with. `token_store.get_valid_access_token()` transparently
 refreshes an expiring token; if no usable token exists, the write route
 sends the contributor back through `/login` rather than failing partway.
 See `docs/architecture.md`'s M6 section for the full write path.
