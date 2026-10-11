@@ -38,7 +38,7 @@
 {% endif %}
 
 <p>
-  <a href="https://www.wikidata.org/wiki/{{ gap.topic_qid }}">{{ _('duga-write-view-on-wikidata') }}</a>
+  <a href="https://www.wikidata.org/wiki/{{ gap.topic_qid }}" target="_blank" rel="noopener">{{ _('duga-write-view-on-wikidata') }}</a>
   · <a href="{{ url_for('main.gaps', lang=gap.language_code) }}">{{ _('duga-gaps-back') }}</a>
 </p>
 {% endblock %}

@@ -88,9 +88,9 @@
     <div class="gap-actions">
       {% if edit_here %}
       <a class="button gap-primary" href="{{ url_for('write.edit_form', gap_id=item.id) }}">{{ _('duga-gaps-edit-here-button') }}</a>
-      <a class="gap-action" href="{{ item.action_url }}">{{ _('duga-gaps-fix-also-on-wikidata') }}</a>
+      <a class="gap-action" href="{{ item.action_url }}" target="_blank" rel="noopener">{{ _('duga-gaps-fix-also-on-wikidata') }}</a>
       {% else %}
-      <a class="button gap-primary" href="{{ item.action_url }}">{{ _(fix_key) }}</a>
+      <a class="button gap-primary" href="{{ item.action_url }}"{% if item.fix_target != 'duga' %} target="_blank" rel="noopener"{% endif %}>{{ _(fix_key) }}</a>
       {% endif %}
       {% if item.vocabulary_url %}
       {# A missing label/description on a non-person topic is exactly when

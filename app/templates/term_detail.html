@@ -12,7 +12,7 @@
 <p class="term-meta">
   {{ _('duga-vocab-lifecycle-' ~ term.lifecycle) }}
   {% if term.lexeme_id %}
-  · <a href="https://www.wikidata.org/wiki/Lexeme:{{ term.lexeme_id }}">{{ term.sense_id or term.lexeme_id }}</a>
+  · <a href="https://www.wikidata.org/wiki/Lexeme:{{ term.lexeme_id }}" target="_blank" rel="noopener">{{ term.sense_id or term.lexeme_id }}</a>
   {% endif %}
 </p>
 
@@ -59,7 +59,7 @@
   {% for item in evidence %}
   <li>
     {{ _('duga-vocab-evidence-kind-' ~ item.row.kind) }}: {{ item.row.citation }}
-    {% if item.row.url %}(<a href="{{ item.row.url }}">{{ _('duga-vocab-evidence-link') }}</a>){% endif %}
+    {% if item.row.url %}(<a href="{{ item.row.url }}" target="_blank" rel="noopener">{{ _('duga-vocab-evidence-link') }}</a>){% endif %}
     {% if item.row.kind == 'organisation' and item.row.org_name %}
     — {{ item.row.org_name }}{% if item.row.year %} ({{ item.row.year }}){% endif %}
     {% endif %}

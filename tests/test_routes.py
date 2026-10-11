@@ -1449,3 +1449,18 @@ def test_page_titles_name_the_language_in_the_interface_language_too(client, see
 def test_page_titles_use_the_autonym_alone_when_the_names_would_repeat(client, seed_languages):
     # Serbian calls itself "српски": "Српски (Српски)" would only stutter.
     assert "<h1>Празнине за Српски</h1>" in client.get("/sr/gaps?uselang=sr").data.decode()
+
+
+def test_every_link_that_leaves_duga_opens_in_a_new_tab(client, db, seed_languages):
+    """So that following a fix out to Wikidata never loses your place in a
+    filtered, paged gap list."""
+    import re
+
+    db.session.add_all([_gap("Q1", "Topic one"), _topic_row("Q1")])
+    db.session.commit()
+    for url in ("/sr/gaps?uselang=en", "/topic/Q1?uselang=en"):
+        body = client.get(url).data.decode()
+        links = re.findall(r'<a [^>]*href="https?://[^>]*>', body)
+        assert links, url
+        for link in links:
+            assert 'target="_blank" rel="noopener"' in link, link

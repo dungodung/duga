@@ -28,7 +28,7 @@
 {% endif %}
 
 <p>
-  <a href="https://www.wikidata.org/wiki/Lexeme:{{ term.lexeme_id }}">{{ _('duga-write-view-on-wikidata') }}</a>
+  <a href="https://www.wikidata.org/wiki/Lexeme:{{ term.lexeme_id }}" target="_blank" rel="noopener">{{ _('duga-write-view-on-wikidata') }}</a>
   · <a href="{{ url_for('vocab.term_detail', lang=term.language_code, term_id=term.id) }}">{{ _('duga-write-back-to-term', term.written_form) }}</a>
 </p>
 {% endblock %}

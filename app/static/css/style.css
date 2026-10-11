@@ -880,10 +880,11 @@ summary:focus:not(:focus-visible) {
   justify-content: center;
 }
 
-/* Marks a link that leaves Duga. The alt text after the slash keeps
-   screen readers from announcing "north east arrow"; browsers that do not
+/* Marks a link that leaves Duga -- every one of which opens in a new tab,
+   so the arrow promises both. The alt text after the slash keeps screen
+   readers from announcing "north east arrow"; browsers that do not
    understand it drop the whole declaration and fall back to the first. */
-.gap-actions a[href^="http"]::after {
+a[target="_blank"]::after {
   content: "\00a0\2197";
   content: "\00a0\2197" / "";
 }
