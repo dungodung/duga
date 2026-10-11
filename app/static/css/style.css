@@ -1174,7 +1174,10 @@ form button[type="submit"] {
     margin-inline-start: 0;
   }
 
-  .gap-dismiss-form {
+  /* The panel takes the tile's full width, so the hints get a line each
+     on a desktop instead of wrapping at --measure; only the text field,
+     which would otherwise stretch to 70rem, keeps a reading width. */
+  .gap-dismiss-form input[type="text"] {
     max-width: var(--measure);
   }
 
