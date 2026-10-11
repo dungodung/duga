@@ -1488,3 +1488,36 @@ def test_a_page_past_the_end_shows_the_last_page(client, db, seed_languages):
     body = client.get("/sr/gaps?page=3&uselang=en").data.decode()
     assert "Page 2 of 2" in body
     assert "Showing 51" in body
+
+
+def _no_article_gap(qid, label, label_lang, lang="sr"):
+    gap = _gap(qid, label, lang=lang)
+    gap.evidence_json = json.dumps({"label": label, "label_lang": label_lang})
+    return gap
+
+
+def test_a_missing_article_with_a_local_label_is_fixed_on_wikipedia(client, db, seed_languages):
+    db.session.add_all([_no_article_gap("Q1", "Мери Дејли", "sr"), _topic_row("Q1")])
+    db.session.commit()
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    url = "https://sr.wikipedia.org/w/index.php?title=%D0%9C%D0%B5%D1%80%D0%B8+%D0%94%D0%B5%D1%98%D0%BB%D0%B8&amp;action=edit"
+    assert f'<a class="button gap-primary" href="{url}" target="_blank" rel="noopener">Fix on Wikipedia</a>' in body
+    assert "or link an existing article on Wikidata" in body
+    assert url in client.get("/topic/Q1?lang=sr&uselang=en").data.decode()
+
+
+def test_a_missing_article_with_only_an_english_label_is_fixed_on_wikidata(client, db, seed_languages):
+    """"Mary Daly" is no title for a Serbian article."""
+    db.session.add(_no_article_gap("Q1", "Mary Daly", "en"))
+    db.session.commit()
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    assert "Fix on Wikipedia" not in body
+    assert ">Fix on Wikidata</a>" in body
+
+
+def test_wikipedia_hosts_follow_the_wikis_own_codes():
+    from app.wikipedia import create_article_url, wikipedia_dbname
+
+    assert create_article_url("nb", "Mary Daly").startswith("https://no.wikipedia.org/")
+    assert wikipedia_dbname("nb") == "nowiki"
+    assert wikipedia_dbname("sr") == "srwiki"

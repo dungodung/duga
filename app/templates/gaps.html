@@ -106,6 +106,12 @@
       {% if edit_here %}
       <a class="button gap-primary" href="{{ url_for('write.edit_form', gap_id=item.id, next=current_path) }}">{{ _('duga-gaps-edit-here-button') }}</a>
       <a class="gap-action" href="{{ item.action_url }}" target="_blank" rel="noopener">{{ _('duga-gaps-fix-also-on-wikidata') }}</a>
+      {% elif item.create_url %}
+      {# The item has a label in this language, so the article can be
+         started right away under that title. Wikidata stays one click
+         away: an article may exist that just isn't linked yet. #}
+      <a class="button gap-primary" href="{{ item.create_url }}" target="_blank" rel="noopener">{{ _('duga-gaps-fix-wikipedia') }}</a>
+      <a class="gap-action" href="{{ item.action_url }}" target="_blank" rel="noopener">{{ _('duga-gaps-link-on-wikidata') }}</a>
       {% else %}
       <a class="button gap-primary" href="{{ item.action_url }}"{% if item.fix_target != 'duga' %} target="_blank" rel="noopener"{% endif %}>{{ _(fix_key) }}</a>
       {% endif %}

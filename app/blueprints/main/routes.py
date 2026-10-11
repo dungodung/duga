@@ -12,6 +12,7 @@ from ... import i18n
 from ...audit import log as audit_log
 from ...extensions import db
 from ...models import Detector, Gap, GapOverride, Language, ScopeRule, Topic, TopicRule
+from ...wikipedia import create_article_url
 from ...wikidata_write import EDITABLE_GAP_TYPES
 from ..auth.routes import current_contributor, local_path, login_required
 
@@ -472,6 +473,7 @@ def gaps(lang):
                 "maturity": detector_maturity.get(row.detector_key, UNREGISTERED_MATURITY),
                 "action_url": row.action_url,
                 "fix_target": fix_target(row.action_url),
+                "create_url": create_url(row, evidence),
                 "why_in_scope": rules_by_topic.get((row.scope_version_id, row.topic_qid), []),
                 "editable": row.project_code == "wikidata" and row.gap_type in EDITABLE_GAP_TYPES,
                 "vocabulary_url": (
@@ -620,6 +622,7 @@ def topic_detail(qid):
                 "maturity": detector_maturity.get(row.detector_key, UNREGISTERED_MATURITY),
                 "action_url": row.action_url,
                 "fix_target": fix_target(row.action_url),
+                "create_url": create_url(row, evidence),
             }
         )
 
@@ -663,6 +666,18 @@ def _redirect_lang(default_endpoint="main.home"):
     if lang and Language.query.filter_by(code=lang, seeded=True).first() is not None:
         return lang
     return None
+
+
+def create_url(row, evidence):
+    """For a missing Wikipedia article whose item already has a label in
+    that language: a link that opens the new article on that Wikipedia,
+    titled with the label. None otherwise -- an English fallback label
+    is no title for a Serbian article."""
+    if row.project_code != "wikipedia" or row.gap_type != "no_article":
+        return None
+    if not evidence.get("label") or evidence.get("label_lang") != row.language_code:
+        return None
+    return create_article_url(row.language_code, evidence["label"])
 
 
 def fix_target(action_url):

@@ -233,6 +233,8 @@ def _publish(gap, value, contributor, access_token):
     # (SPEC.md guardrail 8), but removing it now means the person sees it
     # actually disappear rather than wondering if the edit "really" worked.
     Gap.query.filter_by(id=gap.id).delete()
+    if edit_kind == "label":
+        _relabel_open_gaps(gap, value)
     audit_log(
         actor=contributor.wiki_username,
         action="wiki_edit_success",
@@ -243,6 +245,29 @@ def _publish(gap, value, contributor, access_token):
     )
     db.session.commit()
     return None
+
+
+def _relabel_open_gaps(gap, label):
+    """The item now has a label in this language: let its other gaps here
+    show it at once, rather than the English fallback until tonight's
+    detector run rewrites them. It is also what turns a missing Wikipedia
+    article's fix into "Fix on Wikipedia" -- the label is the title."""
+    siblings = Gap.query.filter(
+        Gap.topic_qid == gap.topic_qid,
+        Gap.language_code == gap.language_code,
+        Gap.id != gap.id,
+    ).all()
+    for sibling in siblings:
+        evidence = json.loads(sibling.evidence_json) if sibling.evidence_json else {}
+        if evidence.get("label_lang") == gap.language_code and evidence.get("label"):
+            continue
+        # An English label moves to label_en, where the edit form's
+        # reference box looks for it, before the local one replaces it.
+        if evidence.get("label") and evidence.get("label_lang") == "en":
+            evidence.setdefault("label_en", evidence["label"])
+        evidence["label"] = label
+        evidence["label_lang"] = gap.language_code
+        sibling.evidence_json = json.dumps(evidence, ensure_ascii=False)
 
 
 def _cannot_write_now(contributor):

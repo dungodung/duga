@@ -23,6 +23,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app  # noqa: E402
+from app.wikipedia import wikipedia_dbname as _wikipedia_dbname  # noqa: E402
 from jobs.detector_common import chunks, run_presence_detector  # noqa: E402
 from jobs.wikimedia_api import MAX_ENTITY_IDS_PER_REQUEST, get_entities_batch  # noqa: E402
 
@@ -31,17 +32,8 @@ PROJECT_CODE = "wikipedia"
 GAP_TYPE = "no_article"
 DESCRIPTION = "Missing Wikipedia article in a tracked language for an in-scope topic."
 
-# Wikipedia site-key exceptions where it isn't simply f"{code}wiki" --
-# extend as new seeded languages hit one (SPEC.md section 13: Wikimedia
-# language codes, not ISO, and Wikipedia's own db-name convention has its
-# own historical quirks on top of that).
-WIKIPEDIA_DBNAME_OVERRIDES = {
-    "nb": "nowiki",
-}
-
-
-def wikipedia_dbname(language_code: str) -> str:
-    return WIKIPEDIA_DBNAME_OVERRIDES.get(language_code, f"{language_code}wiki")
+# Re-exported: jobs/impact_score.py and the tests import it from here.
+wikipedia_dbname = _wikipedia_dbname
 
 
 def action_url(qid: str, language_code: str) -> str:

@@ -497,3 +497,23 @@ def test_the_second_edit_respects_the_rate_limit_on_its_own(client, app, db, see
     assert "Too many edits recently" in resp.data.decode()
     assert WikiEdit.query.count() == 1
     assert [g.id for g in Gap.query.all()] == [description_gap.id]
+
+
+@responses.activate
+def test_a_published_label_reaches_the_items_other_gaps_at_once(client, db, seed_languages, logged_in_with_token):
+    """So a missing Wikipedia article offers "Fix on Wikipedia" straight
+    after the label is added, not after tonight's detector run."""
+    mock_wikidata_write()
+    label_gap = make_gap(gap_type="no_label", label="Mary Daly")
+    article = make_gap(gap_type="no_article", project_code="wikipedia", label="Mary Daly")
+    article.evidence_json = json.dumps({"label": "Mary Daly", "label_lang": "en"})
+    other_language = make_gap(gap_type="no_article", project_code="wikipedia", label="Mary Daly", lang="fr")
+    db.session.commit()
+
+    client.post(f"/gap/{label_gap.id}/edit", data={"value": "Мери Дејли"})
+
+    evidence = json.loads(db.session.get(Gap, article.id).evidence_json)
+    assert evidence == {"label": "Мери Дејли", "label_lang": "sr", "label_en": "Mary Daly"}
+    assert json.loads(db.session.get(Gap, other_language.id).evidence_json)["label"] == "Mary Daly"
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    assert "Fix on Wikipedia" in body
