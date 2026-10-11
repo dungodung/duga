@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}{{ _('duga-vocab-title', language.autonym) }}{% endblock %}
-{% block description %}{{ _('duga-vocab-meta-description', language.autonym) }}{% endblock %}
+{% block title %}{{ _('duga-vocab-title', language_label(language)) }}{% endblock %}
+{% block description %}{{ _('duga-vocab-meta-description', language_label(language)) }}{% endblock %}
 {% block content %}
-<h1>{{ _('duga-vocab-title', language.autonym) }}</h1>
+<h1>{{ _('duga-vocab-title', language_label(language)) }}</h1>
 
 {% if contributor %}
 <form id="add-term-form" method="post" action="{{ url_for('vocab.add_term', lang=language.code) }}" class="vocab-add-form">
@@ -17,7 +17,7 @@
     </datalist>
   </p>
   <p>
-    <label for="written_form">{{ _('duga-vocab-add-word-label', language.autonym) }}</label><br>
+    <label for="written_form">{{ _('duga-vocab-add-word-label', language_label(language)) }}</label><br>
     <input type="text" id="written_form" name="written_form" lang="{{ language.code }}" required>
   </p>
   <p>

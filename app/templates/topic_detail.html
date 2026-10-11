@@ -30,7 +30,7 @@
     <div class="gap-meta">{{ _('duga-gaps-maturity-' ~ gap.maturity) }}</div>
     <div class="gap-actions">
       <a class="gap-action" href="{{ gap.action_url }}">{{ _('duga-gaps-fix-button' if gap.fix_target == 'external' else 'duga-gaps-fix-' ~ gap.fix_target) }}</a>
-      <a class="gap-action" href="{{ url_for('main.gaps', lang=language.code) }}">{{ _('duga-topic-view-language-gaps', language.autonym) }}</a>
+      <a class="gap-action" href="{{ url_for('main.gaps', lang=language.code) }}">{{ _('duga-topic-view-language-gaps', language_label(language)) }}</a>
     </div>
   </li>
   {% endfor %}

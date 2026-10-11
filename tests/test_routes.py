@@ -1435,3 +1435,17 @@ def test_a_gap_label_keeps_its_own_language_tag(client, db, seed_languages):
     db.session.commit()
     body = client.get("/sr/gaps").data.decode()
     assert 'class="gap-label" lang="en"' in body
+
+
+def test_page_titles_name_the_language_in_the_interface_language_too(client, seed_languages):
+    """"Gaps for Српски" is unreadable to somebody who browses in English
+    and doesn't read Cyrillic; the autonym stays, in brackets."""
+    body = client.get("/sr/gaps?uselang=en").data.decode()
+    assert "<h1>Gaps for Serbian (Српски)</h1>" in body
+    assert "<title>Gaps for Serbian (Српски)</title>" in body
+    assert "<h1>Duga in Serbian (Српски)</h1>" in client.get("/sr/?uselang=en").data.decode()
+
+
+def test_page_titles_use_the_autonym_alone_when_the_names_would_repeat(client, seed_languages):
+    # Serbian calls itself "српски": "Српски (Српски)" would only stutter.
+    assert "<h1>Празнине за Српски</h1>" in client.get("/sr/gaps?uselang=sr").data.decode()

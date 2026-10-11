@@ -129,6 +129,12 @@ def create_app(config_name: str = "production") -> Flask:
             "interface_lang": lang,
             "available_languages": i18n.available_languages(),
             "autonym": i18n.autonym,
+            # Takes a Language row or the topic page's {"code", "autonym"} dict.
+            "language_label": lambda language: i18n.language_label(
+                getattr(language, "code", None) or language["code"],
+                getattr(language, "autonym", None) or language["autonym"],
+                lang,
+            ),
             "interface_dir": "rtl" if i18n.is_rtl(lang) else "ltr",
         }
 

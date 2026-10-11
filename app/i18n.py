@@ -240,6 +240,18 @@ def language_name(code, lang):
     return "" if text == key else text
 
 
+def language_label(code, autonym_text, lang):
+    """How a page names a content language in its title: "Serbian
+    (Српски)" in English chrome, so a visitor who can't read Cyrillic still
+    knows where they are, but plain "Српски" in Serbian chrome, where the
+    two names would only repeat each other. Falls back to the autonym alone
+    while nobody has translated the language's name."""
+    name = language_name(code, lang)
+    if not name or name.lower() == autonym_text.lower():
+        return autonym_text
+    return translate("duga-language-label", lang, name, autonym_text)
+
+
 def _load(lang):
     """Parsed messages for one language, or {} if it has no file.
 
